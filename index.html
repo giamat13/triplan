@@ -514,14 +514,76 @@
   @media print{
     body{background:#fff;color:#000;padding:0;}
     .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.attractions .row-actions{display:none !important;}
+    .account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,#sharingPanelToggle{display:none !important;}
     .header-card,.day-card,.section-card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;}
     .hotel-stub{background:#eee !important;color:#000 !important;}
     .perf::before,.perf::after{background:#fff;}
+  }
+
+  /* ---------- Account / sharing ---------- */
+  .account-bar{
+    display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:10px;margin-bottom:12px;
+  }
+  .account-status{
+    font-family:'JetBrains Mono', monospace;font-size:12px;
+    color:var(--paper);opacity:0.8;
+  }
+  .account-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .email-auth-form{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center;}
+  .email-auth-form input{
+    font-family:'Assistant', sans-serif;font-size:13px;
+    border:1.5px solid var(--line-dark);border-radius:8px;padding:6px 10px;
+    background:var(--paper);color:var(--ink-text);outline:none;
+  }
+  .join-code-row{display:flex;gap:6px;align-items:center;}
+  .join-code-row input{
+    font-family:'JetBrains Mono', monospace;font-size:12.5px;
+    background:var(--paper);color:var(--ink-text);
+    border:1.5px solid var(--line-dark);border-radius:8px;
+    padding:7px 10px;width:130px;text-transform:uppercase;
+  }
+  .readonly-banner{
+    background:var(--rust);color:#fff;padding:9px 16px;border-radius:12px;
+    font-size:13.5px;margin-bottom:14px;display:none;
+  }
+  .sharing-panel{
+    background:var(--paper);color:var(--ink-text);border-radius:var(--radius);
+    padding:22px 26px 24px;margin-bottom:22px;
+    box-shadow:0 20px 40px -22px rgba(0,0,0,0.5);
+  }
+  .sharing-panel h3{font-family:'Frank Ruhl Libre',serif;font-size:19px;margin:0 0 14px;}
+  .code-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    border:1.5px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:8px;
+    flex-wrap:wrap;
+  }
+  .code-row .code-label{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);flex:1 1 60px;}
+  .code-row .code-value{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:var(--rust);letter-spacing:0.08em;}
+  .members-list{display:flex;flex-direction:column;gap:2px;margin-top:14px;}
+  .member-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:8px 4px;border-bottom:1px dashed var(--line);font-size:13.5px;
+  }
+  .member-role-badge{
+    font-family:'JetBrains Mono',monospace;font-size:11px;padding:2px 8px;border-radius:6px;
+    background:rgba(76,122,104,0.15);color:var(--pine);text-transform:uppercase;
   }
 </style>
 </head>
 <body>
 <div class="wrap">
+
+  <div class="account-bar" id="accountBar">
+    <span class="account-status" id="accountStatus">מתחבר...</span>
+    <div class="account-actions" id="accountActions"></div>
+  </div>
+  <div class="email-auth-form" id="emailAuthForm" style="display:none;">
+    <input type="email" id="emailAuthEmail" placeholder="אימייל">
+    <input type="password" id="emailAuthPassword" placeholder="סיסמה (לפחות 6 תווים)">
+    <button class="btn btn-primary btn-sm" id="emailAuthSubmit" type="button">התחבר / הרשם</button>
+    <button class="btn-quick" id="emailAuthCancel" type="button">ביטול</button>
+  </div>
 
   <div class="trip-switcher-row">
     <p class="eyebrow">מתכנן טיולים</p>
@@ -529,7 +591,20 @@
       <select id="tripSelect" title="בחר טיול"></select>
       <button class="btn btn-ghost btn-sm" id="newTripBtn" type="button">+ טיול חדש</button>
       <button class="btn btn-ghost btn-sm" id="deleteTripBtn" type="button">מחק טיול</button>
+      <button class="btn btn-ghost btn-sm" id="sharingPanelToggle" type="button">שיתוף וחברים</button>
+      <div class="join-code-row">
+        <input type="text" id="joinCodeInput" placeholder="קוד הצטרפות" maxlength="12">
+        <button class="btn btn-ghost btn-sm" id="joinCodeBtn" type="button">הצטרף</button>
+      </div>
     </div>
+  </div>
+
+  <div class="readonly-banner" id="readonlyBanner">👁️ את/ה צופה בטיול הזה - אין אפשרות לערוך.</div>
+
+  <div class="sharing-panel" id="sharingPanel" style="display:none;">
+    <h3>שיתוף הטיול</h3>
+    <div id="codesArea"></div>
+    <div class="members-list" id="membersArea"></div>
   </div>
 
   <div class="header-card">
@@ -639,7 +714,131 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInAnonymously, signOut,
+  GoogleAuthProvider, signInWithPopup, linkWithPopup,
+  EmailAuthProvider, linkWithCredential,
+  signInWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  initializeFirestore, doc, getDoc, getDocFromServer, setDoc, updateDoc, deleteDoc, deleteField,
+  collection, query, where, getDocs, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics.js";
+
+/* ===== הגדרות Firebase =====
+   הדביקו כאן את הקונפיג מקונסולת Firebase (Project settings > General > Your apps > Web app).
+   ראו את קובץ ההוראות שנשלח בנפרד לשלבי ההגדרה המלאים. */
+const firebaseConfig = {
+  apiKey: "AIzaSyDQLgYhR0IzbeJ6WiFW6Pt-7C1yyTweVOk",
+  authDomain: "triplan-giamat13.firebaseapp.com",
+  projectId: "triplan-giamat13",
+  storageBucket: "triplan-giamat13.firebasestorage.app",
+  messagingSenderId: "213734172132",
+  appId: "1:213734172132:web:7df891d20d3bd4882093f1",
+  measurementId: "G-QRJ04SY23W"
+};
+const FIREBASE_CONFIGURED = firebaseConfig.apiKey !== "REPLACE_ME";
+
+let fbApp, fbAuth, db, currentUser = null, appBooted = false;
+if(FIREBASE_CONFIGURED){
+  fbApp = initializeApp(firebaseConfig);
+  fbAuth = getAuth(fbApp);
+  // autoDetectLongPolling avoids the WebChannel streaming transport, which
+  // ad-blockers / some networks block and which shows up as repeated
+  // "Write/channel" 400/404 console errors even though writes still work.
+  db = initializeFirestore(fbApp, { experimentalAutoDetectLongPolling: true });
+  try{ getAnalytics(fbApp); }catch(e){}
+}
+
+function generateCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for(let i=0;i<8;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+
+async function fbCreateTrip(data){
+  const ref = doc(collection(db,'trips'));
+  const codes = { owner: generateCode(), editor: generateCode(), viewer: generateCode() };
+  const payload = {
+    name: data.name || '', startDate: data.startDate || '', currency: data.currency || 'ILS',
+    days: data.days || [], packing: data.packing || [], attractionIdeas: data.attractionIdeas || [],
+    members: { [currentUser.uid]: 'owner' },
+    codes,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+  await setDoc(ref, payload);
+  await Promise.all(Object.entries(codes).map(([role,code]) =>
+    setDoc(doc(db,'tripCodes',code), { tripId: ref.id, role })
+  ));
+  return ref.id;
+}
+
+async function fbSaveTrip(tripId, data){
+  await updateDoc(doc(db,'trips',tripId), {
+    name: data.name || '', startDate: data.startDate || '', currency: data.currency || 'ILS',
+    days: data.days || [], packing: data.packing || [], attractionIdeas: data.attractionIdeas || [],
+    updatedAt: serverTimestamp()
+  });
+}
+
+async function fbGetTrip(tripId, fromServer){
+  const ref = doc(db,'trips',tripId);
+  const snap = fromServer ? await getDocFromServer(ref) : await getDoc(ref);
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+async function fbListMyTrips(){
+  const uid = currentUser.uid;
+  const q = query(collection(db,'trips'), where('members.'+uid, 'in', ['owner','editor','viewer']));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id:d.id, ...d.data() }));
+}
+
+async function fbJoinByCode(code){
+  const cleanCode = code.trim().toUpperCase();
+  const codeSnap = await getDoc(doc(db,'tripCodes',cleanCode));
+  if(!codeSnap.exists()) throw new Error('קוד לא נמצא');
+  const { tripId, role } = codeSnap.data();
+  // lastJoinCode is written alongside the membership change so the Firestore
+  // security rule can independently verify (via get()) that this code really
+  // grants this role, instead of trusting the client's claim.
+  await updateDoc(doc(db,'trips',tripId), {
+    ['members.'+currentUser.uid]: role,
+    lastJoinCode: cleanCode
+  });
+  return { tripId, role };
+}
+
+async function fbRemoveMember(tripId, uid){
+  await updateDoc(doc(db,'trips',tripId), { ['members.'+uid]: deleteField() });
+}
+
+async function fbRegenerateCode(tripId, role){
+  const newCode = generateCode();
+  const tripRef = doc(db,'trips',tripId);
+  const tripSnap = await getDoc(tripRef);
+  const oldCode = tripSnap.exists() ? (tripSnap.data().codes||{})[role] : null;
+  await setDoc(doc(db,'tripCodes',newCode), { tripId, role });
+  await updateDoc(tripRef, { ['codes.'+role]: newCode });
+  if(oldCode) await deleteDoc(doc(db,'tripCodes',oldCode)).catch(()=>{});
+  return newCode;
+}
+
+async function fbDeleteTrip(tripId){
+  const tripRef = doc(db,'trips',tripId);
+  const snap = await getDoc(tripRef);
+  if(snap.exists()){
+    const codes = snap.data().codes || {};
+    await Promise.all(Object.values(codes).map(c => deleteDoc(doc(db,'tripCodes',c)).catch(()=>{})));
+  }
+  await deleteDoc(tripRef);
+}
+
 const ICONS = {
   time:  `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   place: `<svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3"/></svg>`,
@@ -728,22 +927,12 @@ function normalizeState(data){
   };
 }
 
-function loadTripsIndex(){
+function loadLocalTripsIndex(){
   try{
     const raw = localStorage.getItem(TRIPS_INDEX_KEY);
     if(raw) return JSON.parse(raw);
   }catch(e){}
   return [];
-}
-function saveTripsIndex(){
-  localStorage.setItem(TRIPS_INDEX_KEY, JSON.stringify(tripsIndex));
-}
-function loadTripData(id){
-  try{
-    const raw = localStorage.getItem(tripDataKey(id));
-    if(raw) return normalizeState(JSON.parse(raw));
-  }catch(e){}
-  return normalizeState({});
 }
 function migrateLegacyStorage(){
   const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
@@ -753,33 +942,45 @@ function migrateLegacyStorage(){
     const id = nextId();
     localStorage.setItem(tripDataKey(id), JSON.stringify(data));
     localStorage.setItem(TRIPS_INDEX_KEY, JSON.stringify([{ id, name: data.name || 'הטיול שלי' }]));
-    localStorage.setItem(ACTIVE_TRIP_KEY, id);
     localStorage.removeItem(LEGACY_STORAGE_KEY);
   }catch(e){}
 }
 
-migrateLegacyStorage();
-let tripsIndex = loadTripsIndex();
-if(!tripsIndex.length){
-  const id = nextId();
-  tripsIndex = [{ id, name:'הטיול שלי' }];
-  localStorage.setItem(tripDataKey(id), JSON.stringify(normalizeState({})));
-  saveTripsIndex();
-  localStorage.setItem(ACTIVE_TRIP_KEY, id);
+const MIGRATION_DONE_KEY = 'triplan-cloud-migration-v1';
+async function migrateLocalTripsIfNeeded(){
+  if(localStorage.getItem(MIGRATION_DONE_KEY)) return;
+  migrateLegacyStorage();
+  const localIndex = loadLocalTripsIndex();
+  for(const entry of localIndex){
+    const raw = localStorage.getItem(tripDataKey(entry.id));
+    if(!raw) continue;
+    try{
+      const data = normalizeState(JSON.parse(raw));
+      await createTrip(data, entry.name);
+    }catch(e){}
+  }
+  localStorage.setItem(MIGRATION_DONE_KEY, '1');
 }
-let activeTripId = localStorage.getItem(ACTIVE_TRIP_KEY);
-if(!activeTripId || !tripsIndex.some(t => t.id === activeTripId)){
-  activeTripId = tripsIndex[0].id;
-  localStorage.setItem(ACTIVE_TRIP_KEY, activeTripId);
+
+let tripsIndex = [];
+let activeTripId = null;
+let state = normalizeState({});
+let currentRole = 'owner';
+let currentCodes = {};
+let currentMembers = {};
+
+async function refreshTripsIndex(){
+  const trips = await fbListMyTrips();
+  trips.sort((a,b) => (b.updatedAt?.toMillis?.()||0) - (a.updatedAt?.toMillis?.()||0));
+  tripsIndex = trips.map(t => ({ id:t.id, name:t.name||'טיול ללא שם', role:t.members[currentUser.uid] }));
+  renderTripSelect();
 }
 
 function saveState(){
-  localStorage.setItem(tripDataKey(activeTripId), JSON.stringify(state));
+  if(currentRole === 'viewer' || !activeTripId) return;
+  fbSaveTrip(activeTripId, state).catch(err => console.error('שגיאת שמירה:', err));
   const entry = tripsIndex.find(t => t.id === activeTripId);
-  if(entry){
-    entry.name = state.name || 'טיול ללא שם';
-    saveTripsIndex();
-  }
+  if(entry) entry.name = state.name || 'טיול ללא שם';
 }
 
 function renderTripSelect(){
@@ -789,15 +990,33 @@ function renderTripSelect(){
   ).join('');
 }
 
-function switchToTrip(id){
+async function switchToTrip(id){
+  const trip = await fbGetTrip(id);
+  if(!trip){
+    tripsIndex = tripsIndex.filter(t => t.id !== id);
+    if(tripsIndex.length) return switchToTrip(tripsIndex[0].id);
+    const newId = await createTrip({}, 'הטיול שלי');
+    await refreshTripsIndex();
+    return switchToTrip(newId);
+  }
   activeTripId = id;
   localStorage.setItem(ACTIVE_TRIP_KEY, id);
-  state = loadTripData(id);
+  state = normalizeState(trip);
+  currentRole = (trip.members && trip.members[currentUser.uid]) || 'viewer';
+  currentCodes = trip.codes || {};
+  currentMembers = trip.members || {};
   render();
   renderTripSelect();
+  renderSharingPanel();
 }
 
-let state = loadTripData(activeTripId);
+async function createTrip(data, fallbackName){
+  const normalized = normalizeState(data || {});
+  if(!normalized.name && fallbackName) normalized.name = fallbackName;
+  const id = await fbCreateTrip(normalized);
+  tripsIndex.push({ id, name: normalized.name || fallbackName || 'טיול חדש', role:'owner' });
+  return id;
+}
 
 function currencySymbol(){ return CURRENCY_SYMBOLS[state.currency] || '₪'; }
 
@@ -976,6 +1195,7 @@ function render(){
   updateStats();
   renderPacking();
   renderAttractions();
+  applyRoleRestrictions();
 }
 
 function buildActivityRow(day, act){
@@ -1186,36 +1406,118 @@ startDateEl.addEventListener('input', e => { state.startDate = e.target.value; s
 currencySelectEl.addEventListener('change', e => { state.currency = e.target.value; saveState(); render(); });
 
 /* ---------------- Trip switcher ---------------- */
-function createTrip(data, fallbackName){
-  const id = nextId();
-  const normalized = normalizeState(data || {});
-  if(!normalized.name && fallbackName) normalized.name = fallbackName;
-  tripsIndex.push({ id, name: normalized.name || fallbackName || 'טיול חדש' });
-  localStorage.setItem(tripDataKey(id), JSON.stringify(normalized));
-  saveTripsIndex();
-  return id;
-}
-
 document.getElementById('tripSelect').addEventListener('change', e => {
   switchToTrip(e.target.value);
 });
 
-document.getElementById('newTripBtn').addEventListener('click', () => {
-  const id = createTrip({}, 'טיול חדש');
-  switchToTrip(id);
+document.getElementById('newTripBtn').addEventListener('click', async () => {
+  const id = await createTrip({}, 'טיול חדש');
+  await refreshTripsIndex();
+  await switchToTrip(id);
 });
 
-document.getElementById('deleteTripBtn').addEventListener('click', () => {
+document.getElementById('deleteTripBtn').addEventListener('click', async () => {
   if(tripsIndex.length <= 1){
     alert('זהו הטיול היחיד שנשאר. אפשר לנקות את התוכן שלו עם "נקה הכל", אך לא למחוק אותו לגמרי.');
     return;
   }
-  if(!confirm('למחוק את הטיול "' + (state.name || 'טיול ללא שם') + '" לצמיתות? הפעולה לא הפיכה.')) return;
-  localStorage.removeItem(tripDataKey(activeTripId));
-  tripsIndex = tripsIndex.filter(t => t.id !== activeTripId);
-  saveTripsIndex();
-  switchToTrip(tripsIndex[0].id);
+  if(currentRole === 'owner'){
+    if(!confirm('למחוק את הטיול "' + (state.name || 'טיול ללא שם') + '" לצמיתות עבור כל המשתתפים? הפעולה לא הפיכה.')) return;
+    await fbDeleteTrip(activeTripId);
+  } else {
+    if(!confirm('לעזוב את הטיול הזה?')) return;
+    await fbRemoveMember(activeTripId, currentUser.uid);
+  }
+  await refreshTripsIndex();
+  await switchToTrip(tripsIndex[0].id);
 });
+
+document.getElementById('sharingPanelToggle').addEventListener('click', () => {
+  const panel = document.getElementById('sharingPanel');
+  const show = panel.style.display === 'none';
+  panel.style.display = show ? 'block' : 'none';
+  if(show) renderSharingPanel();
+});
+
+document.getElementById('joinCodeBtn').addEventListener('click', async () => {
+  const input = document.getElementById('joinCodeInput');
+  const code = input.value.trim();
+  if(!code) return;
+  const roleLabels = { owner:'בעלים', editor:'עורך', viewer:'צופה' };
+  try{
+    const { tripId, role } = await fbJoinByCode(code);
+    input.value = '';
+    await refreshTripsIndex();
+    await switchToTrip(tripId);
+    alert('הצטרפת לטיול בתור ' + (roleLabels[role] || role) + '!');
+  }catch(e){
+    alert('קוד לא תקין, או שגיאה בהצטרפות לטיול.');
+  }
+});
+
+function renderSharingPanel(){
+  const codesArea = document.getElementById('codesArea');
+  const membersArea = document.getElementById('membersArea');
+  const roleLabels = { owner:'בעלים', editor:'עורך', viewer:'צופה' };
+  if(currentRole !== 'owner'){
+    codesArea.innerHTML = '<p class="section-hint">רק בעלי הטיול יכולים לראות ולנהל קודי הזמנה ומשתתפים.</p>';
+    membersArea.innerHTML = '';
+    return;
+  }
+  codesArea.innerHTML = Object.keys(roleLabels).map(role => `
+    <div class="code-row">
+      <span class="code-label">${roleLabels[role]}</span>
+      <span class="code-value">${escapeAttr(currentCodes[role] || '')}</span>
+      <button class="btn-quick" data-action="copy-code" data-code-role="${role}">העתק</button>
+      <button class="btn-quick" data-action="regen-code" data-code-role="${role}">קוד חדש</button>
+    </div>`).join('');
+  membersArea.innerHTML = Object.entries(currentMembers).map(([memberUid, role]) => `
+    <div class="member-row">
+      <span>${memberUid === currentUser.uid ? 'את/ה' : memberUid.slice(0,8) + '…'}</span>
+      <span class="member-role-badge">${roleLabels[role] || role}</span>
+      ${memberUid !== currentUser.uid ? `<button class="icon-btn" data-action="remove-member" data-uid="${escapeAttr(memberUid)}" title="הסר משתתף">${ICONS.trash}</button>` : ''}
+    </div>`).join('');
+
+  codesArea.querySelectorAll('[data-action="copy-code"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = currentCodes[btn.dataset.codeRole] || '';
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(code).then(() => alert('הקוד הועתק ללוח'));
+      } else {
+        prompt('העתיקו את הקוד:', code);
+      }
+    });
+  });
+  codesArea.querySelectorAll('[data-action="regen-code"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const role = btn.dataset.codeRole;
+      if(!confirm('ליצור קוד חדש? הקוד הישן יפסיק לעבוד מיידית.')) return;
+      currentCodes[role] = await fbRegenerateCode(activeTripId, role);
+      renderSharingPanel();
+    });
+  });
+  membersArea.querySelectorAll('[data-action="remove-member"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if(!confirm('להסיר את המשתתף/ת הזה/ו מהטיול?')) return;
+      await fbRemoveMember(activeTripId, btn.dataset.uid);
+      delete currentMembers[btn.dataset.uid];
+      renderSharingPanel();
+    });
+  });
+}
+
+function applyRoleRestrictions(){
+  const isViewer = currentRole === 'viewer';
+  document.getElementById('readonlyBanner').style.display = isViewer ? 'block' : 'none';
+  [daysEl, document.getElementById('packingList'), document.getElementById('attractionsBody')].forEach(scope => {
+    if(!scope) return;
+    scope.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = isViewer; });
+    scope.querySelectorAll('button').forEach(el => { el.style.display = isViewer ? 'none' : ''; });
+  });
+  [tripNameEl, startDateEl, currencySelectEl].forEach(el => { el.disabled = isViewer; });
+  const toggle = id => { const el = document.getElementById(id); if(el) el.style.display = isViewer ? 'none' : ''; };
+  toggle('addDay'); toggle('addIdeaBtn'); toggle('packingAddBtn'); toggle('packingQuickAdd');
+}
 
 document.getElementById('addDay').addEventListener('click', () => {
   state.days.push(newDay());
@@ -1255,12 +1557,13 @@ document.getElementById('importJsonInput').addEventListener('change', e => {
   const file = e.target.files[0];
   if(!file) return;
   const reader = new FileReader();
-  reader.onload = ev => {
+  reader.onload = async ev => {
     try{
       const data = JSON.parse(ev.target.result);
       if(!data || !Array.isArray(data.days)) throw new Error('invalid');
-      const id = createTrip(data, 'טיול מיובא');
-      switchToTrip(id);
+      const id = await createTrip(data, 'טיול מיובא');
+      await refreshTripsIndex();
+      await switchToTrip(id);
       alert('הטיול יובא ונוסף כטיול חדש ברשימה.');
     }catch(err){
       alert('קובץ לא תקין');
@@ -1299,7 +1602,8 @@ document.getElementById('clearAll').addEventListener('click', () => {
   saveState(); render(); renderTripSelect();
 });
 
-function checkSharedLink(){
+let sharedLinkTripId = null;
+async function checkSharedLink(){
   if(location.hash.indexOf('#d=') === 0){
     try{
       const encoded = location.hash.slice(3);
@@ -1307,10 +1611,7 @@ function checkSharedLink(){
       const data = JSON.parse(json);
       if(data && Array.isArray(data.days)){
         if(confirm('נמצא טיול משותף בקישור. להוסיף אותו כטיול חדש ברשימה ולעבור אליו?')){
-          const id = createTrip(data, 'טיול משותף');
-          activeTripId = id;
-          localStorage.setItem(ACTIVE_TRIP_KEY, id);
-          state = loadTripData(id);
+          sharedLinkTripId = await createTrip(data, 'טיול משותף');
         }
       }
     }catch(e){}
@@ -1318,9 +1619,115 @@ function checkSharedLink(){
   }
 }
 
-checkSharedLink();
-render();
-renderTripSelect();
+/* ---------------- Account bar / auth ---------------- */
+function renderAccountBar(){
+  const statusEl = document.getElementById('accountStatus');
+  const actionsEl = document.getElementById('accountActions');
+  if(!currentUser){ statusEl.textContent = 'מתחבר...'; actionsEl.innerHTML = ''; return; }
+  if(currentUser.isAnonymous){
+    statusEl.textContent = '👤 מחובר/ת כאורח/ת (הנתונים תלויים במכשיר הזה)';
+    actionsEl.innerHTML = `
+      <button class="btn btn-ghost btn-sm" id="linkGoogleBtn" type="button">התחבר עם Google</button>
+      <button class="btn btn-ghost btn-sm" id="linkEmailBtn" type="button">התחבר עם אימייל</button>
+    `;
+  } else {
+    statusEl.textContent = '✅ מחובר/ת כ-' + (currentUser.email || currentUser.displayName || currentUser.uid.slice(0,8));
+    actionsEl.innerHTML = `<button class="btn btn-ghost btn-sm" id="signOutBtn" type="button">התנתק</button>`;
+    document.getElementById('signOutBtn').addEventListener('click', async () => {
+      if(!confirm('להתנתק? תוכל/י להתחבר שוב לאותו חשבון בכל שלב.')) return;
+      await signOut(fbAuth);
+      location.reload();
+    });
+  }
+  const gBtn = document.getElementById('linkGoogleBtn');
+  if(gBtn) gBtn.addEventListener('click', async () => {
+    try{
+      await linkWithPopup(currentUser, new GoogleAuthProvider());
+    }catch(err){
+      if(err.code === 'auth/credential-already-in-use'){
+        try{ await signInWithPopup(fbAuth, new GoogleAuthProvider()); }
+        catch(e2){ alert('שגיאת התחברות: ' + e2.message); }
+      } else {
+        alert('שגיאת התחברות: ' + err.message);
+      }
+    }
+  });
+  const eBtn = document.getElementById('linkEmailBtn');
+  if(eBtn) eBtn.addEventListener('click', () => {
+    document.getElementById('emailAuthForm').style.display = 'flex';
+  });
+}
+
+document.getElementById('emailAuthCancel').addEventListener('click', () => {
+  document.getElementById('emailAuthForm').style.display = 'none';
+});
+document.getElementById('emailAuthSubmit').addEventListener('click', async () => {
+  const email = document.getElementById('emailAuthEmail').value.trim();
+  const password = document.getElementById('emailAuthPassword').value;
+  if(!email || password.length < 6){ alert('יש להזין אימייל וסיסמה של לפחות 6 תווים.'); return; }
+  const cred = EmailAuthProvider.credential(email, password);
+  try{
+    await linkWithCredential(currentUser, cred);
+    document.getElementById('emailAuthForm').style.display = 'none';
+  }catch(err){
+    if(err.code === 'auth/credential-already-in-use' || err.code === 'auth/email-already-in-use'){
+      if(confirm('כבר קיים חשבון עם האימייל הזה. להתחבר אליו? (טיולים ששמורים באורח הנוכחי לא יעברו אוטומטית)')){
+        try{
+          await signInWithEmailAndPassword(fbAuth, email, password);
+          document.getElementById('emailAuthForm').style.display = 'none';
+        }catch(e2){ alert('שגיאה: ' + e2.message); }
+      }
+    } else {
+      alert('שגיאה: ' + err.message);
+    }
+  }
+});
+
+/* ---------------- Boot ---------------- */
+async function afterAuthReady(){
+  await migrateLocalTripsIfNeeded();
+  await refreshTripsIndex();
+  await checkSharedLink();
+  let target = sharedLinkTripId || activeTripId || localStorage.getItem(ACTIVE_TRIP_KEY);
+  if(!target || !tripsIndex.some(t => t.id === target)){
+    target = tripsIndex[0] ? tripsIndex[0].id : await createTrip({}, 'הטיול שלי');
+  }
+  await switchToTrip(target);
+}
+
+if(!FIREBASE_CONFIGURED){
+  document.getElementById('accountStatus').textContent = '⚠️ Firebase לא הוגדר עדיין';
+  daysEl.innerHTML = '<p style="color:#fff;">יש להגדיר את firebaseConfig בראש קוד ה-JS כדי להשתמש באפליקציה.</p>';
+} else {
+  daysEl.innerHTML = '<p style="color:#fff;opacity:.7;">טוען את הטיולים שלך…</p>';
+  let anonymousAttempted = false;
+  onAuthStateChanged(fbAuth, async (user) => {
+    // Firebase only fires this callback once it has finished checking for a
+    // persisted session (from a previous visit / a linked Google or email
+    // account), so `user` here is the real restored session - never null
+    // just because that check hasn't finished yet. Only fall back to a fresh
+    // anonymous session if there truly is no persisted user at all.
+    if(!user && !anonymousAttempted){
+      anonymousAttempted = true;
+      signInAnonymously(fbAuth).catch(err => {
+        document.getElementById('accountStatus').textContent = 'שגיאת התחברות: ' + err.message;
+      });
+      return;
+    }
+    currentUser = user;
+    renderAccountBar();
+    if(user && !appBooted){
+      appBooted = true;
+      try{
+        await afterAuthReady();
+      }catch(err){
+        console.error('שגיאת טעינה:', err);
+        daysEl.innerHTML = '<p style="color:#fff;">שגיאה בטעינת הטיולים מהענן: ' + escapeAttr(err.message) +
+          '<br>ודאו שה-Firestore נוצר ושחוקי האבטחה (firestore.rules) פורסמו בקונסולת Firebase.</p>';
+      }
+    }
+  });
+}
 </script>
 </body>
 </html>
