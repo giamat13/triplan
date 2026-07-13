@@ -146,6 +146,7 @@
     color:var(--ink-text);
   }
   .budget-breakdown b{color:var(--rust);}
+  .budget-raw-note{flex-basis:100%;color:var(--muted);font-size:11px;}
 
   /* ---------- Days ---------- */
   .days{display:flex;flex-direction:column;gap:34px;margin-top:36px;}
@@ -205,6 +206,24 @@
   }
   .day-dest:focus{border-bottom-color:var(--brass);}
   .day-dest::placeholder{color:#B7A981;}
+  .day-currency-row{
+    display:flex;align-items:center;gap:6px;
+    margin-top:6px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;color:var(--muted);
+  }
+  .day-currency-row select{
+    font-family:'Assistant', sans-serif;
+    font-size:12.5px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:2px 6px;
+    background:transparent;
+    color:var(--ink-text);
+    outline:none;
+    cursor:pointer;
+  }
+  .day-currency-row select:focus{border-color:var(--brass);}
   .icon-btn{
     flex:0 0 auto;
     width:34px;height:34px;
@@ -644,16 +663,19 @@
         <span class="stat" id="daysCount">0</span>
       </div>
       <div class="meta-field">
-        <label>מטבע</label>
-        <select id="currencySelect">
-          <option value="ILS">₪ שקל</option>
-          <option value="USD">$ דולר</option>
-          <option value="EUR">€ יורו</option>
-          <option value="GBP">£ ליש"ט</option>
-        </select>
+        <label>מטבע ראשי (טיול)</label>
+        <select id="currencySelect"></select>
       </div>
       <div class="meta-field">
-        <label>תקציב משוער</label>
+        <label>מטבע משני</label>
+        <select id="secondaryCurrencySelect"></select>
+      </div>
+      <div class="meta-field">
+        <label>מטבע הבית</label>
+        <select id="homeCurrencySelect"></select>
+      </div>
+      <div class="meta-field">
+        <label>תקציב משוער (מומר למטבע הבית)</label>
         <span class="stat"><span id="currencySymbolBudget">₪</span><b id="budgetTotal">0</b></span>
       </div>
     </div>
@@ -860,9 +882,73 @@ const ICONS = {
 };
 
 const TRANSPORT_OPTIONS = ['הליכה','רכב שכור','תחבורה ציבורית','מונית / אפליקציית הסעה','רכבת','אופניים','טיסה','מעבורת'];
-const CURRENCY_SYMBOLS = { ILS:'₪', USD:'$', EUR:'€', GBP:'£' };
 const CATEGORY_EMOJI = { general:'📌', food:'🍴', transport:'🚌', sight:'🎫' };
 const CATEGORY_LABELS = { general:'📌 כללי', food:'🍴 אוכל / מסעדה', transport:'🚌 תחבורה', sight:'🎫 כניסות ואטרקציות' };
+
+const CURRENCIES = [
+  { code:'ILS', symbol:'₪', label:'שקל' },
+  { code:'USD', symbol:'$', label:'דולר' },
+  { code:'EUR', symbol:'€', label:'יורו' },
+  { code:'GBP', symbol:'£', label:'ליש"ט' },
+  { code:'CHF', symbol:'Fr', label:'פרנק שוויצרי' },
+  { code:'JPY', symbol:'¥', label:'ין יפני' },
+  { code:'AUD', symbol:'A$', label:'דולר אוסטרלי' },
+  { code:'CAD', symbol:'C$', label:'דולר קנדי' },
+  { code:'TRY', symbol:'₺', label:'לירה טורקית' },
+  { code:'THB', symbol:'฿', label:'בהט תאילנדי' },
+  { code:'AED', symbol:'د.إ', label:'דירהם' },
+  { code:'INR', symbol:'₹', label:'רופי הודי' },
+  { code:'CZK', symbol:'Kč', label:'קרונה צ׳כית' },
+  { code:'HUF', symbol:'Ft', label:'פורינט הונגרי' },
+  { code:'PLN', symbol:'zł', label:'זלוטי פולני' },
+  { code:'MXN', symbol:'MX$', label:'פסו מקסיקני' },
+  { code:'SGD', symbol:'S$', label:'דולר סינגפורי' },
+  { code:'HKD', symbol:'HK$', label:'דולר הונג קונגי' },
+  { code:'CNY', symbol:'¥', label:'יואן סיני' },
+  { code:'KRW', symbol:'₩', label:'וון קוריאני' },
+  { code:'SEK', symbol:'kr', label:'קרונה שוודית' },
+  { code:'NOK', symbol:'kr', label:'קרונה נורווגית' },
+  { code:'DKK', symbol:'kr', label:'קרונה דנית' },
+  { code:'GEL', symbol:'₾', label:'לארי גאורגי' },
+  { code:'EGP', symbol:'E£', label:'לירה מצרית' },
+];
+const CURRENCY_SYMBOLS = Object.fromEntries(CURRENCIES.map(c => [c.code, c.symbol]));
+const CURRENCY_LABELS = Object.fromEntries(CURRENCIES.map(c => [c.code, c.label]));
+// שערים משוערים וקבועים (יחידות מטבע ל-1 דולר), לצורך המרה תצוגתית בלבד - לא בזמן אמת
+const EXCHANGE_RATES = {
+  USD:1, ILS:3.7, EUR:0.92, GBP:0.79, CHF:0.88, JPY:150, AUD:1.52, CAD:1.36,
+  TRY:34, THB:35, AED:3.67, INR:83, CZK:23, HUF:365, PLN:4.0, MXN:17,
+  SGD:1.34, HKD:7.8, CNY:7.2, KRW:1330, SEK:10.5, NOK:10.6, DKK:6.9, GEL:2.7, EGP:49
+};
+
+function currencyOptionsHTML(withNoneOption){
+  const none = withNoneOption ? '<option value="">ללא מטבע משני</option>' : '';
+  return none + CURRENCIES.map(c => `<option value="${c.code}">${c.symbol} ${c.label} · ${c.code}</option>`).join('');
+}
+function populateCurrencySelects(){
+  document.getElementById('currencySelect').innerHTML = currencyOptionsHTML(false);
+  document.getElementById('secondaryCurrencySelect').innerHTML = currencyOptionsHTML(true);
+  document.getElementById('homeCurrencySelect').innerHTML = currencyOptionsHTML(false);
+}
+populateCurrencySelects();
+
+function dayCurrencyOptionsHTML(selected){
+  const primary = state.currency;
+  const secondary = state.secondaryCurrency;
+  const pinnedCodes = [primary];
+  if(secondary && secondary !== primary) pinnedCodes.push(secondary);
+  const pinnedHtml = pinnedCodes.map(code => {
+    const c = CURRENCIES.find(x => x.code === code) || { code, symbol:'', label:code };
+    const tag = code === primary ? 'ראשי' : 'משני';
+    return `<option value="${c.code}" ${selected===c.code?'selected':''}>${c.symbol} ${c.label} (${tag})</option>`;
+  }).join('');
+  const restHtml = CURRENCIES.filter(c => !pinnedCodes.includes(c.code))
+    .map(c => `<option value="${c.code}" ${selected===c.code?'selected':''}>${c.symbol} ${c.label}</option>`).join('');
+  const inheritLabel = `כברירת מחדל (${currencySymbolFor(primary)} ${primary})`;
+  return `<option value="" ${!selected?'selected':''}>${inheritLabel}</option>` +
+    `<optgroup label="נבחרי הטיול">${pinnedHtml}</optgroup>` +
+    `<optgroup label="עוד מטבעות">${restHtml}</optgroup>`;
+}
 
 const LEGACY_STORAGE_KEY = 'triplan-data-v1';
 const TRIPS_INDEX_KEY = 'triplan-trips-index-v1';
@@ -873,7 +959,7 @@ let uid = 1;
 function nextId(){ return 'id' + (uid++) + '-' + Date.now().toString(36); }
 
 function newDay(){
-  return { id: nextId(), destination:'', activities:[ newActivity() ], hotel:{ name:'', link:'', cost:'', notes:'' } };
+  return { id: nextId(), destination:'', currency:'', activities:[ newActivity() ], hotel:{ name:'', link:'', cost:'', notes:'' } };
 }
 function newActivity(){
   return { id: nextId(), time:'', title:'', category:'general', cuisine:'', transport:'', cost:'', link:'', notes:'' };
@@ -902,6 +988,7 @@ function normalizeDay(d){
   return {
     id: d.id || nextId(),
     destination: d.destination || '',
+    currency: CURRENCY_SYMBOLS.hasOwnProperty(d.currency) ? d.currency : '',
     activities: Array.isArray(d.activities) && d.activities.length ? d.activities.map(normalizeActivity) : [ newActivity() ],
     hotel: { name: hotel.name || '', link: hotel.link || '', cost: hotel.cost || '', notes: hotel.notes || '' }
   };
@@ -927,6 +1014,9 @@ function normalizeState(data){
     name: data.name || '',
     startDate: data.startDate || '',
     currency: CURRENCY_SYMBOLS.hasOwnProperty(data.currency) ? data.currency : 'ILS',
+    secondaryCurrency: CURRENCY_SYMBOLS.hasOwnProperty(data.secondaryCurrency) ? data.secondaryCurrency : '',
+    homeCurrency: CURRENCY_SYMBOLS.hasOwnProperty(data.homeCurrency) ? data.homeCurrency
+      : (CURRENCY_SYMBOLS.hasOwnProperty(data.currency) ? data.currency : 'ILS'),
     days: Array.isArray(data.days) && data.days.length ? data.days.map(normalizeDay) : [ newDay() ],
     packing: Array.isArray(data.packing) ? data.packing.map(p => ({ id: p.id || nextId(), text: p.text || '', checked: !!p.checked })) : [],
     attractionIdeas: Array.isArray(data.attractionIdeas) ? data.attractionIdeas.map(normalizeIdea) : []
@@ -1024,12 +1114,23 @@ async function createTrip(data, fallbackName){
   return id;
 }
 
-function currencySymbol(){ return CURRENCY_SYMBOLS[state.currency] || '₪'; }
+function currencySymbolFor(code){ return CURRENCY_SYMBOLS[code] || CURRENCY_SYMBOLS[state.currency] || '₪'; }
+function currencySymbol(){ return currencySymbolFor(state.currency); }
+function dayCurrency(day){ return (day && day.currency) || state.currency; }
+function convertAmount(amount, fromCode, toCode){
+  const n = Number(amount) || 0;
+  if(!n || fromCode === toCode) return n;
+  const fromRate = EXCHANGE_RATES[fromCode] || 1;
+  const toRate = EXCHANGE_RATES[toCode] || 1;
+  return n / fromRate * toRate;
+}
 
 const daysEl = document.getElementById('days');
 const tripNameEl = document.getElementById('tripName');
 const startDateEl = document.getElementById('startDate');
 const currencySelectEl = document.getElementById('currencySelect');
+const secondaryCurrencySelectEl = document.getElementById('secondaryCurrencySelect');
+const homeCurrencySelectEl = document.getElementById('homeCurrencySelect');
 
 function formatDate(dateStr, offset){
   if(!dateStr) return null;
@@ -1119,6 +1220,8 @@ function render(){
   tripNameEl.value = state.name;
   startDateEl.value = state.startDate;
   currencySelectEl.value = state.currency;
+  secondaryCurrencySelectEl.value = state.secondaryCurrency || '';
+  homeCurrencySelectEl.value = state.homeCurrency || state.currency;
   daysEl.innerHTML = '';
 
   state.days.forEach((day, index) => {
@@ -1133,6 +1236,7 @@ function render(){
         <div class="day-heading">
           <div class="day-date">${dateLabel ? dateLabel : 'יום ' + (index+1)} <span class="weather-badge" id="weather-${day.id}"></span></div>
           <input class="day-dest" data-role="destination" placeholder="לאן הולכים היום?" value="${escapeAttr(day.destination)}">
+          <label class="day-currency-row">מטבע ליום זה: <select data-role="day-currency">${dayCurrencyOptionsHTML(day.currency)}</select></label>
         </div>
         <button class="icon-btn" data-role="del-day" title="מחק יום">${ICONS.trash}</button>
       </div>
@@ -1152,7 +1256,7 @@ function render(){
           </div>
           <div class="hotel-field">
             <label>עלות ללילה</label>
-            <input data-role="hotel-cost" type="number" min="0" placeholder="${currencySymbol()}" value="${escapeAttr(day.hotel.cost)}">
+            <input data-role="hotel-cost" type="number" min="0" placeholder="${currencySymbolFor(dayCurrency(day))}" value="${escapeAttr(day.hotel.cost)}">
           </div>
           <div class="hotel-field wide">
             <label>הערות</label>
@@ -1169,6 +1273,10 @@ function render(){
       day.destination = e.target.value; saveState(); updateStats();
       clearTimeout(weatherTimers[day.id]);
       weatherTimers[day.id] = setTimeout(() => loadWeatherForDay(day, index), 700);
+    });
+    card.querySelector('[data-role="day-currency"]').addEventListener('change', e => {
+      day.currency = e.target.value;
+      saveState(); render();
     });
     card.querySelector('[data-role="del-day"]').addEventListener('click', () => {
       if(state.days.length <= 1){
@@ -1217,7 +1325,7 @@ function buildActivityRow(day, act){
     <button class="icon-btn del" data-role="del-activity" title="מחק פעילות">${ICONS.trash}</button>
     <div class="details">
       <label class="field-icon">${ICONS.transport}<input data-role="transport" list="${dlId}" placeholder="תחבורה" value="${escapeAttr(act.transport)}"></label>
-      <label class="field-icon">${ICONS.cost}<input data-role="cost" type="number" min="0" placeholder="עלות ${currencySymbol()}" value="${escapeAttr(act.cost)}"></label>
+      <label class="field-icon">${ICONS.cost}<input data-role="cost" type="number" min="0" placeholder="עלות ${currencySymbolFor(dayCurrency(day))}" value="${escapeAttr(act.cost)}"></label>
       <label class="field-icon">${ICONS.category}<select data-role="category">
         <option value="general" ${act.category==='general'?'selected':''}>${CATEGORY_LABELS.general}</option>
         <option value="food" ${act.category==='food'?'selected':''}>${CATEGORY_LABELS.food}</option>
@@ -1257,28 +1365,45 @@ function buildActivityRow(day, act){
 
 function updateStats(){
   document.getElementById('daysCount').textContent = state.days.length;
+  const homeCur = state.homeCurrency || state.currency;
   let total = 0;
   const catTotals = { lodging:0, food:0, transport:0, sight:0, general:0 };
+  const rawByCurrency = {};
+  const addRaw = (code, val) => { if(val) rawByCurrency[code] = (rawByCurrency[code] || 0) + val; };
+
   state.days.forEach(day => {
+    const curCode = dayCurrency(day);
     day.activities.forEach(a => {
       const val = Number(a.cost) || 0;
-      total += val;
+      if(!val) return;
+      addRaw(curCode, val);
+      total += convertAmount(val, curCode, homeCur);
       const cat = catTotals.hasOwnProperty(a.category) ? a.category : 'general';
-      catTotals[cat] += val;
+      catTotals[cat] += convertAmount(val, curCode, homeCur);
     });
     const hc = Number(day.hotel.cost) || 0;
-    total += hc;
-    catTotals.lodging += hc;
+    if(hc){
+      addRaw(curCode, hc);
+      total += convertAmount(hc, curCode, homeCur);
+      catTotals.lodging += convertAmount(hc, curCode, homeCur);
+    }
   });
-  const sym = currencySymbol();
-  document.getElementById('budgetTotal').textContent = total.toLocaleString('he-IL');
+  const sym = currencySymbolFor(homeCur);
+  document.getElementById('budgetTotal').textContent = Math.round(total).toLocaleString('he-IL');
   document.getElementById('currencySymbolBudget').textContent = sym;
 
   const labels = { lodging:'🛏 לינה', food:'🍴 אוכל', transport:'🚌 תחבורה', sight:'🎫 כניסות', general:'📌 כללי' };
   const breakdownEl = document.getElementById('budgetBreakdown');
-  breakdownEl.innerHTML = Object.keys(labels).map(k =>
-    `<span>${labels[k]}: <b>${catTotals[k].toLocaleString('he-IL')}</b>${sym}</span>`
+  let html = Object.keys(labels).map(k =>
+    `<span>${labels[k]}: <b>${Math.round(catTotals[k]).toLocaleString('he-IL')}</b>${sym}</span>`
   ).join('');
+
+  const rawCodes = Object.keys(rawByCurrency);
+  if(rawCodes.length > 1 || (rawCodes.length === 1 && rawCodes[0] !== homeCur)){
+    const rawHtml = rawCodes.map(code => `${currencySymbolFor(code)}${Math.round(rawByCurrency[code]).toLocaleString('he-IL')}`).join(' + ');
+    html += `<span class="budget-raw-note">בפועל: ${rawHtml} (המרה משוערת ל-${sym}, לא בזמן אמת)</span>`;
+  }
+  breakdownEl.innerHTML = html;
 }
 
 /* ---------------- Packing list ---------------- */
@@ -1423,6 +1548,8 @@ document.getElementById('addIdeaBtn').addEventListener('click', () => {
 tripNameEl.addEventListener('input', e => { state.name = e.target.value; saveState(); renderTripSelect(); });
 startDateEl.addEventListener('input', e => { state.startDate = e.target.value; saveState(); render(); });
 currencySelectEl.addEventListener('change', e => { state.currency = e.target.value; saveState(); render(); });
+secondaryCurrencySelectEl.addEventListener('change', e => { state.secondaryCurrency = e.target.value; saveState(); render(); });
+homeCurrencySelectEl.addEventListener('change', e => { state.homeCurrency = e.target.value; saveState(); render(); });
 
 /* ---------------- Trip switcher ---------------- */
 document.getElementById('tripSelect').addEventListener('change', e => {
@@ -1533,7 +1660,7 @@ function applyRoleRestrictions(){
     scope.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = isViewer; });
     scope.querySelectorAll('button').forEach(el => { el.style.display = isViewer ? 'none' : ''; });
   });
-  [tripNameEl, startDateEl, currencySelectEl].forEach(el => { el.disabled = isViewer; });
+  [tripNameEl, startDateEl, currencySelectEl, secondaryCurrencySelectEl, homeCurrencySelectEl].forEach(el => { el.disabled = isViewer; });
   const toggle = id => { const el = document.getElementById(id); if(el) el.style.display = isViewer ? 'none' : ''; };
   toggle('addDay'); toggle('addIdeaBtn'); toggle('packingAddBtn'); toggle('packingQuickAdd');
 }
