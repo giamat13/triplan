@@ -487,6 +487,7 @@
     background:rgba(255,255,255,0.25);
   }
   .idea-card-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .idea-card.collapsed .idea-card-head{margin-bottom:0;}
   .idea-num{font-family:'JetBrains Mono', monospace;color:var(--muted);font-size:12px;flex:0 0 auto;}
   .idea-names{flex:1;display:flex;gap:10px;flex-wrap:wrap;min-width:0;}
   .idea-names input{
@@ -503,6 +504,18 @@
   .idea-names input::placeholder{color:#B7A981;}
   .idea-card .del{flex:0 0 auto;width:28px;height:28px;border-radius:8px;}
   .idea-card .del svg{width:14px;height:14px;}
+  .idea-name-display{
+    flex:1;font-family:'Frank Ruhl Libre', serif;font-weight:600;font-size:16px;
+    color:var(--ink-text);cursor:pointer;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .idea-name-display .idea-name-empty{color:#B7A981;font-weight:400;font-style:italic;}
+  .idea-chevron{
+    flex:0 0 auto;width:20px;height:20px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;color:var(--muted);transition:transform .15s ease;
+  }
+  .idea-chevron svg{width:14px;height:14px;}
+  .idea-card.expanded .idea-chevron{transform:rotate(180deg);}
   .idea-fields{
     display:flex;flex-wrap:wrap;gap:10px 16px;
     border-top:1px dashed var(--line);
@@ -879,6 +892,7 @@ const ICONS = {
   plus:  `<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>`,
   category: `<svg viewBox="0 0 24 24"><path d="M11 3h6a2 2 0 0 1 2 2v6a2 2 0 0 1-.6 1.4l-8 8a2 2 0 0 1-2.8 0l-6-6a2 2 0 0 1 0-2.8l8-8A2 2 0 0 1 11 3Z" stroke-linejoin="round"/><circle cx="15.5" cy="8.5" r="1.2"/></svg>`,
   cuisine: `<svg viewBox="0 0 24 24"><path d="M7 3v7a2 2 0 0 0 2 2v9M7 3v7M9 3v7M11 3v18M17 3c-1.5 0-2.5 1.5-2.5 4s1 4 2.5 4v11" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  chevron: `<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 };
 
 const TRANSPORT_OPTIONS = ['הליכה','רכב שכור','תחבורה ציבורית','מונית / אפליקציית הסעה','רכבת','אופניים','טיסה','מעבורת'];
@@ -1462,6 +1476,8 @@ function syncEquipmentToPacking(idea){
 }
 
 /* ---------------- Attractions ideas ---------------- */
+const expandedIdeaIds = new Set();
+
 function renderAttractions(){
   const body = document.getElementById('attractionsBody');
   body.innerHTML = '';
@@ -1474,17 +1490,26 @@ function renderAttractions(){
 
 function buildIdeaCard(idea, index){
   const card = document.createElement('div');
-  card.className = 'idea-card';
+  const expanded = expandedIdeaIds.has(idea.id);
+  card.className = 'idea-card ' + (expanded ? 'expanded' : 'collapsed');
   const dayOptions = state.days.map((d,i) => `<option value="${i}">${escapeAttr(d.destination ? (i+1)+'. '+d.destination : 'יום '+(i+1))}</option>`).join('');
+  const displayName = idea.nameHe || idea.nameEn;
+
   card.innerHTML = `
     <div class="idea-card-head">
       <span class="idea-num">#${index+1}</span>
+      ${expanded ? `
       <div class="idea-names">
-        <input data-role="nameHe" placeholder="שם בעברית" value="${escapeAttr(idea.nameHe)}">
+        <input data-role="nameHe" placeholder="כינוי" value="${escapeAttr(idea.nameHe)}">
         <input data-role="nameEn" placeholder="Attraction name" value="${escapeAttr(idea.nameEn)}">
       </div>
+      ` : `
+      <div class="idea-name-display" data-role="toggle-expand">${displayName ? escapeAttr(displayName) : '<span class="idea-name-empty">רעיון חדש</span>'}</div>
+      `}
       <button class="icon-btn del" data-role="del-idea" title="מחק רעיון">${ICONS.trash}</button>
+      <span class="idea-chevron" data-role="toggle-expand" title="${expanded ? 'כווץ' : 'הצג הכל'}">${ICONS.chevron}</span>
     </div>
+    ${expanded ? `
     <div class="idea-fields">
       <div class="idea-field"><label>זמן מומלץ</label><input data-role="duration" placeholder="לדוגמה: 2 שעות" value="${escapeAttr(idea.duration)}"></div>
       <div class="idea-field"><label>עדיפות 1-10</label><input data-role="priority" type="number" min="1" max="10" placeholder="1-10" value="${escapeAttr(idea.priority)}"></div>
@@ -1500,47 +1525,63 @@ function buildIdeaCard(idea, index){
       <input data-role="promote-time" type="time" title="שעה מסוימת (אופציונלי)">
       <button class="btn-quick" data-role="promote">${ICONS.plus} הוסף לתכנון</button>
     </div>
+    ` : ''}
   `;
 
-  card.querySelector('[data-role="nameEn"]').addEventListener('input', e => { idea.nameEn = e.target.value; saveState(); });
-  card.querySelector('[data-role="nameHe"]').addEventListener('input', e => { idea.nameHe = e.target.value; saveState(); });
-  card.querySelector('[data-role="duration"]').addEventListener('input', e => { idea.duration = e.target.value; saveState(); });
-  card.querySelector('[data-role="priority"]').addEventListener('input', e => { idea.priority = e.target.value; saveState(); });
-  card.querySelector('[data-role="hours"]').addEventListener('input', e => { idea.hours = e.target.value; saveState(); });
-  card.querySelector('[data-role="price"]').addEventListener('input', e => { idea.price = e.target.value; saveState(); });
-  card.querySelector('[data-role="booking"]').addEventListener('change', e => { idea.booking = e.target.checked; saveState(); });
-  card.querySelector('[data-role="notes"]').addEventListener('input', e => { idea.notes = e.target.value; saveState(); });
+  const toggleExpanded = () => {
+    if(expandedIdeaIds.has(idea.id)) expandedIdeaIds.delete(idea.id);
+    else expandedIdeaIds.add(idea.id);
+    renderAttractions();
+  };
+  card.querySelectorAll('[data-role="toggle-expand"]').forEach(el => el.addEventListener('click', toggleExpanded));
 
-  const equipmentInput = card.querySelector('[data-role="equipment"]');
-  equipmentInput.addEventListener('input', e => { idea.equipment = e.target.value; saveState(); });
-  equipmentInput.addEventListener('blur', () => syncEquipmentToPacking(idea));
+  if(expanded){
+    card.querySelector('[data-role="nameEn"]').addEventListener('input', e => { idea.nameEn = e.target.value; saveState(); });
+    card.querySelector('[data-role="nameHe"]').addEventListener('input', e => { idea.nameHe = e.target.value; saveState(); });
+    card.querySelector('[data-role="duration"]').addEventListener('input', e => { idea.duration = e.target.value; saveState(); });
+    card.querySelector('[data-role="priority"]').addEventListener('input', e => { idea.priority = e.target.value; saveState(); });
+    card.querySelector('[data-role="hours"]').addEventListener('input', e => { idea.hours = e.target.value; saveState(); });
+    card.querySelector('[data-role="price"]').addEventListener('input', e => { idea.price = e.target.value; saveState(); });
+    card.querySelector('[data-role="booking"]').addEventListener('change', e => { idea.booking = e.target.checked; saveState(); });
+    card.querySelector('[data-role="notes"]').addEventListener('input', e => { idea.notes = e.target.value; saveState(); });
 
-  card.querySelector('[data-role="del-idea"]').addEventListener('click', () => {
+    const equipmentInput = card.querySelector('[data-role="equipment"]');
+    equipmentInput.addEventListener('input', e => { idea.equipment = e.target.value; saveState(); });
+    equipmentInput.addEventListener('blur', () => syncEquipmentToPacking(idea));
+  }
+
+  card.querySelector('[data-role="del-idea"]').addEventListener('click', e => {
+    e.stopPropagation();
     const idx = state.attractionIdeas.indexOf(idea);
     if(idx > -1) state.attractionIdeas.splice(idx,1);
+    expandedIdeaIds.delete(idea.id);
     saveState(); renderAttractions();
   });
 
-  card.querySelector('[data-role="promote"]').addEventListener('click', () => {
-    const dayIdx = Number(card.querySelector('[data-role="promote-day"]').value);
-    const day = state.days[dayIdx];
-    if(!day) return;
-    const act = newActivity();
-    act.time = card.querySelector('[data-role="promote-time"]').value || '';
-    act.title = idea.nameHe || idea.nameEn || '';
-    act.category = 'sight';
-    act.cost = idea.price || '';
-    act.notes = [idea.hours ? ('שעות פתיחה: ' + idea.hours) : '', idea.booking ? 'דורש הזמנה מראש' : '', idea.notes || ''].filter(Boolean).join(' · ');
-    day.activities.push(act);
-    syncEquipmentToPacking(idea);
-    saveState(); render();
-  });
+  if(expanded){
+    card.querySelector('[data-role="promote"]').addEventListener('click', () => {
+      const dayIdx = Number(card.querySelector('[data-role="promote-day"]').value);
+      const day = state.days[dayIdx];
+      if(!day) return;
+      const act = newActivity();
+      act.time = card.querySelector('[data-role="promote-time"]').value || '';
+      act.title = idea.nameHe || idea.nameEn || '';
+      act.category = 'sight';
+      act.cost = idea.price || '';
+      act.notes = [idea.hours ? ('שעות פתיחה: ' + idea.hours) : '', idea.booking ? 'דורש הזמנה מראש' : '', idea.notes || ''].filter(Boolean).join(' · ');
+      day.activities.push(act);
+      syncEquipmentToPacking(idea);
+      saveState(); render();
+    });
+  }
 
   return card;
 }
 
 document.getElementById('addIdeaBtn').addEventListener('click', () => {
-  state.attractionIdeas.push(newAttractionIdea());
+  const idea = newAttractionIdea();
+  state.attractionIdeas.push(idea);
+  expandedIdeaIds.add(idea.id);
   saveState(); renderAttractions();
 });
 
