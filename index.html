@@ -459,45 +459,70 @@
   .btn-quick:hover{border-color:var(--pine);background:rgba(76,122,104,0.08);}
   .packing-empty{font-size:13.5px;color:var(--muted);padding:6px 2px;}
 
-  /* Attractions ideas table */
-  .attractions-wrap{overflow-x:auto;}
-  table.attractions{width:100%;border-collapse:collapse;font-size:13px;min-width:920px;}
-  .attractions th{
-    font-family:'JetBrains Mono', monospace;
-    font-size:10.5px;
-    text-transform:uppercase;
-    letter-spacing:0.05em;
-    color:var(--muted);
-    text-align:right;
-    padding:6px 8px;
+  /* Attractions ideas cards */
+  .ideas-list{display:flex;flex-direction:column;gap:12px;}
+  .idea-card{
+    border:1.5px solid var(--line);
+    border-radius:12px;
+    padding:14px 16px;
+    background:rgba(255,255,255,0.25);
+  }
+  .idea-card-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .idea-num{font-family:'JetBrains Mono', monospace;color:var(--muted);font-size:12px;flex:0 0 auto;}
+  .idea-names{flex:1;display:flex;gap:10px;flex-wrap:wrap;min-width:0;}
+  .idea-names input{
+    font-family:'Frank Ruhl Libre', serif;
+    font-weight:600;
+    font-size:16px;
+    border:none;background:transparent;outline:none;color:var(--ink-text);
+    border-bottom:1.5px solid transparent;
+    padding:2px 0;
+    flex:1 1 160px;
+    min-width:0;
+  }
+  .idea-names input:focus{border-bottom-color:var(--brass);}
+  .idea-names input::placeholder{color:#B7A981;}
+  .idea-card .del{flex:0 0 auto;width:28px;height:28px;border-radius:8px;}
+  .idea-card .del svg{width:14px;height:14px;}
+  .idea-fields{
+    display:flex;flex-wrap:wrap;gap:10px 16px;
+    border-top:1px dashed var(--line);
+    padding-top:10px;
+  }
+  .idea-field{
+    display:flex;flex-direction:column;gap:2px;
     border-bottom:1.5px solid var(--line);
-    white-space:nowrap;
+    padding-bottom:4px;
+    flex:1 1 110px;
+    min-width:0;
   }
-  .attractions td{
-    padding:6px 8px;
-    border-bottom:1px solid var(--line);
-    vertical-align:middle;
+  .idea-field label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10px;letter-spacing:0.06em;text-transform:uppercase;
+    color:var(--muted);
   }
-  .attractions input, .attractions select{
-    font-family:'Assistant', sans-serif;
-    font-size:13px;
-    border:none;
-    background:transparent;
-    outline:none;
-    color:var(--ink-text);
-    width:100%;
-    min-width:64px;
-    padding:4px 2px;
-    border-radius:6px;
+  .idea-field input, .idea-field select{
+    font-family:'Assistant', sans-serif;font-size:13.5px;
+    border:none;background:transparent;outline:none;color:var(--ink-text);
+    padding:2px 0;width:100%;
   }
-  .attractions input[type=number]{min-width:48px;}
-  .attractions input[type=checkbox]{width:16px;height:16px;accent-color:var(--pine);cursor:pointer;}
-  .attractions input:focus, .attractions select:focus{background:rgba(192,138,62,0.1);}
-  .attractions .row-num{font-family:'JetBrains Mono', monospace;color:var(--muted);text-align:center;}
-  .attractions .row-actions{display:flex;gap:4px;align-items:center;white-space:nowrap;}
-  .attractions .row-actions select{min-width:78px;}
-  .attractions .icon-btn{width:28px;height:28px;border-radius:8px;}
-  .attractions .icon-btn svg{width:14px;height:14px;}
+  .idea-field:focus-within{border-bottom-color:var(--brass);}
+  .idea-field.notes{flex-basis:100%;}
+  .idea-field.booking{flex-direction:row;align-items:center;gap:6px;border-bottom:none;padding-bottom:0;}
+  .idea-field.booking input[type=checkbox]{width:16px;height:16px;accent-color:var(--pine);cursor:pointer;}
+  .idea-assign{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    border-top:1px dashed var(--line);
+    padding-top:10px;margin-top:10px;
+  }
+  .idea-assign-label{font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--muted);white-space:nowrap;}
+  .idea-assign select, .idea-assign input[type=time]{
+    font-family:'Assistant', sans-serif;font-size:13px;
+    border:1.5px solid var(--line);border-radius:8px;
+    padding:6px 8px;background:transparent;color:var(--ink-text);outline:none;
+  }
+  .idea-assign select:focus, .idea-assign input[type=time]:focus{border-color:var(--brass);}
+  .idea-assign .btn-quick{padding:7px 12px;}
 
   @media (max-width:620px){
     .activity{grid-template-columns:70px 1fr 30px;}
@@ -513,7 +538,7 @@
 
   @media print{
     body{background:#fff;color:#000;padding:0;}
-    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.attractions .row-actions{display:none !important;}
+    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign{display:none !important;}
     .account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,#sharingPanelToggle{display:none !important;}
     .header-card,.day-card,.section-card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;}
     .hotel-stub{background:#eee !important;color:#000 !important;}
@@ -649,27 +674,8 @@
       <div class="section-title" id="attractionsTitle">רעיונות לאטרקציות</div>
       <button class="btn-quick" id="addIdeaBtn">הוסף רעיון</button>
     </div>
-    <p class="section-hint">מאגר רעיונות לפני שמשבצים אותם ליום מסוים. אפשר לשבץ רעיון ליום מתוך הטבלה, וציוד נדרש נוסף אוטומטית לרשימת האריזה.</p>
-    <div class="attractions-wrap">
-      <table class="attractions">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>שם באנגלית</th>
-            <th>שם בעברית</th>
-            <th>זמן מומלץ</th>
-            <th>עדיפות 1-10</th>
-            <th>שעות פתיחה</th>
-            <th id="priceHeader">מחיר משפחה</th>
-            <th>הזמנה מראש?</th>
-            <th>ציוד נדרש</th>
-            <th>הערות</th>
-            <th>פעולות</th>
-          </tr>
-        </thead>
-        <tbody id="attractionsBody"></tbody>
-      </table>
-    </div>
+    <p class="section-hint">מאגר רעיונות לפני שמשבצים אותם ליום מסוים. אפשר לשבץ רעיון ליום וגם לשעה מסוימת בתכנון, וציוד נדרש נוסף אוטומטית לרשימת האריזה.</p>
+    <div class="ideas-list" id="attractionsBody"></div>
   </div>
 
   <div class="section-card">
@@ -1267,7 +1273,6 @@ function updateStats(){
   const sym = currencySymbol();
   document.getElementById('budgetTotal').textContent = total.toLocaleString('he-IL');
   document.getElementById('currencySymbolBudget').textContent = sym;
-  document.getElementById('priceHeader').textContent = `מחיר משפחה (${sym})`;
 
   const labels = { lodging:'🛏 לינה', food:'🍴 אוכל', transport:'🚌 תחבורה', sight:'🎫 כניסות', general:'📌 כללי' };
   const breakdownEl = document.getElementById('budgetBreakdown');
@@ -1335,54 +1340,68 @@ function syncEquipmentToPacking(idea){
 function renderAttractions(){
   const body = document.getElementById('attractionsBody');
   body.innerHTML = '';
-  state.attractionIdeas.forEach((idea, index) => body.appendChild(buildIdeaRow(idea, index)));
+  if(!state.attractionIdeas.length){
+    body.innerHTML = '<div class="packing-empty">אין עדיין רעיונות לאטרקציות. הוסיפו רעיון למעלה.</div>';
+    return;
+  }
+  state.attractionIdeas.forEach((idea, index) => body.appendChild(buildIdeaCard(idea, index)));
 }
 
-function buildIdeaRow(idea, index){
-  const tr = document.createElement('tr');
+function buildIdeaCard(idea, index){
+  const card = document.createElement('div');
+  card.className = 'idea-card';
   const dayOptions = state.days.map((d,i) => `<option value="${i}">${escapeAttr(d.destination ? (i+1)+'. '+d.destination : 'יום '+(i+1))}</option>`).join('');
-  tr.innerHTML = `
-    <td class="row-num">${index+1}</td>
-    <td><input data-role="nameEn" placeholder="Attraction name" value="${escapeAttr(idea.nameEn)}"></td>
-    <td><input data-role="nameHe" placeholder="שם בעברית" value="${escapeAttr(idea.nameHe)}"></td>
-    <td><input data-role="duration" placeholder="לדוגמה: 2 שעות" value="${escapeAttr(idea.duration)}"></td>
-    <td><input data-role="priority" type="number" min="1" max="10" placeholder="1-10" value="${escapeAttr(idea.priority)}"></td>
-    <td><input data-role="hours" placeholder="09:00-18:00" value="${escapeAttr(idea.hours)}"></td>
-    <td><input data-role="price" type="number" min="0" placeholder="${currencySymbol()}" value="${escapeAttr(idea.price)}"></td>
-    <td style="text-align:center;"><input data-role="booking" type="checkbox" ${idea.booking ? 'checked' : ''}></td>
-    <td><input data-role="equipment" placeholder="נעלי הליכה, כובע..." value="${escapeAttr(idea.equipment)}"></td>
-    <td><input data-role="notes" placeholder="הערות" value="${escapeAttr(idea.notes)}"></td>
-    <td class="row-actions">
+  card.innerHTML = `
+    <div class="idea-card-head">
+      <span class="idea-num">#${index+1}</span>
+      <div class="idea-names">
+        <input data-role="nameHe" placeholder="שם בעברית" value="${escapeAttr(idea.nameHe)}">
+        <input data-role="nameEn" placeholder="Attraction name" value="${escapeAttr(idea.nameEn)}">
+      </div>
+      <button class="icon-btn del" data-role="del-idea" title="מחק רעיון">${ICONS.trash}</button>
+    </div>
+    <div class="idea-fields">
+      <div class="idea-field"><label>זמן מומלץ</label><input data-role="duration" placeholder="לדוגמה: 2 שעות" value="${escapeAttr(idea.duration)}"></div>
+      <div class="idea-field"><label>עדיפות 1-10</label><input data-role="priority" type="number" min="1" max="10" placeholder="1-10" value="${escapeAttr(idea.priority)}"></div>
+      <div class="idea-field"><label>שעות פתיחה</label><input data-role="hours" placeholder="09:00-18:00" value="${escapeAttr(idea.hours)}"></div>
+      <div class="idea-field"><label>מחיר משפחה (${currencySymbol()})</label><input data-role="price" type="number" min="0" placeholder="${currencySymbol()}" value="${escapeAttr(idea.price)}"></div>
+      <div class="idea-field"><label>ציוד נדרש</label><input data-role="equipment" placeholder="נעלי הליכה, כובע..." value="${escapeAttr(idea.equipment)}"></div>
+      <div class="idea-field booking"><input data-role="booking" type="checkbox" ${idea.booking ? 'checked' : ''}><label>הזמנה מראש?</label></div>
+      <div class="idea-field notes"><label>הערות</label><input data-role="notes" placeholder="הערות" value="${escapeAttr(idea.notes)}"></div>
+    </div>
+    <div class="idea-assign">
+      <span class="idea-assign-label">שבצו לתכנון:</span>
       <select data-role="promote-day">${dayOptions}</select>
-      <button class="icon-btn" data-role="promote" title="הוסף כפעילות ליום שנבחר">${ICONS.plus}</button>
-      <button class="icon-btn" data-role="del-idea" title="מחק רעיון">${ICONS.trash}</button>
-    </td>
+      <input data-role="promote-time" type="time" title="שעה מסוימת (אופציונלי)">
+      <button class="btn-quick" data-role="promote">${ICONS.plus} הוסף לתכנון</button>
+    </div>
   `;
 
-  tr.querySelector('[data-role="nameEn"]').addEventListener('input', e => { idea.nameEn = e.target.value; saveState(); });
-  tr.querySelector('[data-role="nameHe"]').addEventListener('input', e => { idea.nameHe = e.target.value; saveState(); });
-  tr.querySelector('[data-role="duration"]').addEventListener('input', e => { idea.duration = e.target.value; saveState(); });
-  tr.querySelector('[data-role="priority"]').addEventListener('input', e => { idea.priority = e.target.value; saveState(); });
-  tr.querySelector('[data-role="hours"]').addEventListener('input', e => { idea.hours = e.target.value; saveState(); });
-  tr.querySelector('[data-role="price"]').addEventListener('input', e => { idea.price = e.target.value; saveState(); });
-  tr.querySelector('[data-role="booking"]').addEventListener('change', e => { idea.booking = e.target.checked; saveState(); });
-  tr.querySelector('[data-role="notes"]').addEventListener('input', e => { idea.notes = e.target.value; saveState(); });
+  card.querySelector('[data-role="nameEn"]').addEventListener('input', e => { idea.nameEn = e.target.value; saveState(); });
+  card.querySelector('[data-role="nameHe"]').addEventListener('input', e => { idea.nameHe = e.target.value; saveState(); });
+  card.querySelector('[data-role="duration"]').addEventListener('input', e => { idea.duration = e.target.value; saveState(); });
+  card.querySelector('[data-role="priority"]').addEventListener('input', e => { idea.priority = e.target.value; saveState(); });
+  card.querySelector('[data-role="hours"]').addEventListener('input', e => { idea.hours = e.target.value; saveState(); });
+  card.querySelector('[data-role="price"]').addEventListener('input', e => { idea.price = e.target.value; saveState(); });
+  card.querySelector('[data-role="booking"]').addEventListener('change', e => { idea.booking = e.target.checked; saveState(); });
+  card.querySelector('[data-role="notes"]').addEventListener('input', e => { idea.notes = e.target.value; saveState(); });
 
-  const equipmentInput = tr.querySelector('[data-role="equipment"]');
+  const equipmentInput = card.querySelector('[data-role="equipment"]');
   equipmentInput.addEventListener('input', e => { idea.equipment = e.target.value; saveState(); });
   equipmentInput.addEventListener('blur', () => syncEquipmentToPacking(idea));
 
-  tr.querySelector('[data-role="del-idea"]').addEventListener('click', () => {
+  card.querySelector('[data-role="del-idea"]').addEventListener('click', () => {
     const idx = state.attractionIdeas.indexOf(idea);
     if(idx > -1) state.attractionIdeas.splice(idx,1);
     saveState(); renderAttractions();
   });
 
-  tr.querySelector('[data-role="promote"]').addEventListener('click', () => {
-    const dayIdx = Number(tr.querySelector('[data-role="promote-day"]').value);
+  card.querySelector('[data-role="promote"]').addEventListener('click', () => {
+    const dayIdx = Number(card.querySelector('[data-role="promote-day"]').value);
     const day = state.days[dayIdx];
     if(!day) return;
     const act = newActivity();
+    act.time = card.querySelector('[data-role="promote-time"]').value || '';
     act.title = idea.nameHe || idea.nameEn || '';
     act.category = 'sight';
     act.cost = idea.price || '';
@@ -1392,7 +1411,7 @@ function buildIdeaRow(idea, index){
     saveState(); render();
   });
 
-  return tr;
+  return card;
 }
 
 document.getElementById('addIdeaBtn').addEventListener('click', () => {
