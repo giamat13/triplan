@@ -18,23 +18,20 @@ service cloud.firestore {
         && request.resource.data.members.keys().hasOnly([request.auth.uid])
         && request.resource.data.members[request.auth.uid] == 'owner';
 
-      // Which top-level keys actually changed in this write. Using this instead of
-      // enumerating every content field (name/currency/days/...) means adding a new
-      // trip field later (e.g. secondaryCurrency, homeCurrency) never has to be
-      // mirrored here to keep working - a past enumeration-based version of this
-      // rule silently dropped fields that were added after it was written.
-      function changedKeys(){
-        return request.resource.data.diff(resource.data).affectedKeys();
-      }
-
       allow update: if isSignedIn() && (
         // 1) Normal content edit by an existing owner/editor - membership & codes untouched.
         (myRole() in ['owner', 'editor']
-          && !changedKeys().hasAny(['members', 'codes']))
+          && request.resource.data.members == resource.data.members
+          && request.resource.data.codes == resource.data.codes)
         ||
         // 2) Owner managing members / regenerating codes - trip content untouched.
         (myRole() == 'owner'
-          && changedKeys().hasOnly(['members', 'codes']))
+          && request.resource.data.name == resource.data.name
+          && request.resource.data.startDate == resource.data.startDate
+          && request.resource.data.currency == resource.data.currency
+          && request.resource.data.days == resource.data.days
+          && request.resource.data.packing == resource.data.packing
+          && request.resource.data.attractionIdeas == resource.data.attractionIdeas)
         ||
         // 3) Joining via an invite code - only the caller's own membership entry
         //    may be added, and only if a matching tripCodes document grants it.
@@ -42,7 +39,6 @@ service cloud.firestore {
         //    supply the exact code it used, in `lastJoinCode`, so the rule can
         //    look that single document up and verify it really grants this role.)
         (!(request.auth.uid in resource.data.members)
-          && changedKeys().hasOnly(['members', 'lastJoinCode'])
           && request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([request.auth.uid])
           && request.resource.data.get('lastJoinCode', '') != ''
           && get(/databases/$(database)/documents/tripCodes/$(request.resource.data.lastJoinCode)).data.tripId == tripId

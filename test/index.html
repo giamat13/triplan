@@ -657,6 +657,7 @@
   </div>
 
   <div class="readonly-banner" id="readonlyBanner">👁️ את/ה צופה בטיול הזה - אין אפשרות לערוך.</div>
+  <div class="readonly-banner" id="syncErrorBanner">⚠️ השמירה בענן נכשלה - השינויים האחרונים עלולים לא להישמר. בדקו את החיבור לאינטרנט ורעננו את הדף.</div>
 
   <div class="sharing-panel" id="sharingPanel" style="display:none;">
     <h3>שיתוף הטיול</h3>
@@ -801,12 +802,19 @@ function generateCode(){
   return s;
 }
 
+function tripContentPayload(data){
+  return {
+    name: data.name || '', startDate: data.startDate || '', currency: data.currency || 'ILS',
+    secondaryCurrency: data.secondaryCurrency || '', homeCurrency: data.homeCurrency || data.currency || 'ILS',
+    days: data.days || [], packing: data.packing || [], attractionIdeas: data.attractionIdeas || []
+  };
+}
+
 async function fbCreateTrip(data){
   const ref = doc(collection(db,'trips'));
   const codes = { owner: generateCode(), editor: generateCode(), viewer: generateCode() };
   const payload = {
-    name: data.name || '', startDate: data.startDate || '', currency: data.currency || 'ILS',
-    days: data.days || [], packing: data.packing || [], attractionIdeas: data.attractionIdeas || [],
+    ...tripContentPayload(data),
     members: { [currentUser.uid]: 'owner' },
     codes,
     createdAt: serverTimestamp(),
@@ -821,8 +829,7 @@ async function fbCreateTrip(data){
 
 async function fbSaveTrip(tripId, data){
   await updateDoc(doc(db,'trips',tripId), {
-    name: data.name || '', startDate: data.startDate || '', currency: data.currency || 'ILS',
-    days: data.days || [], packing: data.packing || [], attractionIdeas: data.attractionIdeas || [],
+    ...tripContentPayload(data),
     updatedAt: serverTimestamp()
   });
 }
@@ -1086,9 +1093,16 @@ async function refreshTripsIndex(){
   renderTripSelect();
 }
 
+function showSyncError(show){
+  const el = document.getElementById('syncErrorBanner');
+  if(el) el.style.display = show ? 'block' : 'none';
+}
+
 function saveState(){
   if(currentRole === 'viewer' || !activeTripId) return;
-  fbSaveTrip(activeTripId, state).catch(err => console.error('שגיאת שמירה:', err));
+  fbSaveTrip(activeTripId, state)
+    .then(() => showSyncError(false))
+    .catch(err => { console.error('שגיאת שמירה:', err); showSyncError(true); });
   const entry = tripsIndex.find(t => t.id === activeTripId);
   if(entry) entry.name = state.name || 'טיול ללא שם';
 }
@@ -1115,6 +1129,7 @@ async function switchToTrip(id){
   currentRole = (trip.members && trip.members[currentUser.uid]) || 'viewer';
   currentCodes = trip.codes || {};
   currentMembers = trip.members || {};
+  showSyncError(false);
   render();
   renderTripSelect();
   renderSharingPanel();
