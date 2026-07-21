@@ -29,6 +29,7 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
   body{
     background:
       radial-gradient(ellipse at 20% -10%, rgba(192,138,62,0.12), transparent 55%),
@@ -70,6 +71,20 @@
     max-width:220px;
   }
   .btn-sm{padding:7px 13px;font-size:12.5px;}
+
+  /* ---------- Quick jump nav (skip the header card straight to the lists) ---------- */
+  .quick-jump{
+    position:sticky; top:0; z-index:30;
+    display:flex; gap:8px; flex-wrap:wrap;
+    background:var(--ink); padding:8px 0; margin-bottom:10px;
+  }
+  .quick-jump a{
+    font-family:'JetBrains Mono', monospace; font-size:12.5px;
+    background:var(--paper); color:var(--ink-text);
+    border:1.5px solid var(--line-dark); border-radius:20px;
+    padding:7px 14px; text-decoration:none; white-space:nowrap;
+  }
+  #days, #ideasSection, #packingSection{scroll-margin-top:56px;}
 
   /* ---------- Header ticket ---------- */
   .header-card{
@@ -561,6 +576,10 @@
     .field-icon{flex-basis:45%;}
     .hotel-grid{grid-template-columns:1fr 1fr;}
     .hotel-grid .wide{grid-column:1/3;}
+    body{padding-top:16px;}
+    .header-card{padding:22px 18px 20px;}
+    .header-meta{gap:14px 18px;margin-top:14px;padding-top:12px;}
+    .meta-field input, .meta-field select{width:auto;min-width:0;font-size:14px;}
   }
   @media (max-width:420px){
     .field-icon{flex-basis:100%;}
@@ -656,6 +675,12 @@
     </div>
   </div>
 
+  <nav class="quick-jump" aria-label="ניווט מהיר">
+    <a href="#days">📅 ימים</a>
+    <a href="#ideasSection">💡 אטרקציות</a>
+    <a href="#packingSection">🎒 אריזה</a>
+  </nav>
+
   <div class="readonly-banner" id="readonlyBanner">👁️ את/ה צופה בטיול הזה - אין אפשרות לערוך.</div>
   <div class="readonly-banner" id="syncErrorBanner">⚠️ השמירה בענן נכשלה - השינויים האחרונים עלולים לא להישמר. בדקו את החיבור לאינטרנט ורעננו את הדף.</div>
 
@@ -681,12 +706,8 @@
         <select id="currencySelect"></select>
       </div>
       <div class="meta-field">
-        <label>מטבע משני</label>
+        <label>מטבע משני / הבית</label>
         <select id="secondaryCurrencySelect"></select>
-      </div>
-      <div class="meta-field">
-        <label>מטבע הבית</label>
-        <select id="homeCurrencySelect"></select>
       </div>
       <div class="meta-field">
         <label>תקציב משוער (מומר למטבע הבית)</label>
@@ -705,7 +726,7 @@
     </button>
   </div>
 
-  <div class="section-card">
+  <div class="section-card" id="ideasSection">
     <div class="section-header">
       <div class="section-title" id="attractionsTitle">רעיונות לאטרקציות</div>
       <button class="btn-quick" id="addIdeaBtn">הוסף רעיון</button>
@@ -714,7 +735,7 @@
     <div class="ideas-list" id="attractionsBody"></div>
   </div>
 
-  <div class="section-card">
+  <div class="section-card" id="packingSection">
     <div class="section-header">
       <div class="section-title">רשימת אריזה</div>
       <button class="btn-quick" id="packingQuickAdd">הוסף פריטים נפוצים</button>
@@ -805,7 +826,7 @@ function generateCode(){
 function tripContentPayload(data){
   return {
     name: data.name || '', startDate: data.startDate || '', currency: data.currency || 'ILS',
-    secondaryCurrency: data.secondaryCurrency || '', homeCurrency: data.homeCurrency || data.currency || 'ILS',
+    secondaryCurrency: data.secondaryCurrency || '',
     days: data.days || [], packing: data.packing || [], attractionIdeas: data.attractionIdeas || []
   };
 }
@@ -943,13 +964,12 @@ const EXCHANGE_RATES = {
 };
 
 function currencyOptionsHTML(withNoneOption){
-  const none = withNoneOption ? '<option value="">ללא מטבע משני</option>' : '';
+  const none = withNoneOption ? '<option value="">כמו מטבע ראשי</option>' : '';
   return none + CURRENCIES.map(c => `<option value="${c.code}">${c.symbol} ${c.label} · ${c.code}</option>`).join('');
 }
 function populateCurrencySelects(){
   document.getElementById('currencySelect').innerHTML = currencyOptionsHTML(false);
   document.getElementById('secondaryCurrencySelect').innerHTML = currencyOptionsHTML(true);
-  document.getElementById('homeCurrencySelect').innerHTML = currencyOptionsHTML(false);
 }
 populateCurrencySelects();
 
@@ -1029,15 +1049,20 @@ function normalizeIdea(a){
     notes: a.notes || ''
   };
 }
+// טיולים ישנים החזיקו "מטבע משני" ו"מטבע הבית" כשני שדות נפרדים - כאן מאחדים אותם לשדה אחד
+function mergeSecondaryCurrency(data){
+  const primary = CURRENCY_SYMBOLS.hasOwnProperty(data.currency) ? data.currency : 'ILS';
+  if(CURRENCY_SYMBOLS.hasOwnProperty(data.homeCurrency) && data.homeCurrency !== primary) return data.homeCurrency;
+  if(CURRENCY_SYMBOLS.hasOwnProperty(data.secondaryCurrency)) return data.secondaryCurrency;
+  return '';
+}
 function normalizeState(data){
   data = data || {};
   return {
     name: data.name || '',
     startDate: data.startDate || '',
     currency: CURRENCY_SYMBOLS.hasOwnProperty(data.currency) ? data.currency : 'ILS',
-    secondaryCurrency: CURRENCY_SYMBOLS.hasOwnProperty(data.secondaryCurrency) ? data.secondaryCurrency : '',
-    homeCurrency: CURRENCY_SYMBOLS.hasOwnProperty(data.homeCurrency) ? data.homeCurrency
-      : (CURRENCY_SYMBOLS.hasOwnProperty(data.currency) ? data.currency : 'ILS'),
+    secondaryCurrency: mergeSecondaryCurrency(data),
     days: Array.isArray(data.days) && data.days.length ? data.days.map(normalizeDay) : [ newDay() ],
     packing: Array.isArray(data.packing) ? data.packing.map(p => ({ id: p.id || nextId(), text: p.text || '', checked: !!p.checked })) : [],
     attractionIdeas: Array.isArray(data.attractionIdeas) ? data.attractionIdeas.map(normalizeIdea) : []
@@ -1159,7 +1184,6 @@ const tripNameEl = document.getElementById('tripName');
 const startDateEl = document.getElementById('startDate');
 const currencySelectEl = document.getElementById('currencySelect');
 const secondaryCurrencySelectEl = document.getElementById('secondaryCurrencySelect');
-const homeCurrencySelectEl = document.getElementById('homeCurrencySelect');
 
 function formatDate(dateStr, offset){
   if(!dateStr) return null;
@@ -1250,7 +1274,6 @@ function render(){
   startDateEl.value = state.startDate;
   currencySelectEl.value = state.currency;
   secondaryCurrencySelectEl.value = state.secondaryCurrency || '';
-  homeCurrencySelectEl.value = state.homeCurrency || state.currency;
   daysEl.innerHTML = '';
 
   state.days.forEach((day, index) => {
@@ -1394,7 +1417,7 @@ function buildActivityRow(day, act){
 
 function updateStats(){
   document.getElementById('daysCount').textContent = state.days.length;
-  const homeCur = state.homeCurrency || state.currency;
+  const homeCur = state.secondaryCurrency || state.currency;
   let total = 0;
   const catTotals = { lodging:0, food:0, transport:0, sight:0, general:0 };
   const rawByCurrency = {};
@@ -1605,7 +1628,6 @@ tripNameEl.addEventListener('input', e => { state.name = e.target.value; saveSta
 startDateEl.addEventListener('input', e => { state.startDate = e.target.value; saveState(); render(); });
 currencySelectEl.addEventListener('change', e => { state.currency = e.target.value; saveState(); render(); });
 secondaryCurrencySelectEl.addEventListener('change', e => { state.secondaryCurrency = e.target.value; saveState(); render(); });
-homeCurrencySelectEl.addEventListener('change', e => { state.homeCurrency = e.target.value; saveState(); render(); });
 
 /* ---------------- Trip switcher ---------------- */
 document.getElementById('tripSelect').addEventListener('change', e => {
@@ -1716,7 +1738,7 @@ function applyRoleRestrictions(){
     scope.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = isViewer; });
     scope.querySelectorAll('button').forEach(el => { el.style.display = isViewer ? 'none' : ''; });
   });
-  [tripNameEl, startDateEl, currencySelectEl, secondaryCurrencySelectEl, homeCurrencySelectEl].forEach(el => { el.disabled = isViewer; });
+  [tripNameEl, startDateEl, currencySelectEl, secondaryCurrencySelectEl].forEach(el => { el.disabled = isViewer; });
   const toggle = id => { const el = document.getElementById(id); if(el) el.style.display = isViewer ? 'none' : ''; };
   toggle('addDay'); toggle('addIdeaBtn'); toggle('packingAddBtn'); toggle('packingQuickAdd');
 }
