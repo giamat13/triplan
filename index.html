@@ -1087,7 +1087,7 @@ function newActivity(){
 function newAttractionIdea(){
   return {
     id: nextId(), nameEn:'', nameHe:'', duration:'', priority:'', hours:'', price:'', booking:false, equipment:'', notes:'',
-    link:'', transport:'', cuisine:'', category:DEFAULT_CATEGORY, partySize:''
+    link:'', cuisine:'', category:DEFAULT_CATEGORY, partySize:''
   };
 }
 
@@ -1137,7 +1137,6 @@ function normalizeIdea(a){
     equipment: a.equipment || '',
     notes: a.notes || '',
     link: a.link || '',
-    transport: a.transport || '',
     cuisine: a.cuisine || '',
     category: (a.category === 'food' || a.category === 'sight') ? a.category : 'sight',
     partySize: a.partySize || ''
@@ -1728,7 +1727,6 @@ function buildIdeaCard(idea, index){
       <div class="idea-field" data-role="equipment-wrap" style="${vis('equipment')}"><label>ציוד נדרש</label><input data-role="equipment" placeholder="נעלי הליכה, כובע..." value="${escapeAttr(idea.equipment)}"></div>
       <div class="idea-field"><label>מחיר משפחה (${currencySymbol()})</label><input data-role="price" type="number" min="0" placeholder="${currencySymbol()}" value="${escapeAttr(idea.price)}"></div>
       <div class="idea-field"><label>קישור / כתובת (Google Maps)</label><input data-role="link" placeholder="קישור למפה / אתר" value="${escapeAttr(idea.link)}"></div>
-      <div class="idea-field"><label>תחבורה</label><input data-role="transport" list="idea-transport-${idea.id}" placeholder="תחבורה" value="${escapeAttr(idea.transport)}"><datalist id="idea-transport-${idea.id}">${TRANSPORT_OPTIONS.map(o=>`<option value="${o}">`).join('')}</datalist></div>
       <div class="idea-field booking" data-role="booking-wrap" style="${vis('booking')}"><input data-role="booking" type="checkbox" ${idea.booking ? 'checked' : ''}><label>הזמנה מראש?</label></div>
       <div class="idea-field notes"><label>הערות</label><input data-role="notes" placeholder="הערות" value="${escapeAttr(idea.notes)}"></div>
     </div>
@@ -1756,7 +1754,6 @@ function buildIdeaCard(idea, index){
     card.querySelector('[data-role="hours"]').addEventListener('input', e => { idea.hours = e.target.value; saveState(); });
     card.querySelector('[data-role="price"]').addEventListener('input', e => { idea.price = e.target.value; saveState(); });
     card.querySelector('[data-role="link"]').addEventListener('input', e => { idea.link = e.target.value; saveState(); });
-    card.querySelector('[data-role="transport"]').addEventListener('input', e => { idea.transport = e.target.value; saveState(); });
     card.querySelector('[data-role="cuisine"]').addEventListener('input', e => { idea.cuisine = e.target.value; saveState(); });
     card.querySelector('[data-role="partySize"]').addEventListener('input', e => { idea.partySize = e.target.value; saveState(); });
     card.querySelector('[data-role="category"]').addEventListener('change', e => {
@@ -1795,7 +1792,6 @@ function buildIdeaCard(idea, index){
       act.category = CATEGORY_EMOJI.hasOwnProperty(idea.category) ? idea.category : 'sight';
       act.cost = idea.price || '';
       act.link = idea.link || '';
-      act.transport = idea.transport || '';
       act.cuisine = idea.cuisine || '';
       act.duration = idea.duration || '';
       act.priority = idea.priority || '';
