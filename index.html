@@ -1028,7 +1028,7 @@ function newActivity(){
 function newAttractionIdea(){
   return {
     id: nextId(), nameEn:'', nameHe:'', duration:'', priority:'', hours:'', price:'', booking:false, equipment:'', notes:'',
-    link:'', transport:'', cuisine:'', category:'general'
+    link:'', transport:'', cuisine:'', category:'sight'
   };
 }
 
@@ -1078,7 +1078,7 @@ function normalizeIdea(a){
     link: a.link || '',
     transport: a.transport || '',
     cuisine: a.cuisine || '',
-    category: CATEGORY_EMOJI.hasOwnProperty(a.category) ? a.category : 'general'
+    category: (a.category === 'food' || a.category === 'sight') ? a.category : 'sight'
   };
 }
 // טיולים ישנים החזיקו "מטבע משני" ו"מטבע הבית" כשני שדות נפרדים - כאן מאחדים אותם לשדה אחד
@@ -1434,7 +1434,7 @@ function buildActivityRow(day, act){
         <option value="sight" ${act.category==='sight'?'selected':''}>${CATEGORY_LABELS.sight}</option>
       </select></label>
       <label class="field-icon">${ICONS.link}<input data-role="link" placeholder="קישור / כתובת" value="${escapeAttr(act.link)}"></label>
-      <label class="field-icon">${ICONS.cuisine}<input data-role="cuisine" placeholder="סוג מטבח (למסעדה)" value="${escapeAttr(act.cuisine)}"></label>
+      <label class="field-icon" data-role="cuisine-wrap" style="${act.category==='food' ? '' : 'display:none;'}">${ICONS.cuisine}<input data-role="cuisine" placeholder="סוג מטבח (למסעדה)" value="${escapeAttr(act.cuisine)}"></label>
       <label class="field-icon">${ICONS.duration}<input data-role="duration" placeholder="משך (לדוגמה: 2 שעות)" value="${escapeAttr(act.duration)}"></label>
       <label class="field-icon">${ICONS.time}<input data-role="hours" placeholder="שעות פתיחה" value="${escapeAttr(act.hours)}"></label>
       <label class="field-icon">${ICONS.priority}<input data-role="priority" type="number" min="1" max="10" placeholder="עדיפות 1-10" value="${escapeAttr(act.priority)}"></label>
@@ -1454,6 +1454,7 @@ function buildActivityRow(day, act){
   row.querySelector('[data-role="category"]').addEventListener('change', e => {
     act.category = e.target.value;
     catBadge.textContent = CATEGORY_EMOJI[act.category] || CATEGORY_EMOJI.general;
+    row.querySelector('[data-role="cuisine-wrap"]').style.display = act.category === 'food' ? '' : 'none';
     saveState(); updateStats();
   });
   row.querySelector('[data-role="link"]').addEventListener('input', e => { act.link = e.target.value; saveState(); });
@@ -1616,13 +1617,11 @@ function buildIdeaCard(idea, index){
       <div class="idea-field"><label>מחיר משפחה (${currencySymbol()})</label><input data-role="price" type="number" min="0" placeholder="${currencySymbol()}" value="${escapeAttr(idea.price)}"></div>
       <div class="idea-field"><label>קישור / כתובת (Google Maps)</label><input data-role="link" placeholder="קישור למפה / אתר" value="${escapeAttr(idea.link)}"></div>
       <div class="idea-field"><label>תחבורה</label><input data-role="transport" list="idea-transport-${idea.id}" placeholder="תחבורה" value="${escapeAttr(idea.transport)}"><datalist id="idea-transport-${idea.id}">${TRANSPORT_OPTIONS.map(o=>`<option value="${o}">`).join('')}</datalist></div>
-      <div class="idea-field"><label>סוג מטבח (למסעדה)</label><input data-role="cuisine" placeholder="סוג מטבח" value="${escapeAttr(idea.cuisine)}"></div>
       <div class="idea-field"><label>קטגוריה</label><select data-role="category">
-        <option value="general" ${idea.category==='general'?'selected':''}>${CATEGORY_LABELS.general}</option>
-        <option value="food" ${idea.category==='food'?'selected':''}>${CATEGORY_LABELS.food}</option>
-        <option value="transport" ${idea.category==='transport'?'selected':''}>${CATEGORY_LABELS.transport}</option>
         <option value="sight" ${idea.category==='sight'?'selected':''}>${CATEGORY_LABELS.sight}</option>
+        <option value="food" ${idea.category==='food'?'selected':''}>${CATEGORY_LABELS.food}</option>
       </select></div>
+      <div class="idea-field" data-role="cuisine-wrap" style="${idea.category==='food' ? '' : 'display:none;'}"><label>סוג מטבח (למסעדה)</label><input data-role="cuisine" placeholder="סוג מטבח" value="${escapeAttr(idea.cuisine)}"></div>
       <div class="idea-field"><label>ציוד נדרש</label><input data-role="equipment" placeholder="נעלי הליכה, כובע..." value="${escapeAttr(idea.equipment)}"></div>
       <div class="idea-field booking"><input data-role="booking" type="checkbox" ${idea.booking ? 'checked' : ''}><label>הזמנה מראש?</label></div>
       <div class="idea-field notes"><label>הערות</label><input data-role="notes" placeholder="הערות" value="${escapeAttr(idea.notes)}"></div>
@@ -1653,7 +1652,11 @@ function buildIdeaCard(idea, index){
     card.querySelector('[data-role="link"]').addEventListener('input', e => { idea.link = e.target.value; saveState(); });
     card.querySelector('[data-role="transport"]').addEventListener('input', e => { idea.transport = e.target.value; saveState(); });
     card.querySelector('[data-role="cuisine"]').addEventListener('input', e => { idea.cuisine = e.target.value; saveState(); });
-    card.querySelector('[data-role="category"]').addEventListener('change', e => { idea.category = e.target.value; saveState(); });
+    card.querySelector('[data-role="category"]').addEventListener('change', e => {
+      idea.category = e.target.value;
+      card.querySelector('[data-role="cuisine-wrap"]').style.display = idea.category === 'food' ? '' : 'none';
+      saveState();
+    });
     card.querySelector('[data-role="booking"]').addEventListener('change', e => { idea.booking = e.target.checked; saveState(); });
     card.querySelector('[data-role="notes"]').addEventListener('input', e => { idea.notes = e.target.value; saveState(); });
 
