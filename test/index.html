@@ -372,6 +372,16 @@
     color:var(--brass-soft);
   }
   .hotel-label svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;}
+  .hotel-copy-btn{
+    margin-inline-start:auto;
+    background:transparent;border:1.5px dashed var(--stay-soft);color:var(--brass-soft);
+    font-family:'JetBrains Mono', monospace;font-size:10.5px;font-weight:600;
+    letter-spacing:0.04em;text-transform:none;
+    border-radius:8px;padding:5px 12px;cursor:pointer;white-space:nowrap;
+  }
+  .hotel-copy-btn:hover{border-color:var(--brass-soft);background:rgba(224,184,118,0.12);}
+  .hotel-copy-btn:disabled{opacity:0.3;cursor:default;}
+  .hotel-copy-btn:disabled:hover{border-color:var(--stay-soft);background:transparent;}
   .hotel-grid{
     display:grid;
     grid-template-columns:1.4fr 1fr 0.7fr;
@@ -1296,7 +1306,10 @@ function render(){
       <button class="add-activity" data-role="add-activity">${ICONS.plus} הוסף פעילות</button>
       <div class="perf"></div>
       <div class="hotel-stub">
-        <div class="hotel-label">${ICONS.bed} לינה בלילה שאחרי</div>
+        <div class="hotel-label">
+          ${ICONS.bed} לינה בלילה שאחרי
+          <button class="hotel-copy-btn" data-role="copy-hotel" type="button" ${index===0?'disabled title="אין יום קודם להעתיק ממנו"':''}>⤵ החל מאתמול</button>
+        </div>
         <div class="hotel-grid">
           <div class="hotel-field">
             <label>בית מלון</label>
@@ -1353,6 +1366,20 @@ function render(){
     hl.addEventListener('input', e => { day.hotel.link = e.target.value; saveState(); });
     hc.addEventListener('input', e => { day.hotel.cost = e.target.value; saveState(); updateStats(); });
     hnotes.addEventListener('input', e => { day.hotel.notes = e.target.value; saveState(); });
+
+    const copyHotelBtn = card.querySelector('[data-role="copy-hotel"]');
+    if(copyHotelBtn){
+      copyHotelBtn.addEventListener('click', () => {
+        const prevDay = state.days[index-1];
+        if(!prevDay) return;
+        day.hotel = { name: prevDay.hotel.name, link: prevDay.hotel.link, cost: prevDay.hotel.cost, notes: prevDay.hotel.notes };
+        hn.value = day.hotel.name;
+        hl.value = day.hotel.link;
+        hc.value = day.hotel.cost;
+        hnotes.value = day.hotel.notes;
+        saveState(); updateStats();
+      });
+    }
 
     daysEl.appendChild(card);
     loadWeatherForDay(day, index);
