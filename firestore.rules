@@ -50,6 +50,14 @@ service cloud.firestore {
       );
 
       allow delete: if isSignedIn() && myRole() == 'owner';
+
+      // Each trip member keeps a private packing list, keyed by their own uid.
+      // Only that member can read or write it - not the trip owner, not other
+      // members - regardless of their role on the trip itself.
+      match /packingLists/{uid} {
+        allow read, write: if isSignedIn() && request.auth.uid == uid
+          && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.members;
+      }
     }
 
     // Lookup table: code (document ID) -> { tripId, role }.
