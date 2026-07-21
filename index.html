@@ -256,6 +256,7 @@
   .activities{padding:0 28px;display:flex;flex-direction:column;gap:10px;}
   .activity{
     border:1.5px solid var(--line);
+    border-inline-start:4px solid var(--line);
     border-radius:12px;
     padding:12px 14px;
     display:grid;
@@ -263,7 +264,11 @@
     gap:8px 12px;
     align-items:start;
     background:rgba(255,255,255,0.25);
+    transition:border-color .15s;
   }
+  .activity.cat-sight{border-inline-start-color:var(--brass);}
+  .activity.cat-food{border-inline-start-color:var(--rust);}
+  .activity.cat-transport{border-inline-start-color:var(--pine);}
   .activity input, .activity textarea, .activity select{
     font-family:'Assistant', sans-serif;
     border:none;
@@ -290,7 +295,11 @@
     gap:6px;
     min-width:0;
   }
-  .cat-badge{flex:0 0 auto;font-size:16px;line-height:1;}
+  .cat-badge{
+    flex:0 0 auto;font-size:14px;line-height:1;
+    width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+    border-radius:50%;background:rgba(0,0,0,0.05);
+  }
   .activity .title{
     font-size:16px;
     font-weight:600;
@@ -313,13 +322,20 @@
     display:flex;align-items:center;gap:6px;
     font-size:13px;
     color:var(--ink-text);
-    border-bottom:1px solid transparent;
+    background:rgba(0,0,0,0.035);
+    border:1px solid rgba(0,0,0,0.05);
+    border-radius:9px;
+    padding:6px 10px;
     min-width:0;
+    transition:background .15s, border-color .15s;
   }
-  .field-icon:focus-within{border-bottom-color:var(--brass);}
+  .field-icon:focus-within{background:rgba(192,138,62,0.1);border-color:var(--brass);}
   .field-icon svg{width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:1.8;flex:0 0 auto;}
-  .field-icon input, .field-icon select{font-size:13px;padding:3px 0;}
+  .field-icon input, .field-icon select{font-size:13px;padding:2px 0;background:transparent;}
   .details .notes{flex-basis:100%;}
+  .field-icon.booking{flex:0 0 auto;}
+  .field-icon.booking input[type=checkbox]{width:15px;height:15px;flex:0 0 auto;accent-color:var(--pine);cursor:pointer;}
+  .field-icon.booking span{white-space:nowrap;}
 
   .add-activity{
     margin:4px 0 22px;
@@ -372,6 +388,16 @@
     color:var(--brass-soft);
   }
   .hotel-label svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;}
+  .hotel-copy-btn{
+    margin-inline-start:auto;
+    background:transparent;border:1.5px dashed var(--stay-soft);color:var(--brass-soft);
+    font-family:'JetBrains Mono', monospace;font-size:10.5px;font-weight:600;
+    letter-spacing:0.04em;text-transform:none;
+    border-radius:8px;padding:5px 12px;cursor:pointer;white-space:nowrap;
+  }
+  .hotel-copy-btn:hover{border-color:var(--brass-soft);background:rgba(224,184,118,0.12);}
+  .hotel-copy-btn:disabled{opacity:0.3;cursor:default;}
+  .hotel-copy-btn:disabled:hover{border-color:var(--stay-soft);background:transparent;}
   .hotel-grid{
     display:grid;
     grid-template-columns:1.4fr 1fr 0.7fr;
@@ -497,12 +523,21 @@
   .ideas-list{display:flex;flex-direction:column;gap:12px;}
   .idea-card{
     border:1.5px solid var(--line);
+    border-inline-start:4px solid var(--line);
     border-radius:12px;
     padding:14px 16px;
     background:rgba(255,255,255,0.25);
+    transition:border-color .15s;
   }
+  .idea-card.cat-sight{border-inline-start-color:var(--brass);}
+  .idea-card.cat-food{border-inline-start-color:var(--rust);}
   .idea-card-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
   .idea-card.collapsed .idea-card-head{margin-bottom:0;}
+  .idea-cat-badge{
+    flex:0 0 auto;font-size:14px;line-height:1;
+    width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+    border-radius:50%;background:rgba(0,0,0,0.05);
+  }
   .idea-num{font-family:'JetBrains Mono', monospace;color:var(--muted);font-size:12px;flex:0 0 auto;}
   .idea-names{flex:1;display:flex;gap:10px;flex-wrap:wrap;min-width:0;}
   .idea-names input{
@@ -538,10 +573,13 @@
   }
   .idea-field{
     display:flex;flex-direction:column;gap:2px;
-    border-bottom:1.5px solid var(--line);
-    padding-bottom:4px;
+    background:rgba(0,0,0,0.035);
+    border:1px solid rgba(0,0,0,0.05);
+    border-radius:9px;
+    padding:6px 10px;
     flex:1 1 110px;
     min-width:0;
+    transition:background .15s, border-color .15s;
   }
   .idea-field label{
     font-family:'JetBrains Mono', monospace;
@@ -553,9 +591,9 @@
     border:none;background:transparent;outline:none;color:var(--ink-text);
     padding:2px 0;width:100%;
   }
-  .idea-field:focus-within{border-bottom-color:var(--brass);}
+  .idea-field:focus-within{background:rgba(192,138,62,0.1);border-color:var(--brass);}
   .idea-field.notes{flex-basis:100%;}
-  .idea-field.booking{flex-direction:row;align-items:center;gap:6px;border-bottom:none;padding-bottom:0;}
+  .idea-field.booking{flex-direction:row;align-items:center;gap:6px;flex:0 0 auto;}
   .idea-field.booking input[type=checkbox]{width:16px;height:16px;accent-color:var(--pine);cursor:pointer;}
   .idea-assign{
     display:flex;align-items:center;gap:8px;flex-wrap:wrap;
@@ -740,6 +778,7 @@
       <div class="section-title">רשימת אריזה</div>
       <button class="btn-quick" id="packingQuickAdd">הוסף פריטים נפוצים</button>
     </div>
+    <p class="section-hint">🔒 הרשימה הזו אישית - נשמרת בענן ומוצגת רק לך, גם אם הטיול משותף עם עוד אנשים.</p>
     <div class="packing-list" id="packingList"></div>
     <div class="packing-add-row">
       <input type="text" id="packingNewItem" placeholder="הוסף פריט...">
@@ -823,11 +862,14 @@ function generateCode(){
   return s;
 }
 
+// packing is deliberately NOT included here - each member keeps their own
+// private packing list in trips/{tripId}/packingLists/{uid}, see fbGetPackingList
+// / fbSavePackingList, instead of one list shared across the whole trip.
 function tripContentPayload(data){
   return {
     name: data.name || '', startDate: data.startDate || '', currency: data.currency || 'ILS',
     secondaryCurrency: data.secondaryCurrency || '',
-    days: data.days || [], packing: data.packing || [], attractionIdeas: data.attractionIdeas || []
+    days: data.days || [], attractionIdeas: data.attractionIdeas || []
   };
 }
 
@@ -866,6 +908,20 @@ async function fbListMyTrips(){
   const q = query(collection(db,'trips'), where('members.'+uid, 'in', ['owner','editor','viewer']));
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id:d.id, ...d.data() }));
+}
+
+// Private per-user packing list: trips/{tripId}/packingLists/{uid}, readable and
+// writable only by that uid (see firestore.rules) - never mixed into the shared
+// trip document, so members never see each other's packing lists.
+async function fbGetPackingList(tripId, uid){
+  const snap = await getDoc(doc(db,'trips',tripId,'packingLists',uid));
+  if(!snap.exists()) return null;
+  const items = snap.data().items;
+  return Array.isArray(items) ? items.map(normalizePackingItem) : [];
+}
+
+async function fbSavePackingList(tripId, uid, items){
+  await setDoc(doc(db,'trips',tripId,'packingLists',uid), { items, updatedAt: serverTimestamp() });
 }
 
 async function fbJoinByCode(code){
@@ -921,11 +977,31 @@ const ICONS = {
   category: `<svg viewBox="0 0 24 24"><path d="M11 3h6a2 2 0 0 1 2 2v6a2 2 0 0 1-.6 1.4l-8 8a2 2 0 0 1-2.8 0l-6-6a2 2 0 0 1 0-2.8l8-8A2 2 0 0 1 11 3Z" stroke-linejoin="round"/><circle cx="15.5" cy="8.5" r="1.2"/></svg>`,
   cuisine: `<svg viewBox="0 0 24 24"><path d="M7 3v7a2 2 0 0 0 2 2v9M7 3v7M9 3v7M11 3v18M17 3c-1.5 0-2.5 1.5-2.5 4s1 4 2.5 4v11" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   chevron: `<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  duration: `<svg viewBox="0 0 24 24"><path d="M6 3h12M6 21h12M7 3c0 5 5 5.5 5 9s-5 4-5 9M17 3c0 5-5 5.5-5 9s5 4 5 9" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  priority: `<svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.9 6.4.6-4.8 4.3 1.4 6.3L12 17l-5.6 3.1 1.4-6.3L3 9.5l6.4-.6L12 3Z" stroke-linejoin="round"/></svg>`,
+  booking: `<svg viewBox="0 0 24 24"><path d="M5 5h14v4a2 2 0 0 0 0 4v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-4a2 2 0 0 0 0-4V5Z" stroke-linejoin="round"/><path d="M12 5v2M12 11v2M12 17v2" stroke-linecap="round"/></svg>`,
+  equipment: `<svg viewBox="0 0 24 24"><path d="M8 8V6a4 4 0 0 1 8 0v2M6 8h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke-linecap="round"/></svg>`,
+  people: `<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke-linecap="round"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.2A5 5 0 0 1 21 19" stroke-linecap="round"/></svg>`,
 };
 
 const TRANSPORT_OPTIONS = ['הליכה','רכב שכור','תחבורה ציבורית','מונית / אפליקציית הסעה','רכבת','אופניים','טיסה','מעבורת'];
-const CATEGORY_EMOJI = { general:'📌', food:'🍴', transport:'🚌', sight:'🎫' };
-const CATEGORY_LABELS = { general:'📌 כללי', food:'🍴 אוכל / מסעדה', transport:'🚌 תחבורה', sight:'🎫 כניסות ואטרקציות' };
+const CATEGORY_EMOJI = { food:'🍴', transport:'🚌', sight:'🎫' };
+const CATEGORY_LABELS = { food:'🍴 אוכל / מסעדה', transport:'🚌 תחבורה', sight:'🎫 כניסות ואטרקציות' };
+const DEFAULT_CATEGORY = 'sight';
+
+// כל קטגוריה מציגה רק את השדות הרלוונטיים לה - טיסה לא צריכה "עדיפות", ומסעדה לא צריכה "ציוד נדרש"
+const ACTIVITY_CATEGORY_FIELDS = {
+  sight: ['duration','hours','priority','booking','equipment'],
+  food: ['cuisine','duration','hours','booking','partySize'],
+  transport: ['duration','confirmation','equipment']
+};
+const IDEA_CATEGORY_FIELDS = {
+  sight: ['duration','hours','priority','booking','equipment'],
+  food: ['cuisine','duration','hours','booking','partySize']
+};
+function categoryFieldVisible(map, category, field){
+  return (map[category] || map[DEFAULT_CATEGORY] || []).includes(field);
+}
 
 const CURRENCIES = [
   { code:'ILS', symbol:'₪', label:'שקל' },
@@ -1003,10 +1079,16 @@ function newDay(){
   return { id: nextId(), destination:'', currency:'', activities:[ newActivity() ], hotel:{ name:'', link:'', cost:'', notes:'' } };
 }
 function newActivity(){
-  return { id: nextId(), time:'', title:'', category:'general', cuisine:'', transport:'', cost:'', link:'', notes:'' };
+  return {
+    id: nextId(), time:'', title:'', category:DEFAULT_CATEGORY, cuisine:'', transport:'', cost:'', link:'', notes:'',
+    duration:'', priority:'', hours:'', booking:false, equipment:'', partySize:'', confirmation:''
+  };
 }
 function newAttractionIdea(){
-  return { id: nextId(), nameEn:'', nameHe:'', duration:'', priority:'', hours:'', price:'', booking:false, equipment:'', notes:'' };
+  return {
+    id: nextId(), nameEn:'', nameHe:'', duration:'', priority:'', hours:'', price:'', booking:false, equipment:'', notes:'',
+    link:'', cuisine:'', category:DEFAULT_CATEGORY, partySize:''
+  };
 }
 
 function normalizeActivity(a){
@@ -1015,12 +1097,19 @@ function normalizeActivity(a){
     id: a.id || nextId(),
     time: a.time || '',
     title: a.title || '',
-    category: CATEGORY_EMOJI.hasOwnProperty(a.category) ? a.category : 'general',
+    category: CATEGORY_EMOJI.hasOwnProperty(a.category) ? a.category : DEFAULT_CATEGORY,
     cuisine: a.cuisine || '',
     transport: a.transport || '',
     cost: a.cost || '',
     link: a.link || '',
-    notes: a.notes || ''
+    notes: a.notes || '',
+    duration: a.duration || '',
+    priority: a.priority || '',
+    hours: a.hours || '',
+    booking: !!a.booking,
+    equipment: a.equipment || '',
+    partySize: a.partySize || '',
+    confirmation: a.confirmation || ''
   };
 }
 function normalizeDay(d){
@@ -1046,7 +1135,11 @@ function normalizeIdea(a){
     price: a.price || '',
     booking: !!a.booking,
     equipment: a.equipment || '',
-    notes: a.notes || ''
+    notes: a.notes || '',
+    link: a.link || '',
+    cuisine: a.cuisine || '',
+    category: (a.category === 'food' || a.category === 'sight') ? a.category : 'sight',
+    partySize: a.partySize || ''
   };
 }
 // טיולים ישנים החזיקו "מטבע משני" ו"מטבע הבית" כשני שדות נפרדים - כאן מאחדים אותם לשדה אחד
@@ -1056,6 +1149,9 @@ function mergeSecondaryCurrency(data){
   if(CURRENCY_SYMBOLS.hasOwnProperty(data.secondaryCurrency)) return data.secondaryCurrency;
   return '';
 }
+function normalizePackingItem(p){
+  return { id: p.id || nextId(), text: p.text || '', checked: !!p.checked };
+}
 function normalizeState(data){
   data = data || {};
   return {
@@ -1064,7 +1160,10 @@ function normalizeState(data){
     currency: CURRENCY_SYMBOLS.hasOwnProperty(data.currency) ? data.currency : 'ILS',
     secondaryCurrency: mergeSecondaryCurrency(data),
     days: Array.isArray(data.days) && data.days.length ? data.days.map(normalizeDay) : [ newDay() ],
-    packing: Array.isArray(data.packing) ? data.packing.map(p => ({ id: p.id || nextId(), text: p.text || '', checked: !!p.checked })) : [],
+    // starting value only - the real per-user list is loaded separately after
+    // switching trips, see loadPrivatePackingList(). Kept here so a brand-new
+    // trip (or an imported JSON file) still has something to seed that list with.
+    packing: Array.isArray(data.packing) ? data.packing.map(normalizePackingItem) : [],
     attractionIdeas: Array.isArray(data.attractionIdeas) ? data.attractionIdeas.map(normalizeIdea) : []
   };
 }
@@ -1132,6 +1231,16 @@ function saveState(){
   if(entry) entry.name = state.name || 'טיול ללא שם';
 }
 
+// The packing list is private per user, so it's saved separately from the rest
+// of the trip - unlike saveState() this isn't blocked for viewers, since editing
+// your own private list doesn't touch anything the trip role is meant to guard.
+function savePackingList(){
+  if(!activeTripId || !currentUser) return;
+  fbSavePackingList(activeTripId, currentUser.uid, state.packing)
+    .then(() => showSyncError(false))
+    .catch(err => { console.error('שגיאת שמירת רשימת אריזה:', err); showSyncError(true); });
+}
+
 function renderTripSelect(){
   const sel = document.getElementById('tripSelect');
   sel.innerHTML = tripsIndex.map(t =>
@@ -1158,6 +1267,22 @@ async function switchToTrip(id){
   render();
   renderTripSelect();
   renderSharingPanel();
+  await loadPrivatePackingList(id);
+}
+
+// Loads the current user's own packing list for this trip. Trips created before
+// packing lists went private may still carry a legacy shared `packing` array
+// (already picked up into state.packing by normalizeState above) - the first
+// time such a trip is opened, that becomes this user's private starting list
+// instead of being silently dropped.
+async function loadPrivatePackingList(tripId){
+  const privateItems = await fbGetPackingList(tripId, currentUser.uid);
+  if(privateItems !== null){
+    state.packing = privateItems;
+  } else if(state.packing.length){
+    await fbSavePackingList(tripId, currentUser.uid, state.packing);
+  }
+  if(activeTripId === tripId) renderPacking();
 }
 
 async function createTrip(data, fallbackName){
@@ -1165,6 +1290,7 @@ async function createTrip(data, fallbackName){
   if(!normalized.name && fallbackName) normalized.name = fallbackName;
   const id = await fbCreateTrip(normalized);
   tripsIndex.push({ id, name: normalized.name || fallbackName || 'טיול חדש', role:'owner' });
+  if(normalized.packing.length) await fbSavePackingList(id, currentUser.uid, normalized.packing);
   return id;
 }
 
@@ -1296,7 +1422,10 @@ function render(){
       <button class="add-activity" data-role="add-activity">${ICONS.plus} הוסף פעילות</button>
       <div class="perf"></div>
       <div class="hotel-stub">
-        <div class="hotel-label">${ICONS.bed} לינה בלילה שאחרי</div>
+        <div class="hotel-label">
+          ${ICONS.bed} לינה בלילה שאחרי
+          <button class="hotel-copy-btn" data-role="copy-hotel" type="button" ${index===0?'disabled title="אין יום קודם להעתיק ממנו"':''}>⤵ החל מאתמול</button>
+        </div>
         <div class="hotel-grid">
           <div class="hotel-field">
             <label>בית מלון</label>
@@ -1354,6 +1483,20 @@ function render(){
     hc.addEventListener('input', e => { day.hotel.cost = e.target.value; saveState(); updateStats(); });
     hnotes.addEventListener('input', e => { day.hotel.notes = e.target.value; saveState(); });
 
+    const copyHotelBtn = card.querySelector('[data-role="copy-hotel"]');
+    if(copyHotelBtn){
+      copyHotelBtn.addEventListener('click', () => {
+        const prevDay = state.days[index-1];
+        if(!prevDay) return;
+        day.hotel = { name: prevDay.hotel.name, link: prevDay.hotel.link, cost: prevDay.hotel.cost, notes: prevDay.hotel.notes };
+        hn.value = day.hotel.name;
+        hl.value = day.hotel.link;
+        hc.value = day.hotel.cost;
+        hnotes.value = day.hotel.notes;
+        saveState(); updateStats();
+      });
+    }
+
     daysEl.appendChild(card);
     loadWeatherForDay(day, index);
   });
@@ -1366,12 +1509,13 @@ function render(){
 
 function buildActivityRow(day, act){
   const row = document.createElement('div');
-  row.className = 'activity';
+  row.className = 'activity cat-' + act.category;
   const dlId = 'transport-list-' + act.id;
+  const vis = f => categoryFieldVisible(ACTIVITY_CATEGORY_FIELDS, act.category, f) ? '' : 'display:none;';
   row.innerHTML = `
     <input class="time" data-role="time" type="time" value="${escapeAttr(act.time)}">
     <div class="title-wrap">
-      <span class="cat-badge" data-role="cat-badge">${CATEGORY_EMOJI[act.category] || CATEGORY_EMOJI.general}</span>
+      <span class="cat-badge" data-role="cat-badge">${CATEGORY_EMOJI[act.category] || CATEGORY_EMOJI[DEFAULT_CATEGORY]}</span>
       <input class="title" data-role="title" placeholder="פעילות / יעד" value="${escapeAttr(act.title)}">
     </div>
     <button class="icon-btn del" data-role="del-activity" title="מחק פעילות">${ICONS.trash}</button>
@@ -1379,19 +1523,26 @@ function buildActivityRow(day, act){
       <label class="field-icon">${ICONS.transport}<input data-role="transport" list="${dlId}" placeholder="תחבורה" value="${escapeAttr(act.transport)}"></label>
       <label class="field-icon">${ICONS.cost}<input data-role="cost" type="number" min="0" placeholder="עלות ${currencySymbolFor(dayCurrency(day))}" value="${escapeAttr(act.cost)}"></label>
       <label class="field-icon">${ICONS.category}<select data-role="category">
-        <option value="general" ${act.category==='general'?'selected':''}>${CATEGORY_LABELS.general}</option>
+        <option value="sight" ${act.category==='sight'?'selected':''}>${CATEGORY_LABELS.sight}</option>
         <option value="food" ${act.category==='food'?'selected':''}>${CATEGORY_LABELS.food}</option>
         <option value="transport" ${act.category==='transport'?'selected':''}>${CATEGORY_LABELS.transport}</option>
-        <option value="sight" ${act.category==='sight'?'selected':''}>${CATEGORY_LABELS.sight}</option>
       </select></label>
       <label class="field-icon">${ICONS.link}<input data-role="link" placeholder="קישור / כתובת" value="${escapeAttr(act.link)}"></label>
-      <label class="field-icon">${ICONS.cuisine}<input data-role="cuisine" placeholder="סוג מטבח (למסעדה)" value="${escapeAttr(act.cuisine)}"></label>
+      <label class="field-icon" data-role="cuisine-wrap" style="${vis('cuisine')}">${ICONS.cuisine}<input data-role="cuisine" placeholder="סוג מטבח" value="${escapeAttr(act.cuisine)}"></label>
+      <label class="field-icon" data-role="duration-wrap" style="${vis('duration')}">${ICONS.duration}<input data-role="duration" placeholder="משך (לדוגמה: 2 שעות)" value="${escapeAttr(act.duration)}"></label>
+      <label class="field-icon" data-role="hours-wrap" style="${vis('hours')}">${ICONS.time}<input data-role="hours" placeholder="שעות פתיחה" value="${escapeAttr(act.hours)}"></label>
+      <label class="field-icon" data-role="priority-wrap" style="${vis('priority')}">${ICONS.priority}<input data-role="priority" type="number" min="1" max="10" placeholder="עדיפות 1-10" value="${escapeAttr(act.priority)}"></label>
+      <label class="field-icon" data-role="partySize-wrap" style="${vis('partySize')}">${ICONS.people}<input data-role="partySize" type="number" min="1" placeholder="מספר סועדים" value="${escapeAttr(act.partySize)}"></label>
+      <label class="field-icon" data-role="confirmation-wrap" style="${vis('confirmation')}">${ICONS.booking}<input data-role="confirmation" placeholder="מספר אישור / הזמנה" value="${escapeAttr(act.confirmation)}"></label>
+      <label class="field-icon" data-role="equipment-wrap" style="${vis('equipment')}">${ICONS.equipment}<input data-role="equipment" placeholder="ציוד נדרש (מופרד בפסיקים)" value="${escapeAttr(act.equipment)}"></label>
+      <label class="field-icon booking" data-role="booking-wrap" style="${vis('booking')}">${ICONS.booking}<input data-role="booking" type="checkbox" ${act.booking ? 'checked' : ''}><span>הזמנה מראש?</span></label>
       <label class="field-icon notes">${ICONS.notes}<input data-role="notes" placeholder="הערות" value="${escapeAttr(act.notes)}"></label>
       <datalist id="${dlId}">${TRANSPORT_OPTIONS.map(o=>`<option value="${o}">`).join('')}</datalist>
     </div>
   `;
 
   const catBadge = row.querySelector('[data-role="cat-badge"]');
+  const CONDITIONAL_FIELDS = ['cuisine','duration','hours','priority','partySize','confirmation','equipment','booking'];
 
   row.querySelector('[data-role="time"]').addEventListener('input', e => { act.time = e.target.value; saveState(); });
   row.querySelector('[data-role="title"]').addEventListener('input', e => { act.title = e.target.value; saveState(); });
@@ -1399,11 +1550,24 @@ function buildActivityRow(day, act){
   row.querySelector('[data-role="cost"]').addEventListener('input', e => { act.cost = e.target.value; saveState(); updateStats(); });
   row.querySelector('[data-role="category"]').addEventListener('change', e => {
     act.category = e.target.value;
-    catBadge.textContent = CATEGORY_EMOJI[act.category] || CATEGORY_EMOJI.general;
+    row.className = 'activity cat-' + act.category;
+    catBadge.textContent = CATEGORY_EMOJI[act.category] || CATEGORY_EMOJI[DEFAULT_CATEGORY];
+    CONDITIONAL_FIELDS.forEach(field => {
+      row.querySelector(`[data-role="${field}-wrap"]`).style.display = categoryFieldVisible(ACTIVITY_CATEGORY_FIELDS, act.category, field) ? '' : 'none';
+    });
     saveState(); updateStats();
   });
   row.querySelector('[data-role="link"]').addEventListener('input', e => { act.link = e.target.value; saveState(); });
   row.querySelector('[data-role="cuisine"]').addEventListener('input', e => { act.cuisine = e.target.value; saveState(); });
+  row.querySelector('[data-role="duration"]').addEventListener('input', e => { act.duration = e.target.value; saveState(); });
+  row.querySelector('[data-role="hours"]').addEventListener('input', e => { act.hours = e.target.value; saveState(); });
+  row.querySelector('[data-role="priority"]').addEventListener('input', e => { act.priority = e.target.value; saveState(); });
+  row.querySelector('[data-role="partySize"]').addEventListener('input', e => { act.partySize = e.target.value; saveState(); });
+  row.querySelector('[data-role="confirmation"]').addEventListener('input', e => { act.confirmation = e.target.value; saveState(); });
+  row.querySelector('[data-role="booking"]').addEventListener('change', e => { act.booking = e.target.checked; saveState(); });
+  const activityEquipmentInput = row.querySelector('[data-role="equipment"]');
+  activityEquipmentInput.addEventListener('input', e => { act.equipment = e.target.value; saveState(); });
+  activityEquipmentInput.addEventListener('blur', () => syncEquipmentToPacking(act));
   row.querySelector('[data-role="notes"]').addEventListener('input', e => { act.notes = e.target.value; saveState(); });
   row.querySelector('[data-role="del-activity"]').addEventListener('click', () => {
     const idx = day.activities.indexOf(act);
@@ -1419,7 +1583,7 @@ function updateStats(){
   document.getElementById('daysCount').textContent = state.days.length;
   const homeCur = state.secondaryCurrency || state.currency;
   let total = 0;
-  const catTotals = { lodging:0, food:0, transport:0, sight:0, general:0 };
+  const catTotals = { lodging:0, food:0, transport:0, sight:0 };
   const rawByCurrency = {};
   const addRaw = (code, val) => { if(val) rawByCurrency[code] = (rawByCurrency[code] || 0) + val; };
 
@@ -1430,7 +1594,7 @@ function updateStats(){
       if(!val) return;
       addRaw(curCode, val);
       total += convertAmount(val, curCode, homeCur);
-      const cat = catTotals.hasOwnProperty(a.category) ? a.category : 'general';
+      const cat = catTotals.hasOwnProperty(a.category) ? a.category : DEFAULT_CATEGORY;
       catTotals[cat] += convertAmount(val, curCode, homeCur);
     });
     const hc = Number(day.hotel.cost) || 0;
@@ -1444,7 +1608,7 @@ function updateStats(){
   document.getElementById('budgetTotal').textContent = Math.round(total).toLocaleString('he-IL');
   document.getElementById('currencySymbolBudget').textContent = sym;
 
-  const labels = { lodging:'🛏 לינה', food:'🍴 אוכל', transport:'🚌 תחבורה', sight:'🎫 כניסות', general:'📌 כללי' };
+  const labels = { lodging:'🛏 לינה', food:'🍴 אוכל', transport:'🚌 תחבורה', sight:'🎫 כניסות' };
   const breakdownEl = document.getElementById('budgetBreakdown');
   let html = Object.keys(labels).map(k =>
     `<span>${labels[k]}: <b>${Math.round(catTotals[k]).toLocaleString('he-IL')}</b>${sym}</span>`
@@ -1477,12 +1641,12 @@ function renderPacking(){
     const chk = row.querySelector('input[type=checkbox]');
     const txt = row.querySelector('input[type=text]');
     const del = row.querySelector('button');
-    chk.addEventListener('change', e => { item.checked = e.target.checked; row.classList.toggle('checked', item.checked); saveState(); });
-    txt.addEventListener('input', e => { item.text = e.target.value; saveState(); });
+    chk.addEventListener('change', e => { item.checked = e.target.checked; row.classList.toggle('checked', item.checked); savePackingList(); });
+    txt.addEventListener('input', e => { item.text = e.target.value; savePackingList(); });
     del.addEventListener('click', () => {
       const idx = state.packing.indexOf(item);
       if(idx > -1) state.packing.splice(idx,1);
-      renderPacking(); saveState();
+      renderPacking(); savePackingList();
     });
     listEl.appendChild(row);
   });
@@ -1494,7 +1658,7 @@ function addPackingItem(){
   if(!text) return;
   state.packing.push({ id: nextId(), text, checked:false });
   input.value = '';
-  saveState(); renderPacking();
+  savePackingList(); renderPacking();
 }
 
 function syncEquipmentToPacking(idea){
@@ -1510,7 +1674,7 @@ function syncEquipmentToPacking(idea){
       added++;
     }
   });
-  if(added){ saveState(); renderPacking(); }
+  if(added){ savePackingList(); renderPacking(); }
 }
 
 /* ---------------- Attractions ideas ---------------- */
@@ -1529,12 +1693,14 @@ function renderAttractions(){
 function buildIdeaCard(idea, index){
   const card = document.createElement('div');
   const expanded = expandedIdeaIds.has(idea.id);
-  card.className = 'idea-card ' + (expanded ? 'expanded' : 'collapsed');
+  card.className = 'idea-card cat-' + idea.category + ' ' + (expanded ? 'expanded' : 'collapsed');
   const dayOptions = state.days.map((d,i) => `<option value="${i}">${escapeAttr(d.destination ? (i+1)+'. '+d.destination : 'יום '+(i+1))}</option>`).join('');
   const displayName = idea.nameHe || idea.nameEn;
+  const vis = f => categoryFieldVisible(IDEA_CATEGORY_FIELDS, idea.category, f) ? '' : 'display:none;';
 
   card.innerHTML = `
     <div class="idea-card-head">
+      <span class="idea-cat-badge">${CATEGORY_EMOJI[idea.category] || CATEGORY_EMOJI[DEFAULT_CATEGORY]}</span>
       <span class="idea-num">#${index+1}</span>
       ${expanded ? `
       <div class="idea-names">
@@ -1549,12 +1715,19 @@ function buildIdeaCard(idea, index){
     </div>
     ${expanded ? `
     <div class="idea-fields">
-      <div class="idea-field"><label>זמן מומלץ</label><input data-role="duration" placeholder="לדוגמה: 2 שעות" value="${escapeAttr(idea.duration)}"></div>
-      <div class="idea-field"><label>עדיפות 1-10</label><input data-role="priority" type="number" min="1" max="10" placeholder="1-10" value="${escapeAttr(idea.priority)}"></div>
-      <div class="idea-field"><label>שעות פתיחה</label><input data-role="hours" placeholder="09:00-18:00" value="${escapeAttr(idea.hours)}"></div>
+      <div class="idea-field"><label>קטגוריה</label><select data-role="category">
+        <option value="sight" ${idea.category==='sight'?'selected':''}>${CATEGORY_LABELS.sight}</option>
+        <option value="food" ${idea.category==='food'?'selected':''}>${CATEGORY_LABELS.food}</option>
+      </select></div>
+      <div class="idea-field" data-role="cuisine-wrap" style="${vis('cuisine')}"><label>סוג מטבח (למסעדה)</label><input data-role="cuisine" placeholder="סוג מטבח" value="${escapeAttr(idea.cuisine)}"></div>
+      <div class="idea-field" data-role="duration-wrap" style="${vis('duration')}"><label>זמן מומלץ</label><input data-role="duration" placeholder="לדוגמה: 2 שעות" value="${escapeAttr(idea.duration)}"></div>
+      <div class="idea-field" data-role="hours-wrap" style="${vis('hours')}"><label>שעות פתיחה</label><input data-role="hours" placeholder="09:00-18:00" value="${escapeAttr(idea.hours)}"></div>
+      <div class="idea-field" data-role="priority-wrap" style="${vis('priority')}"><label>עדיפות 1-10</label><input data-role="priority" type="number" min="1" max="10" placeholder="1-10" value="${escapeAttr(idea.priority)}"></div>
+      <div class="idea-field" data-role="partySize-wrap" style="${vis('partySize')}"><label>מספר סועדים</label><input data-role="partySize" type="number" min="1" placeholder="כמה אנשים" value="${escapeAttr(idea.partySize)}"></div>
+      <div class="idea-field" data-role="equipment-wrap" style="${vis('equipment')}"><label>ציוד נדרש</label><input data-role="equipment" placeholder="נעלי הליכה, כובע..." value="${escapeAttr(idea.equipment)}"></div>
       <div class="idea-field"><label>מחיר משפחה (${currencySymbol()})</label><input data-role="price" type="number" min="0" placeholder="${currencySymbol()}" value="${escapeAttr(idea.price)}"></div>
-      <div class="idea-field"><label>ציוד נדרש</label><input data-role="equipment" placeholder="נעלי הליכה, כובע..." value="${escapeAttr(idea.equipment)}"></div>
-      <div class="idea-field booking"><input data-role="booking" type="checkbox" ${idea.booking ? 'checked' : ''}><label>הזמנה מראש?</label></div>
+      <div class="idea-field"><label>קישור / כתובת (Google Maps)</label><input data-role="link" placeholder="קישור למפה / אתר" value="${escapeAttr(idea.link)}"></div>
+      <div class="idea-field booking" data-role="booking-wrap" style="${vis('booking')}"><input data-role="booking" type="checkbox" ${idea.booking ? 'checked' : ''}><label>הזמנה מראש?</label></div>
       <div class="idea-field notes"><label>הערות</label><input data-role="notes" placeholder="הערות" value="${escapeAttr(idea.notes)}"></div>
     </div>
     <div class="idea-assign">
@@ -1580,6 +1753,18 @@ function buildIdeaCard(idea, index){
     card.querySelector('[data-role="priority"]').addEventListener('input', e => { idea.priority = e.target.value; saveState(); });
     card.querySelector('[data-role="hours"]').addEventListener('input', e => { idea.hours = e.target.value; saveState(); });
     card.querySelector('[data-role="price"]').addEventListener('input', e => { idea.price = e.target.value; saveState(); });
+    card.querySelector('[data-role="link"]').addEventListener('input', e => { idea.link = e.target.value; saveState(); });
+    card.querySelector('[data-role="cuisine"]').addEventListener('input', e => { idea.cuisine = e.target.value; saveState(); });
+    card.querySelector('[data-role="partySize"]').addEventListener('input', e => { idea.partySize = e.target.value; saveState(); });
+    card.querySelector('[data-role="category"]').addEventListener('change', e => {
+      idea.category = e.target.value;
+      card.className = 'idea-card cat-' + idea.category + ' expanded';
+      card.querySelector('.idea-cat-badge').textContent = CATEGORY_EMOJI[idea.category] || CATEGORY_EMOJI[DEFAULT_CATEGORY];
+      ['cuisine','duration','hours','priority','partySize','equipment','booking'].forEach(field => {
+        card.querySelector(`[data-role="${field}-wrap"]`).style.display = categoryFieldVisible(IDEA_CATEGORY_FIELDS, idea.category, field) ? '' : 'none';
+      });
+      saveState();
+    });
     card.querySelector('[data-role="booking"]').addEventListener('change', e => { idea.booking = e.target.checked; saveState(); });
     card.querySelector('[data-role="notes"]').addEventListener('input', e => { idea.notes = e.target.value; saveState(); });
 
@@ -1604,9 +1789,17 @@ function buildIdeaCard(idea, index){
       const act = newActivity();
       act.time = card.querySelector('[data-role="promote-time"]').value || '';
       act.title = idea.nameHe || idea.nameEn || '';
-      act.category = 'sight';
+      act.category = CATEGORY_EMOJI.hasOwnProperty(idea.category) ? idea.category : 'sight';
       act.cost = idea.price || '';
-      act.notes = [idea.hours ? ('שעות פתיחה: ' + idea.hours) : '', idea.booking ? 'דורש הזמנה מראש' : '', idea.notes || ''].filter(Boolean).join(' · ');
+      act.link = idea.link || '';
+      act.cuisine = idea.cuisine || '';
+      act.duration = idea.duration || '';
+      act.priority = idea.priority || '';
+      act.hours = idea.hours || '';
+      act.booking = !!idea.booking;
+      act.equipment = idea.equipment || '';
+      act.partySize = idea.partySize || '';
+      act.notes = idea.notes || '';
       day.activities.push(act);
       syncEquipmentToPacking(idea);
       saveState(); render();
@@ -1733,14 +1926,16 @@ function renderSharingPanel(){
 function applyRoleRestrictions(){
   const isViewer = currentRole === 'viewer';
   document.getElementById('readonlyBanner').style.display = isViewer ? 'block' : 'none';
-  [daysEl, document.getElementById('packingList'), document.getElementById('attractionsBody')].forEach(scope => {
+  // Packing list is excluded here on purpose - it's each member's own private
+  // list, so it stays editable regardless of the viewer/editor/owner trip role.
+  [daysEl, document.getElementById('attractionsBody')].forEach(scope => {
     if(!scope) return;
     scope.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = isViewer; });
     scope.querySelectorAll('button').forEach(el => { el.style.display = isViewer ? 'none' : ''; });
   });
   [tripNameEl, startDateEl, currencySelectEl, secondaryCurrencySelectEl].forEach(el => { el.disabled = isViewer; });
   const toggle = id => { const el = document.getElementById(id); if(el) el.style.display = isViewer ? 'none' : ''; };
-  toggle('addDay'); toggle('addIdeaBtn'); toggle('packingAddBtn'); toggle('packingQuickAdd');
+  toggle('addDay'); toggle('addIdeaBtn');
 }
 
 document.getElementById('addDay').addEventListener('click', () => {
@@ -1761,7 +1956,7 @@ document.getElementById('packingQuickAdd').addEventListener('click', () => {
       existing.add(t.toLowerCase());
     }
   });
-  saveState(); renderPacking();
+  savePackingList(); renderPacking();
 });
 
 /* ---------------- Export / Import / Share ---------------- */
