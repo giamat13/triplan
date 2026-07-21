@@ -1,0 +1,8 @@
+.playwright-mcp/
+*.png
+.DS_Store
+Thumbs.db
+.vscode/
+node_modules/
+*.log
+.env
