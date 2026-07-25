@@ -1718,7 +1718,7 @@ function buildActivityRow(day, act){
 }
 
 /* ---------------- Touring-hours plan for attraction ideas ---------------- */
-const DEFAULT_TOURING_HOURS = 8;
+const DEFAULT_TOURING_HOURS = 5;
 
 // Parses free-text duration ("2 שעות", "90 דקות", "1:30", "חצי יום"...) to hours.
 // Returns null when the text isn't empty but doesn't match a known pattern -
@@ -1732,7 +1732,17 @@ function parseDurationHours(text){
   if(/^שעה\s*וחצי$/.test(text)) return 1.5;
   if(/^חצי\s*שעה$/.test(text)) return 0.5;
   if(/^שעה$/.test(text)) return 1;
-  let m = text.match(/^(\d+(?:[.,]\d+)?)\s*(שעות|שעה|שע|h|hr|hours?)\.?$/i);
+  const UNIT = '(שעות|שעה|שע|h|hr|hours?|דקות|דקה|דק|min|m)';
+  let m = text.match(new RegExp(`^(\\d+(?:[.,]\\d+)?)\\s*${UNIT}?\\s*(?:-|–|—|עד|to)\\s*(\\d+(?:[.,]\\d+)?)\\s*${UNIT}?\\.?$`, 'i'));
+  if(m){
+    const n1 = parseFloat(m[1].replace(',','.'));
+    const n2 = parseFloat(m[3].replace(',','.'));
+    const unit = (m[4] || m[2] || '').toLowerCase();
+    const isMinutes = /^(דקות|דקה|דק|min|m)$/i.test(unit);
+    const avg = (n1 + n2) / 2;
+    return isMinutes ? avg / 60 : avg;
+  }
+  m = text.match(/^(\d+(?:[.,]\d+)?)\s*(שעות|שעה|שע|h|hr|hours?)\.?$/i);
   if(m) return parseFloat(m[1].replace(',','.'));
   m = text.match(/^(\d+(?:[.,]\d+)?)\s*(דקות|דקה|דק|min|m)\.?$/i);
   if(m) return parseFloat(m[1].replace(',','.')) / 60;
@@ -1773,7 +1783,7 @@ function formatHours(h){ return (Math.round(h*10)/10).toLocaleString('he-IL'); }
 function markDurationValidity(wrapEl, text){
   const bad = parseDurationHours(text) === null;
   wrapEl.classList.toggle('field-invalid', bad);
-  wrapEl.title = bad ? 'משך זמן לא מזוהה - נסו למשל: "2 שעות", "90 דקות", "1:30", "חצי יום"' : '';
+  wrapEl.title = bad ? 'משך זמן לא מזוהה - נסו למשל: "2 שעות", "90 דקות", "1:30", "1-1.5 שעות", "חצי יום"' : '';
 }
 
 function renderTouringPlanDays(){
@@ -2095,7 +2105,7 @@ function buildIdeaCard(idea, index){
         <option value="food" ${idea.category==='food'?'selected':''}>${CATEGORY_LABELS.food}</option>
       </select></div>
       <div class="idea-field" data-role="cuisine-wrap" style="${vis('cuisine')}"><label>סוג מטבח (למסעדה)</label><input data-role="cuisine" placeholder="סוג מטבח" value="${escapeAttr(idea.cuisine)}"></div>
-      <div class="idea-field" data-role="duration-wrap" style="${vis('duration')}"><label>זמן מומלץ</label><input data-role="duration" placeholder="לדוגמה: 2 שעות" value="${escapeAttr(idea.duration)}"></div>
+      <div class="idea-field" data-role="duration-wrap" style="${vis('duration')}"><label>זמן מומלץ</label><input data-role="duration" placeholder="לדוגמה: 2 שעות, 1-1.5 שעות" value="${escapeAttr(idea.duration)}"></div>
       <div class="idea-field" data-role="hours-wrap" style="${vis('hours')}"><label>שעות פתיחה</label><input data-role="hours" placeholder="09:00-18:00" value="${escapeAttr(idea.hours)}"></div>
       <div class="idea-field" data-role="priority-wrap" style="${vis('priority')}"><label>עדיפות 1-10</label><input data-role="priority" type="number" min="1" max="10" placeholder="1-10" value="${escapeAttr(idea.priority)}"></div>
       <div class="idea-field" data-role="partySize-wrap" style="${vis('partySize')}"><label>מספר סועדים</label><input data-role="partySize" type="number" min="1" placeholder="כמה אנשים" value="${escapeAttr(idea.partySize)}"></div>
