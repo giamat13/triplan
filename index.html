@@ -552,6 +552,13 @@
   .touring-day-field input:focus{border-color:var(--brass);}
   .touring-plan-result{font-size:13px;color:var(--ink-text);line-height:1.6;}
   .touring-plan-result.over{color:var(--rust);font-weight:600;}
+  .touring-plan-unrecognized-btn{margin-top:8px;}
+  .touring-plan-unrecognized{
+    margin-top:8px;padding:8px 10px;
+    border:1.5px dashed var(--rust);border-radius:8px;
+    font-size:12.5px;color:var(--ink-text);line-height:1.7;
+  }
+  .touring-plan-unrecognized-item{word-break:break-word;}
   .ideas-map-divider{
     margin-top:18px;padding-top:14px;border-top:1.5px dashed var(--line);
     font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--muted);
@@ -837,6 +844,8 @@
       <p class="section-hint">כמה שעות טיול יש בכל יום? (ריק = ברירת מחדל 8 שעות, אפשר לשנות לימים יוצאי דופן כמו יום טיסה)</p>
       <div class="touring-plan-days" id="touringPlanDays"></div>
       <div class="touring-plan-result" id="touringPlanResult"></div>
+      <button class="btn-quick btn-sm touring-plan-unrecognized-btn" id="showUnrecognizedBtn" type="button" style="display:none;"></button>
+      <div class="touring-plan-unrecognized" id="touringPlanUnrecognized" style="display:none;"></div>
     </div>
     <div class="ideas-filters" id="ideaFilters">
       <select id="ideaFilterCategory" title="סנן לפי קטגוריה">
@@ -1719,6 +1728,10 @@ function buildActivityRow(day, act){
 
 /* ---------------- Touring-hours plan for attraction ideas ---------------- */
 const DEFAULT_TOURING_HOURS = 5;
+// Ideas with a recognized duration at or under this many hours (15 min) are
+// always included in the plan regardless of priority - skipping them wouldn't
+// free up any meaningful time, so there's no reason to cut them.
+const SHORT_ITEM_HOURS = 0.25;
 
 // Parses free-text duration ("2 שעות", "90 דקות", "1:30", "חצי יום"...) to hours.
 // Returns null when the text isn't empty but doesn't match a known pattern -
@@ -1762,20 +1775,29 @@ function computeIdeasTouringPlan(){
   const available = state.days.reduce((sum, day) => sum + dayHoursFor(day), 0);
   const parsed = state.attractionIdeas.map(idea => {
     const h = parseDurationHours(idea.duration);
-    return { priority: Number(idea.priority) || 0, hours: h || 0, invalid: h === null };
+    return { idea, priority: Number(idea.priority) || 0, hours: h || 0, invalid: h === null };
   });
   const used = parsed.reduce((sum,p) => sum + p.hours, 0);
-  const invalidCount = parsed.filter(p => p.invalid).length;
+  const invalidItems = parsed.filter(p => p.invalid);
+
+  // Short items (<= SHORT_ITEM_HOURS) always make the cut - they're pulled out
+  // of the priority race entirely, and their hours come off the top of the
+  // available time before the rest get ranked.
+  const shortItems = parsed.filter(p => !p.invalid && p.hours > 0 && p.hours <= SHORT_ITEM_HOURS);
+  const rankedItems = parsed.filter(p => p.invalid || p.hours === 0 || p.hours > SHORT_ITEM_HOURS);
+  const shortHours = shortItems.reduce((sum,p) => sum + p.hours, 0);
+  const remainingForRanked = available - shortHours;
+
   let cutoffPriority = null;
   if(used > available){
-    const sorted = parsed.slice().sort((a,b) => b.priority - a.priority);
+    const sorted = rankedItems.slice().sort((a,b) => b.priority - a.priority);
     let acc = 0;
     for(const p of sorted){
       acc += p.hours;
-      if(acc > available){ cutoffPriority = p.priority; break; }
+      if(acc > remainingForRanked){ cutoffPriority = p.priority; break; }
     }
   }
-  return { available, used, over: used > available, invalidCount, cutoffPriority };
+  return { available, used, over: used > available, invalidCount: invalidItems.length, invalidItems, shortAlwaysIncludedCount: shortItems.length, cutoffPriority };
 }
 
 function formatHours(h){ return (Math.round(h*10)/10).toLocaleString('he-IL'); }
@@ -1812,12 +1834,40 @@ function renderTouringPlanResult(){
     html += b.cutoffPriority !== null
       ? `<br>⚠️ תספיקו רק לרעיונות בעדיפות ${b.cutoffPriority} ומעלה - למטה מזה לא יהיה זמן (חסרות כ-${formatHours(b.used - b.available)} שעות)`
       : `<br>⚠️ יש יותר רעיונות ממה שיש זמן`;
+    if(b.shortAlwaysIncludedCount) html += `<br><span style="color:var(--muted);font-weight:400;">${b.shortAlwaysIncludedCount} רעיונות קצרים (עד 15 דק') נכנסים תמיד בלי קשר לעדיפות, כי לא באמת מפנים זמן</span>`;
   } else if(state.attractionIdeas.length){
     html += `<br>✅ יש מספיק זמן לכל הרעיונות ברשימה`;
   }
   resultEl.className = 'touring-plan-result' + (b.over ? ' over' : '');
   resultEl.innerHTML = html;
+
+  const btn = document.getElementById('showUnrecognizedBtn');
+  const listEl = document.getElementById('touringPlanUnrecognized');
+  if(btn){
+    if(b.invalidCount){
+      btn.style.display = '';
+      const isOpen = listEl && listEl.style.display !== 'none';
+      btn.textContent = (isOpen ? 'הסתר' : 'הצג') + ` ${b.invalidCount} רעיונות עם משך זמן לא מזוהה`;
+    } else {
+      btn.style.display = 'none';
+      if(listEl) listEl.style.display = 'none';
+    }
+  }
+  if(listEl){
+    listEl.innerHTML = b.invalidItems.map(p => {
+      const name = (p.idea.nameHe || p.idea.nameEn || 'רעיון ללא שם').trim();
+      const raw = (p.idea.duration || '').trim();
+      return `<div class="touring-plan-unrecognized-item">• ${escapeAttr(name)} — משך שהוזן: "${escapeAttr(raw)}"</div>`;
+    }).join('') || '<div class="touring-plan-unrecognized-item">אין (כרגע) רעיונות עם משך זמן לא מזוהה.</div>';
+  }
 }
+
+document.getElementById('showUnrecognizedBtn').addEventListener('click', () => {
+  const listEl = document.getElementById('touringPlanUnrecognized');
+  if(!listEl) return;
+  listEl.style.display = listEl.style.display === 'none' ? '' : 'none';
+  renderTouringPlanResult();
+});
 
 function renderTouringPlan(){
   renderTouringPlanDays();
