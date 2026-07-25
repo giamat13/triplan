@@ -608,6 +608,13 @@
   }
   .idea-assign select:focus, .idea-assign input[type=time]:focus{border-color:var(--brass);}
   .idea-assign .btn-quick{padding:7px 12px;}
+  .ideas-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .ideas-filters select, #ideaSortSelect{
+    font-family:'Assistant', sans-serif;font-size:13px;
+    border:1.5px solid var(--line);border-radius:8px;
+    padding:6px 10px;background:transparent;color:var(--ink-text);outline:none;
+  }
+  .ideas-filters select:focus, #ideaSortSelect:focus{border-color:var(--brass);}
 
   @media (max-width:620px){
     .activity{grid-template-columns:70px 1fr 30px;}
@@ -767,9 +774,29 @@
   <div class="section-card" id="ideasSection">
     <div class="section-header">
       <div class="section-title" id="attractionsTitle">רעיונות לאטרקציות</div>
+      <select class="btn-quick" id="ideaSortSelect" title="מיין לפי">
+        <option value="manual">מיון: לפי סדר הוספה</option>
+        <option value="category">מיון: קטגוריה</option>
+        <option value="name">מיון: שם (א-ב)</option>
+        <option value="createdAt">מיון: מי הוסיף/תאריך</option>
+        <option value="priority">מיון: עדיפות</option>
+      </select>
       <button class="btn-quick" id="addIdeaBtn">הוסף רעיון</button>
     </div>
     <p class="section-hint">מאגר רעיונות לפני שמשבצים אותם ליום מסוים. אפשר לשבץ רעיון ליום וגם לשעה מסוימת בתכנון, וציוד נדרש נוסף אוטומטית לרשימת האריזה.</p>
+    <div class="ideas-filters" id="ideaFilters">
+      <select id="ideaFilterCategory" title="סנן לפי קטגוריה">
+        <option value="">כל הקטגוריות</option>
+        <option value="sight">אטרקציה</option>
+        <option value="food">אוכל</option>
+      </select>
+      <select id="ideaFilterAuthor" title="סנן לפי מי הוסיף"></select>
+      <select id="ideaFilterBooking" title="סנן לפי הזמנה מראש">
+        <option value="">הזמנה מראש: הכל</option>
+        <option value="yes">דורש הזמנה</option>
+        <option value="no">לא דורש הזמנה</option>
+      </select>
+    </div>
     <div class="ideas-list" id="attractionsBody"></div>
   </div>
 
@@ -1087,8 +1114,12 @@ function newActivity(){
 function newAttractionIdea(){
   return {
     id: nextId(), nameEn:'', nameHe:'', duration:'', priority:'', hours:'', price:'', booking:false, equipment:'', notes:'',
-    link:'', cuisine:'', category:DEFAULT_CATEGORY, partySize:''
+    link:'', cuisine:'', category:DEFAULT_CATEGORY, partySize:'',
+    createdAt: Date.now(), createdBy: currentIdeaAuthorName()
   };
+}
+function currentIdeaAuthorName(){
+  return (currentUser && (currentUser.email || currentUser.displayName)) || '';
 }
 
 function normalizeActivity(a){
@@ -1139,7 +1170,9 @@ function normalizeIdea(a){
     link: a.link || '',
     cuisine: a.cuisine || '',
     category: (a.category === 'food' || a.category === 'sight') ? a.category : 'sight',
-    partySize: a.partySize || ''
+    partySize: a.partySize || '',
+    createdAt: a.createdAt || 0,
+    createdBy: a.createdBy || ''
   };
 }
 // טיולים ישנים החזיקו "מטבע משני" ו"מטבע הבית" כשני שדות נפרדים - כאן מאחדים אותם לשדה אחד
@@ -1679,15 +1712,46 @@ function syncEquipmentToPacking(idea){
 
 /* ---------------- Attractions ideas ---------------- */
 const expandedIdeaIds = new Set();
+let ideaSortKey = 'manual';
+let ideaFilterCategory = '';
+let ideaFilterAuthor = '';
+let ideaFilterBooking = '';
+
+const IDEA_SORTERS = {
+  manual: null,
+  category: (a,b) => (CATEGORY_LABELS[a.category]||'').localeCompare(CATEGORY_LABELS[b.category]||'', 'he'),
+  name: (a,b) => (a.nameHe||a.nameEn||'').localeCompare(b.nameHe||b.nameEn||'', 'he'),
+  createdAt: (a,b) => (b.createdAt||0) - (a.createdAt||0),
+  priority: (a,b) => (Number(b.priority)||0) - (Number(a.priority)||0)
+};
+
+function renderIdeaAuthorFilterOptions(){
+  const sel = document.getElementById('ideaFilterAuthor');
+  const authors = Array.from(new Set(state.attractionIdeas.map(i => i.createdBy).filter(Boolean))).sort((a,b) => a.localeCompare(b,'he'));
+  const prev = ideaFilterAuthor;
+  sel.innerHTML = '<option value="">כל המוסיפים</option>' + authors.map(a => `<option value="${escapeAttr(a)}">${escapeAttr(a)}</option>`).join('');
+  sel.value = authors.includes(prev) ? prev : '';
+  ideaFilterAuthor = sel.value;
+}
 
 function renderAttractions(){
   const body = document.getElementById('attractionsBody');
   body.innerHTML = '';
-  if(!state.attractionIdeas.length){
-    body.innerHTML = '<div class="packing-empty">אין עדיין רעיונות לאטרקציות. הוסיפו רעיון למעלה.</div>';
+  renderIdeaAuthorFilterOptions();
+
+  let ideas = state.attractionIdeas.map((idea, index) => ({ idea, index }));
+  if(ideaFilterCategory) ideas = ideas.filter(x => x.idea.category === ideaFilterCategory);
+  if(ideaFilterAuthor) ideas = ideas.filter(x => x.idea.createdBy === ideaFilterAuthor);
+  if(ideaFilterBooking) ideas = ideas.filter(x => !!x.idea.booking === (ideaFilterBooking === 'yes'));
+
+  const sorter = IDEA_SORTERS[ideaSortKey];
+  if(sorter) ideas = ideas.slice().sort((a,b) => sorter(a.idea, b.idea));
+
+  if(!ideas.length){
+    body.innerHTML = `<div class="packing-empty">${state.attractionIdeas.length ? 'אין רעיונות התואמים לסינון.' : 'אין עדיין רעיונות לאטרקציות. הוסיפו רעיון למעלה.'}</div>`;
     return;
   }
-  state.attractionIdeas.forEach((idea, index) => body.appendChild(buildIdeaCard(idea, index)));
+  ideas.forEach(({idea, index}) => body.appendChild(buildIdeaCard(idea, index)));
 }
 
 function buildIdeaCard(idea, index){
@@ -1815,6 +1879,10 @@ document.getElementById('addIdeaBtn').addEventListener('click', () => {
   expandedIdeaIds.add(idea.id);
   saveState(); renderAttractions();
 });
+document.getElementById('ideaSortSelect').addEventListener('change', e => { ideaSortKey = e.target.value; renderAttractions(); });
+document.getElementById('ideaFilterCategory').addEventListener('change', e => { ideaFilterCategory = e.target.value; renderAttractions(); });
+document.getElementById('ideaFilterAuthor').addEventListener('change', e => { ideaFilterAuthor = e.target.value; renderAttractions(); });
+document.getElementById('ideaFilterBooking').addEventListener('change', e => { ideaFilterBooking = e.target.value; renderAttractions(); });
 
 /* ---------------- Header events ---------------- */
 tripNameEl.addEventListener('input', e => { state.name = e.target.value; saveState(); renderTripSelect(); });
