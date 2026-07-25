@@ -239,14 +239,6 @@
     cursor:pointer;
   }
   .day-currency-row select:focus{border-color:var(--brass);}
-  .day-currency-row input[type=number]{
-    font-family:'Assistant', sans-serif;font-size:12.5px;
-    border:1px solid var(--line);border-radius:6px;padding:2px 6px;
-    background:transparent;color:var(--ink-text);outline:none;width:56px;
-  }
-  .day-currency-row input[type=number]:focus{border-color:var(--brass);}
-  .day-touring{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.6;}
-  .day-touring.over{color:var(--rust);font-weight:600;}
   .icon-btn{
     flex:0 0 auto;
     width:34px;height:34px;
@@ -547,6 +539,19 @@
     font-size:13.5px;
   }
   .suggestion-card b{color:var(--ink-text);}
+  .touring-plan{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;}
+  .touring-plan-days{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .touring-day-field{
+    display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
+    border:1px solid var(--line);border-radius:8px;padding:4px 8px;
+  }
+  .touring-day-field input{
+    width:48px;border:1px solid var(--line);border-radius:6px;padding:2px 4px;
+    background:transparent;color:var(--ink-text);font-family:'Assistant',sans-serif;font-size:12.5px;outline:none;
+  }
+  .touring-day-field input:focus{border-color:var(--brass);}
+  .touring-plan-result{font-size:13px;color:var(--ink-text);line-height:1.6;}
+  .touring-plan-result.over{color:var(--rust);font-weight:600;}
   .ideas-map-divider{
     margin-top:18px;padding-top:14px;border-top:1.5px dashed var(--line);
     font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--muted);
@@ -828,6 +833,11 @@
       <button class="btn-quick" id="addIdeaBtn">הוסף רעיון</button>
     </div>
     <p class="section-hint">מאגר רעיונות לפני שמשבצים אותם ליום מסוים. אפשר לשבץ רעיון ליום וגם לשעה מסוימת בתכנון, וציוד נדרש נוסף אוטומטית לרשימת האריזה.</p>
+    <div class="touring-plan" id="touringPlan">
+      <p class="section-hint">כמה שעות טיול יש בכל יום? (ריק = ברירת מחדל 8 שעות, אפשר לשנות לימים יוצאי דופן כמו יום טיסה)</p>
+      <div class="touring-plan-days" id="touringPlanDays"></div>
+      <div class="touring-plan-result" id="touringPlanResult"></div>
+    </div>
     <div class="ideas-filters" id="ideaFilters">
       <select id="ideaFilterCategory" title="סנן לפי קטגוריה">
         <option value="">כל הקטגוריות</option>
@@ -949,6 +959,7 @@ function tripContentPayload(data){
   return {
     name: data.name || '', startDate: data.startDate || '', currency: data.currency || 'ILS',
     secondaryCurrency: data.secondaryCurrency || '', budget: data.budget || '',
+    dayHourOverrides: data.dayHourOverrides || {},
     days: data.days || [], attractionIdeas: data.attractionIdeas || []
   };
 }
@@ -1177,7 +1188,7 @@ let uid = 1;
 function nextId(){ return 'id' + (uid++) + '-' + Date.now().toString(36); }
 
 function newDay(){
-  return { id: nextId(), destination:'', currency:'', touringHours:'', activities:[ newActivity() ], hotel:{ name:'', link:'', cost:'', notes:'' } };
+  return { id: nextId(), destination:'', currency:'', activities:[ newActivity() ], hotel:{ name:'', link:'', cost:'', notes:'' } };
 }
 function newActivity(){
   return {
@@ -1222,7 +1233,6 @@ function normalizeDay(d){
     id: d.id || nextId(),
     destination: d.destination || '',
     currency: CURRENCY_SYMBOLS.hasOwnProperty(d.currency) ? d.currency : '',
-    touringHours: d.touringHours || '',
     activities: Array.isArray(d.activities) && d.activities.length ? d.activities.map(normalizeActivity) : [ newActivity() ],
     hotel: { name: hotel.name || '', link: hotel.link || '', cost: hotel.cost || '', notes: hotel.notes || '' }
   };
@@ -1267,6 +1277,7 @@ function normalizeState(data){
     currency: CURRENCY_SYMBOLS.hasOwnProperty(data.currency) ? data.currency : 'ILS',
     secondaryCurrency: mergeSecondaryCurrency(data),
     budget: data.budget || '',
+    dayHourOverrides: (data.dayHourOverrides && typeof data.dayHourOverrides === 'object') ? data.dayHourOverrides : {},
     days: Array.isArray(data.days) && data.days.length ? data.days.map(normalizeDay) : [ newDay() ],
     // starting value only - the real per-user list is loaded separately after
     // switching trips, see loadPrivatePackingList(). Kept here so a brand-new
@@ -1541,8 +1552,6 @@ function render(){
           <div class="day-date">${dateLabel ? dateLabel : 'יום ' + (index+1)} <span class="weather-badge" id="weather-${day.id}"></span></div>
           <input class="day-dest" data-role="destination" placeholder="לאן הולכים היום?" value="${escapeAttr(day.destination)}">
           <label class="day-currency-row">מטבע ליום זה: <select data-role="day-currency">${dayCurrencyOptionsHTML(day.currency)}</select></label>
-          <label class="day-currency-row">שעות טיול פנויות (יום יוצא דופן?): <input type="number" min="0" step="0.5" data-role="touring-hours" placeholder="${DEFAULT_TOURING_HOURS}" value="${escapeAttr(day.touringHours)}"></label>
-          <div class="day-touring" id="touring-${day.id}"></div>
         </div>
         <button class="icon-btn" data-role="del-day" title="מחק יום">${ICONS.trash}</button>
       </div>
@@ -1587,10 +1596,6 @@ function render(){
       day.currency = e.target.value;
       saveState(); render();
     });
-    card.querySelector('[data-role="touring-hours"]').addEventListener('input', e => {
-      day.touringHours = e.target.value;
-      saveState(); renderDayTouringBadge(day);
-    });
     card.querySelector('[data-role="del-day"]').addEventListener('click', () => {
       if(state.days.length <= 1){
         if(!confirm('זהו היום היחיד בטיול. למחוק בכל זאת ולהתחיל מחדש?')) return;
@@ -1603,7 +1608,7 @@ function render(){
       const act = newActivity();
       day.activities.push(act);
       actsEl.appendChild(buildActivityRow(day, act));
-      saveState(); renderDayTouringBadge(day);
+      saveState();
     });
 
     const hn = card.querySelector('[data-role="hotel-name"]');
@@ -1630,7 +1635,6 @@ function render(){
     }
 
     daysEl.appendChild(card);
-    renderDayTouringBadge(day);
     loadWeatherForDay(day, index);
   });
 
@@ -1693,15 +1697,9 @@ function buildActivityRow(day, act){
   });
   row.querySelector('[data-role="link"]').addEventListener('input', e => { act.link = e.target.value; saveState(); });
   row.querySelector('[data-role="cuisine"]').addEventListener('input', e => { act.cuisine = e.target.value; saveState(); });
-  const durationWrap = row.querySelector('[data-role="duration-wrap"]');
-  markDurationValidity(durationWrap, act.duration);
-  row.querySelector('[data-role="duration"]').addEventListener('input', e => {
-    act.duration = e.target.value;
-    markDurationValidity(durationWrap, act.duration);
-    saveState(); renderDayTouringBadge(day);
-  });
+  row.querySelector('[data-role="duration"]').addEventListener('input', e => { act.duration = e.target.value; saveState(); });
   row.querySelector('[data-role="hours"]').addEventListener('input', e => { act.hours = e.target.value; saveState(); });
-  row.querySelector('[data-role="priority"]').addEventListener('input', e => { act.priority = e.target.value; saveState(); renderDayTouringBadge(day); });
+  row.querySelector('[data-role="priority"]').addEventListener('input', e => { act.priority = e.target.value; saveState(); });
   row.querySelector('[data-role="partySize"]').addEventListener('input', e => { act.partySize = e.target.value; saveState(); });
   row.querySelector('[data-role="confirmation"]').addEventListener('input', e => { act.confirmation = e.target.value; saveState(); });
   row.querySelector('[data-role="booking"]').addEventListener('change', e => { act.booking = e.target.checked; saveState(); });
@@ -1713,18 +1711,18 @@ function buildActivityRow(day, act){
     const idx = day.activities.indexOf(act);
     if(idx > -1) day.activities.splice(idx,1);
     row.remove();
-    saveState(); updateStats(); renderDayTouringBadge(day);
+    saveState(); updateStats();
   });
 
   return row;
 }
 
-/* ---------------- Touring-hours budget per day ---------------- */
+/* ---------------- Touring-hours plan for attraction ideas ---------------- */
 const DEFAULT_TOURING_HOURS = 8;
 
 // Parses free-text duration ("2 שעות", "90 דקות", "1:30", "חצי יום"...) to hours.
 // Returns null when the text isn't empty but doesn't match a known pattern -
-// that's the signal buildActivityRow uses to mark the field red.
+// that's the signal buildIdeaCard uses to mark the field red.
 function parseDurationHours(text){
   text = (text || '').trim();
   if(!text) return 0;
@@ -1745,11 +1743,16 @@ function parseDurationHours(text){
   return null;
 }
 
-function computeDayTouringBudget(day){
-  const available = day.touringHours !== '' ? Number(day.touringHours) : DEFAULT_TOURING_HOURS;
-  const parsed = day.activities.map(act => {
-    const h = parseDurationHours(act.duration);
-    return { priority: Number(act.priority) || 0, hours: h || 0, invalid: h === null };
+function dayHoursFor(day){
+  const override = state.dayHourOverrides && state.dayHourOverrides[day.id];
+  return (override !== undefined && override !== '') ? Number(override) : DEFAULT_TOURING_HOURS;
+}
+
+function computeIdeasTouringPlan(){
+  const available = state.days.reduce((sum, day) => sum + dayHoursFor(day), 0);
+  const parsed = state.attractionIdeas.map(idea => {
+    const h = parseDurationHours(idea.duration);
+    return { priority: Number(idea.priority) || 0, hours: h || 0, invalid: h === null };
   });
   const used = parsed.reduce((sum,p) => sum + p.hours, 0);
   const invalidCount = parsed.filter(p => p.invalid).length;
@@ -1773,19 +1776,42 @@ function markDurationValidity(wrapEl, text){
   wrapEl.title = bad ? 'משך זמן לא מזוהה - נסו למשל: "2 שעות", "90 דקות", "1:30", "חצי יום"' : '';
 }
 
-function renderDayTouringBadge(day){
-  const el = document.getElementById('touring-' + day.id);
-  if(!el) return;
-  const b = computeDayTouringBudget(day);
-  let html = `🕐 ${formatHours(b.used)} / ${formatHours(b.available)} שעות טיול מתוכננות`;
-  if(b.invalidCount) html += ` · ${b.invalidCount} משכי זמן לא מזוהים (מסומנים באדום)`;
+function renderTouringPlanDays(){
+  const wrap = document.getElementById('touringPlanDays');
+  if(!wrap) return;
+  wrap.innerHTML = state.days.map((day,i) => `
+    <label class="touring-day-field">יום ${i+1}
+      <input type="number" min="0" step="0.5" data-day-id="${day.id}" placeholder="${DEFAULT_TOURING_HOURS}" value="${escapeAttr((state.dayHourOverrides && state.dayHourOverrides[day.id]) || '')}">
+    </label>`).join('');
+  wrap.querySelectorAll('input').forEach(input => {
+    input.addEventListener('input', () => {
+      if(!state.dayHourOverrides) state.dayHourOverrides = {};
+      state.dayHourOverrides[input.dataset.dayId] = input.value;
+      saveState(); renderTouringPlanResult();
+    });
+  });
+}
+
+function renderTouringPlanResult(){
+  const resultEl = document.getElementById('touringPlanResult');
+  if(!resultEl) return;
+  const b = computeIdeasTouringPlan();
+  let html = `🕐 סה"כ ${formatHours(b.available)} שעות טיול ב-${state.days.length} ימים · הרעיונות ברשימה דורשים ${formatHours(b.used)} שעות`;
+  if(b.invalidCount) html += ` · ${b.invalidCount} משכי זמן לא מזוהים ברעיונות (מסומנים באדום למטה)`;
   if(b.over){
     html += b.cutoffPriority !== null
-      ? `<br>⚠️ לא יהיה זמן לדברים בעדיפות מתחת ל-${b.cutoffPriority} (חסרות כ-${formatHours(b.used - b.available)} שעות)`
-      : `<br>⚠️ התוכנית עמוסה מדי ליום הזה`;
+      ? `<br>⚠️ תספיקו רק לרעיונות בעדיפות ${b.cutoffPriority} ומעלה - למטה מזה לא יהיה זמן (חסרות כ-${formatHours(b.used - b.available)} שעות)`
+      : `<br>⚠️ יש יותר רעיונות ממה שיש זמן`;
+  } else if(state.attractionIdeas.length){
+    html += `<br>✅ יש מספיק זמן לכל הרעיונות ברשימה`;
   }
-  el.className = 'day-touring' + (b.over ? ' over' : '');
-  el.innerHTML = html;
+  resultEl.className = 'touring-plan-result' + (b.over ? ' over' : '');
+  resultEl.innerHTML = html;
+}
+
+function renderTouringPlan(){
+  renderTouringPlanDays();
+  renderTouringPlanResult();
 }
 
 function updateStats(){
@@ -2022,6 +2048,7 @@ function renderAttractions(){
   const body = document.getElementById('attractionsBody');
   body.innerHTML = '';
   renderIdeaAuthorFilterOptions();
+  renderTouringPlan();
 
   let ideas = state.attractionIdeas.map((idea, index) => ({ idea, index }));
   if(ideaFilterCategory) ideas = ideas.filter(x => x.idea.category === ideaFilterCategory);
@@ -2098,8 +2125,14 @@ function buildIdeaCard(idea, index){
   if(expanded){
     card.querySelector('[data-role="nameEn"]').addEventListener('input', e => { idea.nameEn = e.target.value; saveState(); });
     card.querySelector('[data-role="nameHe"]').addEventListener('input', e => { idea.nameHe = e.target.value; saveState(); });
-    card.querySelector('[data-role="duration"]').addEventListener('input', e => { idea.duration = e.target.value; saveState(); });
-    card.querySelector('[data-role="priority"]').addEventListener('input', e => { idea.priority = e.target.value; saveState(); });
+    const ideaDurationWrap = card.querySelector('[data-role="duration-wrap"]');
+    markDurationValidity(ideaDurationWrap, idea.duration);
+    card.querySelector('[data-role="duration"]').addEventListener('input', e => {
+      idea.duration = e.target.value;
+      markDurationValidity(ideaDurationWrap, idea.duration);
+      saveState(); renderTouringPlanResult();
+    });
+    card.querySelector('[data-role="priority"]').addEventListener('input', e => { idea.priority = e.target.value; saveState(); renderTouringPlanResult(); });
     card.querySelector('[data-role="hours"]').addEventListener('input', e => { idea.hours = e.target.value; saveState(); });
     card.querySelector('[data-role="price"]').addEventListener('input', e => { idea.price = e.target.value; saveState(); });
     card.querySelector('[data-role="link"]').addEventListener('input', e => { idea.link = e.target.value; saveState(); });
