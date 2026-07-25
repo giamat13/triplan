@@ -538,6 +538,12 @@
   }
   .btn-quick:hover{border-color:var(--pine);background:rgba(76,122,104,0.08);}
   .packing-empty{font-size:13.5px;color:var(--muted);padding:6px 2px;}
+  .trip-switcher-archive-toggle{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted);cursor:pointer;white-space:nowrap;}
+  .trip-switcher-archive-toggle input{accent-color:var(--pine);cursor:pointer;}
+  .checklist-due-input{flex:0 0 90px;border:1.5px solid var(--line);border-radius:10px;padding:9px 8px;font-family:'Assistant',sans-serif;font-size:13px;background:transparent;color:var(--ink-text);outline:none;}
+  .checklist-due-input:focus{border-color:var(--brass);}
+  .checklist-due-badge{font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--muted);white-space:nowrap;flex:0 0 auto;}
+  .checklist-due-badge.overdue{color:var(--rust);font-weight:700;}
   .packing-suggest-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;}
   .packing-suggest-row input[type=text]{
     flex:1;min-width:160px;border:1.5px solid var(--line);border-radius:10px;
@@ -712,6 +718,15 @@
   }
   .ideas-filters select:focus, #ideaSortSelect:focus{border-color:var(--brass);}
 
+  /* Documents & reservations - reuses .idea-card/.idea-fields, adds its own accent colors */
+  .idea-card.doc-flight{border-inline-start-color:#3b6ea5;}
+  .idea-card.doc-hotel{border-inline-start-color:var(--brass);}
+  .idea-card.doc-car{border-inline-start-color:var(--rust);}
+  .idea-card.doc-general{border-inline-start-color:var(--pine);}
+  .doc-attach-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:10px;margin-top:10px;}
+  .doc-attach-row input[type=file]{font-family:'Assistant',sans-serif;font-size:12.5px;color:var(--muted);max-width:220px;}
+  .doc-attach-name{font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--pine);text-decoration:underline;cursor:pointer;}
+
   @media (max-width:620px){
     .activity{grid-template-columns:70px 1fr 30px;}
     .field-icon{flex-basis:45%;}
@@ -730,7 +745,7 @@
 
   @media print{
     body{background:#fff;color:#000;padding:0;}
-    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,.idea-map-wrap{display:none !important;}
+    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,.idea-map-wrap,.doc-attach-row{display:none !important;}
     .account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,#sharingPanelToggle{display:none !important;}
     .header-card,.day-card,.section-card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;}
     .hotel-stub{background:#eee !important;color:#000 !important;}
@@ -815,6 +830,8 @@
     <div class="trip-switcher">
       <select id="tripSelect" title="בחר טיול"></select>
       <button class="btn btn-ghost btn-sm" id="newTripBtn" type="button">+ טיול חדש</button>
+      <button class="btn btn-ghost btn-sm" id="archiveTripBtn" type="button">📦 העבר לארכיון</button>
+      <label class="trip-switcher-archive-toggle"><input type="checkbox" id="showArchivedToggle"> הצג ארכיון</label>
       <button class="btn btn-ghost btn-sm" id="deleteTripBtn" type="button">מחק טיול</button>
       <button class="btn btn-ghost btn-sm" id="sharingPanelToggle" type="button">שיתוף וחברים</button>
       <div class="join-code-row">
@@ -826,6 +843,7 @@
 
   <nav class="quick-jump" aria-label="ניווט מהיר">
     <a href="#days">📅 ימים</a>
+    <a href="#documentsSection">📄 מסמכים</a>
     <a href="#ideasSection">💡 אטרקציות</a>
     <a href="#packingSection">🎒 אריזה</a>
   </nav>
@@ -878,6 +896,15 @@
       <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
       הוסף יום
     </button>
+  </div>
+
+  <div class="section-card" id="documentsSection">
+    <div class="section-header">
+      <div class="section-title">📄 מסמכים והזמנות</div>
+      <button class="btn-quick" id="addDocumentBtn">הוסף מסמך</button>
+    </div>
+    <p class="section-hint">טיסות, מלונות, השכרות רכב ואישורי הזמנה שכבר סגורים ומשולמים - לא רעיונות לתכנון.</p>
+    <div class="ideas-list" id="documentsBody"></div>
   </div>
 
   <div class="section-card" id="ideasSection">
@@ -942,14 +969,15 @@
 
   <div class="section-card" id="packingSection">
     <div class="section-header">
-      <div class="section-title">רשימת אריזה</div>
+      <div class="section-title">🎒 רשימת אריזה וצ'ק ליסט</div>
       <button class="btn-quick" id="packingQuickAdd">הוסף פריטים נפוצים</button>
     </div>
-    <p class="section-hint">🔒 הרשימה הזו אישית - נשמרת בענן ומוצגת רק לך, גם אם הטיול משותף עם עוד אנשים.</p>
+    <p class="section-hint">🔒 הרשימה הזו אישית - נשמרת בענן ומוצגת רק לך, גם אם הטיול משותף עם עוד אנשים. אפשר להוסיף גם משימות עם תאריך יעד (ויזה, ביטוח נסיעות, חיסונים, חידוש דרכון, הודעה לבנק) - לא רק פריטים לתיק.</p>
     <div id="packingSuggestionsBanner"></div>
     <div class="packing-list" id="packingList"></div>
     <div class="packing-add-row">
-      <input type="text" id="packingNewItem" placeholder="הוסף פריט...">
+      <input type="text" id="packingNewItem" placeholder="הוסף פריט או משימה...">
+      <input type="number" min="0" id="packingNewDue" placeholder="ימים לפני (אופציונלי)" class="checklist-due-input">
       <button class="btn btn-primary" id="packingAddBtn" type="button">
         <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
       </button>
@@ -1064,7 +1092,9 @@ function tripContentPayload(data){
     name: data.name || '', startDate: data.startDate || '', currency: data.currency || 'ILS',
     secondaryCurrency: data.secondaryCurrency || '', budget: data.budget || '',
     dayHourOverrides: data.dayHourOverrides || {},
-    days: data.days || [], attractionIdeas: data.attractionIdeas || []
+    days: data.days || [], attractionIdeas: data.attractionIdeas || [],
+    documents: data.documents || [],
+    archived: !!data.archived
   };
 }
 
@@ -1232,6 +1262,18 @@ function categoryFieldVisible(map, category, field){
   return (map[category] || map[DEFAULT_CATEGORY] || []).includes(field);
 }
 
+const DOC_TYPE_EMOJI = { flight:'✈️', hotel:'🏨', car:'🚗', general:'📄' };
+const DOC_TYPE_LABELS = { flight:'✈️ טיסה', hotel:'🏨 מלון', car:'🚗 השכרת רכב', general:'📄 כללי' };
+const DOC_TYPE_FIELDS = {
+  flight: ['flightNumber','depTime','arrTime','gate','confirmationNumber'],
+  hotel: ['address','checkIn','checkOut','confirmationNumber'],
+  car: ['company','pickupInfo','returnInfo','confirmationNumber'],
+  general: ['confirmationNumber']
+};
+function docTypeFieldVisible(type, field){
+  return (DOC_TYPE_FIELDS[type] || DOC_TYPE_FIELDS.general).includes(field);
+}
+
 const CURRENCIES = [
   { code:'ILS', symbol:'₪', label:'שקל' },
   { code:'USD', symbol:'$', label:'דולר' },
@@ -1313,6 +1355,32 @@ function newActivity(){
     duration:'', priority:'', hours:'', booking:false, equipment:'', partySize:'', confirmation:'', mapQuery:''
   };
 }
+function newDocument(){
+  return {
+    id: nextId(), type:'flight', title:'', dayId:'',
+    flightNumber:'', depTime:'', arrTime:'', gate:'',
+    address:'', checkIn:'', checkOut:'',
+    company:'', pickupInfo:'', returnInfo:'',
+    confirmationNumber:'', link:'', notes:'',
+    attachmentName:'', attachmentText:'',
+    createdAt: Date.now(), createdBy: currentUser?.uid || ''
+  };
+}
+function normalizeDocument(d){
+  d = d || {};
+  return {
+    id: d.id || nextId(),
+    type: DOC_TYPE_LABELS.hasOwnProperty(d.type) ? d.type : 'general',
+    title: d.title || '',
+    dayId: d.dayId || '',
+    flightNumber: d.flightNumber || '', depTime: d.depTime || '', arrTime: d.arrTime || '', gate: d.gate || '',
+    address: d.address || '', checkIn: d.checkIn || '', checkOut: d.checkOut || '',
+    company: d.company || '', pickupInfo: d.pickupInfo || '', returnInfo: d.returnInfo || '',
+    confirmationNumber: d.confirmationNumber || '', link: d.link || '', notes: d.notes || '',
+    attachmentName: d.attachmentName || '', attachmentText: d.attachmentText || '',
+    createdAt: d.createdAt || 0, createdBy: d.createdBy || ''
+  };
+}
 function newAttractionIdea(){
   return {
     id: nextId(), nameEn:'', nameHe:'', duration:'', priority:'', hours:'', price:'', booking:false, equipment:'', notes:'',
@@ -1386,8 +1454,10 @@ function mergeSecondaryCurrency(data){
   if(CURRENCY_SYMBOLS.hasOwnProperty(data.secondaryCurrency)) return data.secondaryCurrency;
   return '';
 }
+// dueDaysBefore: how many days before the trip's start date this item is due
+// (e.g. visa, insurance) - blank means a plain packing item with no deadline.
 function normalizePackingItem(p){
-  return { id: p.id || nextId(), text: p.text || '', checked: !!p.checked };
+  return { id: p.id || nextId(), text: p.text || '', checked: !!p.checked, dueDaysBefore: p.dueDaysBefore || '' };
 }
 function normalizeState(data){
   data = data || {};
@@ -1403,7 +1473,9 @@ function normalizeState(data){
     // switching trips, see loadPrivatePackingList(). Kept here so a brand-new
     // trip (or an imported JSON file) still has something to seed that list with.
     packing: Array.isArray(data.packing) ? data.packing.map(normalizePackingItem) : [],
-    attractionIdeas: Array.isArray(data.attractionIdeas) ? data.attractionIdeas.map(normalizeIdea) : []
+    attractionIdeas: Array.isArray(data.attractionIdeas) ? data.attractionIdeas.map(normalizeIdea) : [],
+    documents: Array.isArray(data.documents) ? data.documents.map(normalizeDocument) : [],
+    archived: !!data.archived
   };
 }
 
@@ -1492,9 +1564,23 @@ async function refreshMemberNames(){
 async function refreshTripsIndex(){
   const trips = await fbListMyTrips();
   trips.sort((a,b) => (b.updatedAt?.toMillis?.()||0) - (a.updatedAt?.toMillis?.()||0));
-  tripsIndex = trips.map(t => ({ id:t.id, name:t.name||'טיול ללא שם', role:t.members[currentUser.uid] }));
+  tripsIndex = trips.map(t => ({
+    id:t.id, name:t.name||'טיול ללא שם', role:t.members[currentUser.uid],
+    archived: !!t.archived, startDate: t.startDate||'', daysCount: (t.days||[]).length
+  }));
   renderTripSelect();
 }
+
+// A trip "has ended" once its last day (startDate + daysCount-1) is before today -
+// used to suggest archiving, not to force it.
+function tripHasEnded(entry){
+  if(!entry.startDate || !entry.daysCount) return false;
+  const lastDay = new Date(entry.startDate + 'T00:00:00');
+  lastDay.setDate(lastDay.getDate() + entry.daysCount - 1);
+  return lastDay < new Date(new Date().toDateString());
+}
+
+let showArchivedTrips = false;
 
 function showSyncError(show){
   const el = document.getElementById('syncErrorBanner');
@@ -1522,9 +1608,15 @@ function savePackingList(){
 
 function renderTripSelect(){
   const sel = document.getElementById('tripSelect');
-  sel.innerHTML = tripsIndex.map(t =>
-    `<option value="${escapeAttr(t.id)}" ${t.id===activeTripId?'selected':''}>${escapeAttr(t.name || 'טיול ללא שם')}</option>`
+  const visible = tripsIndex.filter(t => showArchivedTrips || !t.archived || t.id === activeTripId);
+  sel.innerHTML = visible.map(t =>
+    `<option value="${escapeAttr(t.id)}" ${t.id===activeTripId?'selected':''}>${t.archived ? '📦 ' : ''}${escapeAttr(t.name || 'טיול ללא שם')}</option>`
   ).join('');
+  const archiveBtn = document.getElementById('archiveTripBtn');
+  if(archiveBtn){
+    const entry = tripsIndex.find(t => t.id === activeTripId);
+    archiveBtn.textContent = entry?.archived ? '📤 הוצא מארכיון' : (entry && tripHasEnded(entry) ? '📦 העבר לארכיון (הטיול הסתיים)' : '📦 העבר לארכיון');
+  }
 }
 
 async function switchToTrip(id){
@@ -1789,6 +1881,7 @@ function render(){
 
   updateStats();
   renderPacking();
+  renderDocuments();
   renderAttractions();
   renderMapSection();
   applyRoleRestrictions();
@@ -2160,27 +2253,47 @@ function renderMapSection(){
   });
 }
 
-/* ---------------- Packing list ---------------- */
+/* ---------------- Packing list (also holds pre-trip checklist items - any
+   item can carry an optional dueDaysBefore deadline) ---------------- */
+// Turns dueDaysBefore + the trip's start date into a due-date label, e.g.
+// "עד 25/06/2026 (עוד 12 ימים)" - the fixed "before N days" count is only
+// meaningful once we know when the trip starts.
+function packingDueLabel(dueDaysBefore){
+  if(!dueDaysBefore || !state.startDate) return { label:'', overdue:false };
+  const due = new Date(state.startDate);
+  due.setDate(due.getDate() - Number(dueDaysBefore));
+  const daysLeft = Math.ceil((due - new Date(new Date().toDateString())) / 86400000);
+  const dateLabel = due.toLocaleDateString('he-IL');
+  if(daysLeft < 0) return { label:`עד ${dateLabel} (עבר המועד)`, overdue:true };
+  if(daysLeft === 0) return { label:`עד ${dateLabel} (היום!)`, overdue:true };
+  return { label:`עד ${dateLabel} (עוד ${daysLeft} ימים)`, overdue:false };
+}
+
 function renderPacking(){
   const listEl = document.getElementById('packingList');
   listEl.innerHTML = '';
   if(!state.packing.length){
-    listEl.innerHTML = '<div class="packing-empty">אין עדיין פריטים ברשימת האריזה. הוסיפו למטה, או תנו לציוד שמצוין ברעיונות לאטרקציות להתווסף אוטומטית.</div>';
+    listEl.innerHTML = '<div class="packing-empty">אין עדיין פריטים. הוסיפו למטה ציוד לתיק, או משימה עם תאריך יעד כמו ויזה וביטוח נסיעות.</div>';
     return;
   }
   state.packing.forEach(item => {
     const row = document.createElement('div');
     row.className = 'packing-item' + (item.checked ? ' checked' : '');
+    const due = packingDueLabel(item.dueDaysBefore);
     row.innerHTML = `
       <input type="checkbox" ${item.checked ? 'checked' : ''}>
       <input type="text" value="${escapeAttr(item.text)}" placeholder="פריט">
+      <input type="number" min="0" class="checklist-due-input" value="${escapeAttr(item.dueDaysBefore)}" placeholder="ימים לפני" title="כמה ימים לפני הטיול זה צריך להיות מוכן (אופציונלי)">
+      ${due.label ? `<span class="checklist-due-badge${due.overdue && !item.checked ? ' overdue' : ''}">${due.label}</span>` : ''}
       <button class="icon-btn" title="מחק">${ICONS.trash}</button>
     `;
     const chk = row.querySelector('input[type=checkbox]');
     const txt = row.querySelector('input[type=text]');
+    const dueInput = row.querySelector('input[type=number]');
     const del = row.querySelector('button');
-    chk.addEventListener('change', e => { item.checked = e.target.checked; row.classList.toggle('checked', item.checked); savePackingList(); });
+    chk.addEventListener('change', e => { item.checked = e.target.checked; row.classList.toggle('checked', item.checked); savePackingList(); renderPacking(); });
     txt.addEventListener('input', e => { item.text = e.target.value; savePackingList(); });
+    dueInput.addEventListener('input', e => { item.dueDaysBefore = e.target.value; savePackingList(); renderPacking(); });
     del.addEventListener('click', () => {
       const idx = state.packing.indexOf(item);
       if(idx > -1) state.packing.splice(idx,1);
@@ -2192,10 +2305,11 @@ function renderPacking(){
 
 function addPackingItem(){
   const input = document.getElementById('packingNewItem');
+  const dueInput = document.getElementById('packingNewDue');
   const text = input.value.trim();
   if(!text) return;
-  state.packing.push({ id: nextId(), text, checked:false });
-  input.value = '';
+  state.packing.push({ id: nextId(), text, checked:false, dueDaysBefore: dueInput.value || '' });
+  input.value = ''; dueInput.value = '';
   savePackingList(); renderPacking();
 }
 
@@ -2341,6 +2455,7 @@ function renderPackingSuggestions(){
 
 /* ---------------- Attractions ideas ---------------- */
 const expandedIdeaIds = new Set();
+const expandedDocIds = new Set();
 let ideaSortKey = 'manual';
 let ideaFilterCategory = '';
 let ideaFilterAuthor = '';
@@ -2438,6 +2553,124 @@ function refreshIdeaMap(card, idea){
     });
   }
 }
+function renderDocuments(){
+  const body = document.getElementById('documentsBody');
+  body.innerHTML = '';
+  if(!state.documents.length){
+    body.innerHTML = '<div class="packing-empty">אין עדיין מסמכים או הזמנות. הוסיפו למעלה כרטיס טיסה, מלון, השכרת רכב או אישור כללי.</div>';
+    return;
+  }
+  state.documents.forEach((doc, index) => body.appendChild(buildDocCard(doc, index)));
+}
+
+function buildDocCard(doc, index){
+  const card = document.createElement('div');
+  const expanded = expandedDocIds.has(doc.id);
+  card.className = 'idea-card doc-' + doc.type + ' ' + (expanded ? 'expanded' : 'collapsed');
+  const dayOptions = '<option value="">ללא יום מסוים</option>' + state.days.map((d,i) =>
+    `<option value="${escapeAttr(d.id)}" ${doc.dayId===d.id?'selected':''}>${escapeAttr(d.destination ? (i+1)+'. '+d.destination : 'יום '+(i+1))}</option>`
+  ).join('');
+  const vis = f => docTypeFieldVisible(doc.type, f) ? '' : 'display:none;';
+
+  card.innerHTML = `
+    <div class="idea-card-head">
+      <span class="idea-cat-badge">${DOC_TYPE_EMOJI[doc.type]}</span>
+      <span class="idea-num">#${index+1}</span>
+      ${expanded ? `
+      <div class="idea-names">
+        <input data-role="title" placeholder="כותרת (למשל: טיסה לאיטליה)" value="${escapeAttr(doc.title)}">
+      </div>
+      ` : `
+      <div class="idea-name-display" data-role="toggle-expand">${doc.title ? escapeAttr(doc.title) : '<span class="idea-name-empty">מסמך חדש</span>'}</div>
+      `}
+      <button class="icon-btn del" data-role="del-doc" title="מחק מסמך">${ICONS.trash}</button>
+      <span class="idea-chevron" data-role="toggle-expand" title="${expanded ? 'כווץ' : 'הצג הכל'}">${ICONS.chevron}</span>
+    </div>
+    ${expanded ? `
+    <div class="idea-fields">
+      <div class="idea-field"><label>סוג</label><select data-role="type">
+        ${Object.keys(DOC_TYPE_LABELS).map(t => `<option value="${t}" ${doc.type===t?'selected':''}>${DOC_TYPE_LABELS[t]}</option>`).join('')}
+      </select></div>
+      <div class="idea-field"><label>יום בתכנון (אופציונלי)</label><select data-role="dayId">${dayOptions}</select></div>
+      <div class="idea-field" data-role="flightNumber-wrap" style="${vis('flightNumber')}"><label>מספר טיסה</label><input data-role="flightNumber" placeholder="LY001" value="${escapeAttr(doc.flightNumber)}"></div>
+      <div class="idea-field" data-role="depTime-wrap" style="${vis('depTime')}"><label>שעת המראה</label><input data-role="depTime" type="time" value="${escapeAttr(doc.depTime)}"></div>
+      <div class="idea-field" data-role="arrTime-wrap" style="${vis('arrTime')}"><label>שעת נחיתה</label><input data-role="arrTime" type="time" value="${escapeAttr(doc.arrTime)}"></div>
+      <div class="idea-field" data-role="gate-wrap" style="${vis('gate')}"><label>שער</label><input data-role="gate" placeholder="שער" value="${escapeAttr(doc.gate)}"></div>
+      <div class="idea-field" data-role="address-wrap" style="${vis('address')}"><label>כתובת</label><input data-role="address" placeholder="כתובת המלון" value="${escapeAttr(doc.address)}"></div>
+      <div class="idea-field" data-role="checkIn-wrap" style="${vis('checkIn')}"><label>צ'ק אין</label><input data-role="checkIn" type="date" value="${escapeAttr(doc.checkIn)}"></div>
+      <div class="idea-field" data-role="checkOut-wrap" style="${vis('checkOut')}"><label>צ'ק אאוט</label><input data-role="checkOut" type="date" value="${escapeAttr(doc.checkOut)}"></div>
+      <div class="idea-field" data-role="company-wrap" style="${vis('company')}"><label>חברה</label><input data-role="company" placeholder="שם חברת ההשכרה" value="${escapeAttr(doc.company)}"></div>
+      <div class="idea-field" data-role="pickupInfo-wrap" style="${vis('pickupInfo')}"><label>איסוף</label><input data-role="pickupInfo" placeholder="מיקום ותאריך איסוף" value="${escapeAttr(doc.pickupInfo)}"></div>
+      <div class="idea-field" data-role="returnInfo-wrap" style="${vis('returnInfo')}"><label>החזרה</label><input data-role="returnInfo" placeholder="מיקום ותאריך החזרה" value="${escapeAttr(doc.returnInfo)}"></div>
+      <div class="idea-field" data-role="confirmationNumber-wrap" style="${vis('confirmationNumber')}"><label>מספר קונפירמציה</label><input data-role="confirmationNumber" placeholder="מספר אישור הזמנה" value="${escapeAttr(doc.confirmationNumber)}"></div>
+      <div class="idea-field"><label>קישור</label><input data-role="link" placeholder="קישור להזמנה" value="${escapeAttr(doc.link)}"></div>
+      <div class="idea-field notes"><label>הערות</label><input data-role="notes" placeholder="הערות" value="${escapeAttr(doc.notes)}"></div>
+    </div>
+    <div class="doc-attach-row">
+      ${doc.attachmentName ? `<span class="doc-attach-name" data-role="download-attachment" title="הורד קובץ">📎 ${escapeAttr(doc.attachmentName)}</span><button class="icon-btn" data-role="del-attachment" title="הסר קובץ מצורף">${ICONS.trash}</button>` : `<input type="file" accept=".txt,.md,.csv,.json,text/plain" data-role="attach-file">`}
+    </div>
+    ` : ''}
+  `;
+
+  const toggleExpanded = () => {
+    if(expandedDocIds.has(doc.id)) expandedDocIds.delete(doc.id);
+    else expandedDocIds.add(doc.id);
+    renderDocuments();
+  };
+  card.querySelectorAll('[data-role="toggle-expand"]').forEach(el => el.addEventListener('click', toggleExpanded));
+
+  if(expanded){
+    card.querySelector('[data-role="title"]').addEventListener('input', e => { doc.title = e.target.value; saveState(); });
+    card.querySelector('[data-role="dayId"]').addEventListener('change', e => { doc.dayId = e.target.value; saveState(); });
+    card.querySelector('[data-role="type"]').addEventListener('change', e => {
+      doc.type = e.target.value;
+      saveState(); renderDocuments();
+    });
+    ['flightNumber','depTime','arrTime','gate','address','checkIn','checkOut','company','pickupInfo','returnInfo','confirmationNumber','link','notes'].forEach(field => {
+      const el = card.querySelector(`[data-role="${field}"]`);
+      if(el) el.addEventListener('input', e => { doc[field] = e.target.value; saveState(); });
+    });
+    const fileInput = card.querySelector('[data-role="attach-file"]');
+    if(fileInput){
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          doc.attachmentName = file.name;
+          doc.attachmentText = reader.result;
+          saveState(); renderDocuments();
+        };
+        reader.readAsText(file);
+      });
+    }
+    const delAttachBtn = card.querySelector('[data-role="del-attachment"]');
+    if(delAttachBtn) delAttachBtn.addEventListener('click', () => {
+      doc.attachmentName = ''; doc.attachmentText = '';
+      saveState(); renderDocuments();
+    });
+    const downloadEl = card.querySelector('[data-role="download-attachment"]');
+    if(downloadEl) downloadEl.addEventListener('click', () => {
+      const blob = new Blob([doc.attachmentText], { type:'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = doc.attachmentName;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  card.querySelector('[data-role="del-doc"]').addEventListener('click', e => {
+    e.stopPropagation();
+    const idx = state.documents.indexOf(doc);
+    if(idx > -1) state.documents.splice(idx,1);
+    expandedDocIds.delete(doc.id);
+    saveState(); renderDocuments();
+  });
+
+  return card;
+}
+
 function buildIdeaCard(idea, index, notFitting){
   const card = document.createElement('div');
   const expanded = expandedIdeaIds.has(idea.id);
@@ -2655,6 +2888,19 @@ document.getElementById('newTripBtn').addEventListener('click', async () => {
   await switchToTrip(id);
 });
 
+document.getElementById('archiveTripBtn').addEventListener('click', () => {
+  state.archived = !state.archived;
+  saveState();
+  const entry = tripsIndex.find(t => t.id === activeTripId);
+  if(entry) entry.archived = state.archived;
+  renderTripSelect();
+});
+
+document.getElementById('showArchivedToggle').addEventListener('change', e => {
+  showArchivedTrips = e.target.checked;
+  renderTripSelect();
+});
+
 document.getElementById('deleteTripBtn').addEventListener('click', async () => {
   if(tripsIndex.length <= 1){
     alert('זהו הטיול היחיד שנשאר. אפשר לנקות את התוכן שלו עם "נקה הכל", אך לא למחוק אותו לגמרי.');
@@ -2751,14 +2997,14 @@ function applyRoleRestrictions(){
   document.getElementById('readonlyBanner').style.display = isViewer ? 'block' : 'none';
   // Packing list is excluded here on purpose - it's each member's own private
   // list, so it stays editable regardless of the viewer/editor/owner trip role.
-  [daysEl, document.getElementById('attractionsBody'), document.getElementById('mapGrid')].forEach(scope => {
+  [daysEl, document.getElementById('attractionsBody'), document.getElementById('mapGrid'), document.getElementById('documentsBody')].forEach(scope => {
     if(!scope) return;
     scope.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = isViewer; });
     scope.querySelectorAll('button').forEach(el => { el.style.display = isViewer ? 'none' : ''; });
   });
   [tripNameEl, startDateEl, currencySelectEl, secondaryCurrencySelectEl, budgetCapInputEl].forEach(el => { el.disabled = isViewer; });
   const toggle = id => { const el = document.getElementById(id); if(el) el.style.display = isViewer ? 'none' : ''; };
-  toggle('addDay'); toggle('addIdeaBtn');
+  toggle('addDay'); toggle('addIdeaBtn'); toggle('addDocumentBtn'); toggle('archiveTripBtn');
 }
 
 document.getElementById('addDay').addEventListener('click', () => {
@@ -2766,17 +3012,32 @@ document.getElementById('addDay').addEventListener('click', () => {
   saveState(); render();
 });
 
+document.getElementById('addDocumentBtn').addEventListener('click', () => {
+  const doc = newDocument();
+  state.documents.push(doc);
+  expandedDocIds.add(doc.id);
+  saveState(); renderDocuments();
+});
+
 document.getElementById('packingAddBtn').addEventListener('click', addPackingItem);
 document.getElementById('packingNewItem').addEventListener('keydown', e => {
   if(e.key === 'Enter'){ e.preventDefault(); addPackingItem(); }
 });
 document.getElementById('packingQuickAdd').addEventListener('click', () => {
-  const defaults = ['דרכון','כרטיסי טיסה','מטען וכבלים','תרופות אישיות','מברשת ומשחת שיניים','משקפי שמש','מתאם חשמל','מטריה קלה'];
+  const defaults = [
+    { text:'דרכון' }, { text:'כרטיסי טיסה' }, { text:'מטען וכבלים' }, { text:'תרופות אישיות' },
+    { text:'מברשת ומשחת שיניים' }, { text:'משקפי שמש' }, { text:'מתאם חשמל' }, { text:'מטריה קלה' },
+    { text:'ויזה', dueDaysBefore:30 },
+    { text:'ביטוח נסיעות', dueDaysBefore:7 },
+    { text:'חיסונים', dueDaysBefore:21 },
+    { text:'חידוש דרכון', dueDaysBefore:180 },
+    { text:'הודעה לבנק על נסיעה', dueDaysBefore:3 }
+  ];
   const existing = new Set(state.packing.map(p => p.text.trim().toLowerCase()));
-  defaults.forEach(t => {
-    if(!existing.has(t.toLowerCase())){
-      state.packing.push({ id: nextId(), text:t, checked:false });
-      existing.add(t.toLowerCase());
+  defaults.forEach(d => {
+    if(!existing.has(d.text.toLowerCase())){
+      state.packing.push({ id: nextId(), text:d.text, checked:false, dueDaysBefore:d.dueDaysBefore || '' });
+      existing.add(d.text.toLowerCase());
     }
   });
   savePackingList(); renderPacking();
@@ -2791,7 +3052,7 @@ document.getElementById('printBtn').addEventListener('click', () => window.print
 // forces a clean light theme, then renders #mainContent to a downloadable
 // PDF file via html2pdf.js, with a page break before each day.
 const PDF_HIDE_SELECTORS = '.icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,'
-  + '.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,.idea-map-wrap,'
+  + '.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,.idea-map-wrap,.doc-attach-row,'
   + '.account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,'
   + '#sharingPanelToggle,.quick-jump,#toastWrap,.trip-switcher-row';
 
