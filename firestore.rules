@@ -78,6 +78,20 @@ service cloud.firestore {
           && request.resource.data.responses.diff(resource.data.responses).affectedKeys().hasOnly([request.auth.uid]);
         allow delete: if isSignedIn() && resource.data.from == request.auth.uid;
       }
+
+      // Real-time "someone did something" feed (e.g. scheduled an idea into
+      // the itinerary), used to toast/notify other trip members live. Anyone
+      // on the trip can create an entry as themselves and read the feed;
+      // entries are never edited or deleted (it's just a short recent log).
+      match /activityLog/{logId} {
+        function isMember(){
+          return request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.members;
+        }
+        allow read: if isSignedIn() && isMember();
+        allow create: if isSignedIn() && isMember() && request.resource.data.by == request.auth.uid;
+        allow update: if false;
+        allow delete: if false;
+      }
     }
 
     // Per-user public profile (currently just a display name shown to other

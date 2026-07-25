@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700;900&family=Assistant:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   :root{
     --ink:#1B2A2F;
@@ -162,6 +163,11 @@
   }
   .budget-breakdown b{color:var(--rust);}
   .budget-raw-note{flex-basis:100%;color:var(--muted);font-size:11px;}
+  .budget-chart{flex-basis:100%;display:flex;flex-direction:column;gap:6px;margin-top:6px;}
+  .budget-chart-row{display:flex;align-items:center;gap:8px;}
+  .budget-chart-label{flex:0 0 70px;font-size:11px;color:var(--ink-text);}
+  .budget-chart-track{flex:1 1 auto;height:9px;background:var(--paper-soft);border-radius:5px;overflow:hidden;}
+  .budget-chart-fill{height:100%;border-radius:5px;transition:width .3s ease;}
 
   /* ---------- Days ---------- */
   .days{display:flex;flex-direction:column;gap:34px;margin-top:36px;}
@@ -331,6 +337,19 @@
   }
   .field-icon:focus-within{background:rgba(192,138,62,0.1);border-color:var(--brass);}
   .field-icon.field-invalid{border-color:var(--rust);background:rgba(181,80,43,0.12);}
+  input.time.field-invalid{outline:2px solid var(--rust);background:rgba(181,80,43,0.12);border-radius:6px;}
+  .last-edited-badge{margin-inline-start:8px;color:var(--muted);font-size:11px;}
+
+  /* ---------- Toast notifications ---------- */
+  .toast-wrap{position:fixed;bottom:20px;inset-inline-end:20px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:320px;}
+  .toast{
+    background:var(--paper); color:var(--ink-text);
+    border-inline-start:4px solid var(--pine);
+    border-radius:10px; padding:12px 16px;
+    font-size:13.5px; box-shadow:0 12px 28px -10px rgba(0,0,0,0.5);
+    opacity:0; transform:translateY(10px); transition:opacity .3s ease, transform .3s ease;
+  }
+  .toast.show{opacity:1; transform:translateY(0);}
   .field-icon svg{width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:1.8;flex:0 0 auto;}
   .field-icon input, .field-icon select{font-size:13px;padding:2px 0;background:transparent;}
   .details .notes{flex-basis:100%;}
@@ -559,6 +578,9 @@
     font-size:12.5px;color:var(--ink-text);line-height:1.7;
   }
   .touring-plan-unrecognized-item{word-break:break-word;}
+  .touring-plan-unrecognized-clickable{cursor:pointer;}
+  .touring-plan-unrecognized-clickable:hover{text-decoration:underline;}
+  .unrecognized-edit-link{color:var(--rust);font-weight:600;margin-inline-start:4px;}
   .touring-plan-filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1.5px dashed var(--line);}
   .touring-plan-filter-row select{
     font-family:'JetBrains Mono', monospace;font-size:12px;
@@ -705,6 +727,14 @@
     .hotel-stub{background:#eee !important;color:#000 !important;}
     .perf::before,.perf::after{background:#fff;}
   }
+  /* Same clean look as @media print above, but toggled by JS for the dedicated
+     PDF export button (html2pdf.js renders to canvas, so it can't rely on the
+     print media query - the relevant elements are hidden inline instead, this
+     just handles the color/border theme swap). */
+  body.pdf-export-mode{background:#fff !important;color:#000 !important;}
+  body.pdf-export-mode .header-card,body.pdf-export-mode .day-card,body.pdf-export-mode .section-card{box-shadow:none;border:1px solid #ccc;}
+  body.pdf-export-mode .hotel-stub{background:#eee !important;color:#000 !important;}
+  body.pdf-export-mode .day-card{break-inside:avoid;page-break-inside:avoid;}
 
   /* ---------- Account / sharing ---------- */
   .account-bar{
@@ -866,6 +896,7 @@
           <option value="hide">מה שלא נכנס: הסתר</option>
           <option value="dim">מה שלא נכנס: הצג מעומעם</option>
         </select>
+        <button class="btn-quick btn-sm" id="addAllFittingBtn" type="button" title="משבץ אוטומטית לימים את כל הרעיונות שנכנסים בזמן ועדיין לא שובצו">➕ הוסף הכל שנכנס בזמן</button>
       </div>
     </div>
     <div class="ideas-filters" id="ideaFilters">
@@ -926,7 +957,11 @@
     <div class="btn-row">
       <button class="btn btn-ghost" id="printBtn">
         <svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18h12v3H6v-3ZM4 9h16v7H4V9Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        הדפסה / ייצוא PDF
+        הדפסה
+      </button>
+      <button class="btn btn-ghost" id="exportPdfBtn">
+        <svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18h12v3H6v-3ZM4 9h16v7H4V9Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ייצוא PDF מסודר לשיתוף
       </button>
       <button class="btn btn-ghost" id="exportJsonBtn">
         <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -959,7 +994,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   initializeFirestore, doc, getDoc, getDocFromServer, setDoc, updateDoc, deleteDoc, deleteField,
-  collection, query, where, getDocs, onSnapshot, serverTimestamp
+  collection, query, where, orderBy, limit, getDocs, onSnapshot, serverTimestamp,
+  persistentLocalCache, persistentMultipleTabManager
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics.js";
 
@@ -977,6 +1013,16 @@ const firebaseConfig = {
 };
 const FIREBASE_CONFIGURED = firebaseConfig.apiKey !== "REPLACE_ME";
 
+// Offline app shell - see sw.js. Requires being served over https:// (or
+// localhost), and the file needs to be deployed alongside index.html (same
+// folder). Registration failures are non-fatal, so the app still works fine
+// without it - it just won't load with zero connection.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => console.warn('הרשמת Service Worker נכשלה:', err));
+  });
+}
+
 let fbApp, fbAuth, db, currentUser = null, appBooted = false;
 if(FIREBASE_CONFIGURED){
   fbApp = initializeApp(firebaseConfig);
@@ -984,7 +1030,13 @@ if(FIREBASE_CONFIGURED){
   // autoDetectLongPolling avoids the WebChannel streaming transport, which
   // ad-blockers / some networks block and which shows up as repeated
   // "Write/channel" 400/404 console errors even though writes still work.
-  db = initializeFirestore(fbApp, { experimentalAutoDetectLongPolling: true });
+  // persistentLocalCache turns on offline persistence (IndexedDB), so trips
+  // already opened once stay readable/editable without a connection and
+  // sync automatically once it's back - not just the app shell (see sw.js).
+  db = initializeFirestore(fbApp, {
+    experimentalAutoDetectLongPolling: true,
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  });
   try{ getAnalytics(fbApp); }catch(e){}
 }
 
@@ -1077,6 +1129,19 @@ async function fbRespondSuggestion(tripId, suggestionId, uid, status){
 function fbListenSuggestions(tripId, uid, callback){
   const q = query(collection(db,'trips',tripId,'suggestions'), where('to','array-contains-any',[uid,'*']));
   return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id:d.id, ...d.data() }))), err => console.error('שגיאת הצעות אריזה:', err));
+}
+
+// Lightweight event log so trip members can be notified in real time when
+// someone schedules an idea or sends a packing suggestion - separate from the
+// main trip doc (which is only fetched once per switchToTrip, not live) so
+// this doesn't require turning the whole trip document into a live listener.
+async function fbLogActivity(tripId, type, text){
+  const ref = doc(collection(db,'trips',tripId,'activityLog'));
+  await setDoc(ref, { type, text, by: currentUser.uid, createdAt: serverTimestamp() });
+}
+function fbListenActivity(tripId, callback){
+  const q = query(collection(db,'trips',tripId,'activityLog'), orderBy('createdAt','desc'), limit(15));
+  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id:d.id, ...d.data() }))), err => console.error('שגיאת יומן פעילות:', err));
 }
 
 async function fbJoinByCode(code){
@@ -1231,7 +1296,7 @@ let uid = 1;
 function nextId(){ return 'id' + (uid++) + '-' + Date.now().toString(36); }
 
 function newDay(){
-  return { id: nextId(), destination:'', currency:'', activities:[ newActivity() ], hotel:{ name:'', link:'', cost:'', notes:'' } };
+  return { id: nextId(), destination:'', currency:'', activities:[ newActivity() ], hotel:{ name:'', link:'', cost:'', notes:'' }, lastEditedBy:'', lastEditedAt:0 };
 }
 function newActivity(){
   return {
@@ -1242,7 +1307,7 @@ function newActivity(){
 function newAttractionIdea(){
   return {
     id: nextId(), nameEn:'', nameHe:'', duration:'', priority:'', hours:'', price:'', booking:false, equipment:'', notes:'',
-    link:'', cuisine:'', category:DEFAULT_CATEGORY, partySize:'', mapQuery:'',
+    link:'', cuisine:'', category:DEFAULT_CATEGORY, partySize:'', mapQuery:'', scheduled:false,
     createdAt: Date.now(), createdBy: currentUser ? currentUser.uid : ''
   };
 }
@@ -1277,7 +1342,9 @@ function normalizeDay(d){
     destination: d.destination || '',
     currency: CURRENCY_SYMBOLS.hasOwnProperty(d.currency) ? d.currency : '',
     activities: Array.isArray(d.activities) && d.activities.length ? d.activities.map(normalizeActivity) : [ newActivity() ],
-    hotel: { name: hotel.name || '', link: hotel.link || '', cost: hotel.cost || '', notes: hotel.notes || '' }
+    hotel: { name: hotel.name || '', link: hotel.link || '', cost: hotel.cost || '', notes: hotel.notes || '' },
+    lastEditedBy: d.lastEditedBy || '',
+    lastEditedAt: d.lastEditedAt || 0
   };
 }
 function normalizeIdea(a){
@@ -1298,6 +1365,7 @@ function normalizeIdea(a){
     category: (a.category === 'food' || a.category === 'sight') ? a.category : 'sight',
     partySize: a.partySize || '',
     mapQuery: a.mapQuery || '',
+    scheduled: !!a.scheduled,
     createdAt: a.createdAt || 0,
     createdBy: a.createdBy || ''
   };
@@ -1379,6 +1447,33 @@ function resolveMemberName(uid){
   if(uid === currentUser?.uid) return myDisplayName || 'את/ה';
   return memberNames[uid] || (uid.slice(0,8) + '…');
 }
+
+// Marks a day as edited by the current user, for the "מי ערך לאחרונה" badge.
+// Uses a client-side timestamp (not serverTimestamp()) because `days` is an
+// array field and Firestore doesn't allow serverTimestamp() inside arrays.
+function touchDay(day){
+  if(!currentUser) return;
+  day.lastEditedBy = currentUser.uid;
+  day.lastEditedAt = Date.now();
+}
+function timeAgoLabel(ts){
+  if(!ts) return '';
+  const diffMin = Math.round((Date.now() - ts) / 60000);
+  if(diffMin < 1) return 'ממש עכשיו';
+  if(diffMin < 60) return `לפני ${diffMin} דק'`;
+  const diffH = Math.round(diffMin / 60);
+  if(diffH < 24) return `לפני ${diffH} שע'`;
+  return `לפני ${Math.round(diffH/24)} ימים`;
+}
+
+// Non-blocking scheduling-conflict check: does this day already have another
+// activity at the exact same time? Returns the conflicting activity's title,
+// or '' if there's no conflict (empty/no time never conflicts).
+function findTimeConflict(day, time, excludeActId){
+  if(!time) return '';
+  const hit = day.activities.find(a => a.id !== excludeActId && a.time === time);
+  return hit ? (hit.title || 'פעילות ללא שם') : '';
+}
 async function refreshMemberNames(){
   const uids = Object.keys(currentMembers);
   const entries = await Promise.all(uids.map(async uid => [uid, uid === currentUser.uid ? myDisplayName : await fbGetDisplayName(uid)]));
@@ -1446,6 +1541,8 @@ async function switchToTrip(id){
   renderSuggestRecipients();
   await loadPrivatePackingList(id);
   startSuggestionsListener(id);
+  startActivityListener(id);
+  ensureNotificationPermission();
 }
 
 // Loads the current user's own packing list for this trip. Trips created before
@@ -1592,7 +1689,7 @@ function render(){
       <div class="day-top">
         <div class="day-badge">${index+1}</div>
         <div class="day-heading">
-          <div class="day-date">${dateLabel ? dateLabel : 'יום ' + (index+1)} <span class="weather-badge" id="weather-${day.id}"></span></div>
+          <div class="day-date">${dateLabel ? dateLabel : 'יום ' + (index+1)} <span class="weather-badge" id="weather-${day.id}"></span>${day.lastEditedBy ? `<span class="last-edited-badge" title="${escapeAttr(new Date(day.lastEditedAt).toLocaleString('he-IL'))}">✏️ ${escapeAttr(resolveMemberName(day.lastEditedBy))} · ${timeAgoLabel(day.lastEditedAt)}</span>` : ''}</div>
           <input class="day-dest" data-role="destination" placeholder="לאן הולכים היום?" value="${escapeAttr(day.destination)}">
           <label class="day-currency-row">מטבע ליום זה: <select data-role="day-currency">${dayCurrencyOptionsHTML(day.currency)}</select></label>
         </div>
@@ -1631,13 +1728,13 @@ function render(){
     day.activities.forEach(act => actsEl.appendChild(buildActivityRow(day, act)));
 
     card.querySelector('[data-role="destination"]').addEventListener('input', e => {
-      day.destination = e.target.value; saveState(); updateStats();
+      day.destination = e.target.value; touchDay(day); saveState(); updateStats();
       clearTimeout(weatherTimers[day.id]);
       weatherTimers[day.id] = setTimeout(() => loadWeatherForDay(day, index), 700);
     });
     card.querySelector('[data-role="day-currency"]').addEventListener('change', e => {
       day.currency = e.target.value;
-      saveState(); render();
+      touchDay(day); saveState(); render();
     });
     card.querySelector('[data-role="del-day"]').addEventListener('click', () => {
       if(state.days.length <= 1){
@@ -1651,17 +1748,17 @@ function render(){
       const act = newActivity();
       day.activities.push(act);
       actsEl.appendChild(buildActivityRow(day, act));
-      saveState();
+      touchDay(day); saveState();
     });
 
     const hn = card.querySelector('[data-role="hotel-name"]');
     const hl = card.querySelector('[data-role="hotel-link"]');
     const hc = card.querySelector('[data-role="hotel-cost"]');
     const hnotes = card.querySelector('[data-role="hotel-notes"]');
-    hn.addEventListener('input', e => { day.hotel.name = e.target.value; saveState(); });
-    hl.addEventListener('input', e => { day.hotel.link = e.target.value; saveState(); });
-    hc.addEventListener('input', e => { day.hotel.cost = e.target.value; saveState(); updateStats(); });
-    hnotes.addEventListener('input', e => { day.hotel.notes = e.target.value; saveState(); });
+    hn.addEventListener('input', e => { day.hotel.name = e.target.value; touchDay(day); saveState(); });
+    hl.addEventListener('input', e => { day.hotel.link = e.target.value; touchDay(day); saveState(); });
+    hc.addEventListener('input', e => { day.hotel.cost = e.target.value; touchDay(day); saveState(); updateStats(); });
+    hnotes.addEventListener('input', e => { day.hotel.notes = e.target.value; touchDay(day); saveState(); });
 
     const copyHotelBtn = card.querySelector('[data-role="copy-hotel"]');
     if(copyHotelBtn){
@@ -1673,7 +1770,7 @@ function render(){
         hl.value = day.hotel.link;
         hc.value = day.hotel.cost;
         hnotes.value = day.hotel.notes;
-        saveState(); updateStats();
+        touchDay(day); saveState(); updateStats();
       });
     }
 
@@ -1725,10 +1822,18 @@ function buildActivityRow(day, act){
   const catBadge = row.querySelector('[data-role="cat-badge"]');
   const CONDITIONAL_FIELDS = ['cuisine','duration','hours','priority','partySize','confirmation','equipment','booking'];
 
-  row.querySelector('[data-role="time"]').addEventListener('input', e => { act.time = e.target.value; saveState(); });
-  row.querySelector('[data-role="title"]').addEventListener('input', e => { act.title = e.target.value; saveState(); });
-  row.querySelector('[data-role="transport"]').addEventListener('input', e => { act.transport = e.target.value; saveState(); });
-  row.querySelector('[data-role="cost"]').addEventListener('input', e => { act.cost = e.target.value; saveState(); updateStats(); });
+  const timeInput = row.querySelector('[data-role="time"]');
+  const checkConflict = () => {
+    const conflictWith = findTimeConflict(day, act.time, act.id);
+    timeInput.classList.toggle('field-invalid', !!conflictWith);
+    timeInput.title = conflictWith ? `⚠️ באותה שעה כבר יש "${conflictWith}" ביום הזה` : '';
+  };
+  checkConflict();
+
+  timeInput.addEventListener('input', e => { act.time = e.target.value; checkConflict(); touchDay(day); saveState(); });
+  row.querySelector('[data-role="title"]').addEventListener('input', e => { act.title = e.target.value; checkConflict(); touchDay(day); saveState(); });
+  row.querySelector('[data-role="transport"]').addEventListener('input', e => { act.transport = e.target.value; touchDay(day); saveState(); });
+  row.querySelector('[data-role="cost"]').addEventListener('input', e => { act.cost = e.target.value; touchDay(day); saveState(); updateStats(); });
   row.querySelector('[data-role="category"]').addEventListener('change', e => {
     act.category = e.target.value;
     row.className = 'activity cat-' + act.category;
@@ -1736,25 +1841,25 @@ function buildActivityRow(day, act){
     CONDITIONAL_FIELDS.forEach(field => {
       row.querySelector(`[data-role="${field}-wrap"]`).style.display = categoryFieldVisible(ACTIVITY_CATEGORY_FIELDS, act.category, field) ? '' : 'none';
     });
-    saveState(); updateStats();
+    touchDay(day); saveState(); updateStats();
   });
-  row.querySelector('[data-role="link"]').addEventListener('input', e => { act.link = e.target.value; saveState(); });
-  row.querySelector('[data-role="cuisine"]').addEventListener('input', e => { act.cuisine = e.target.value; saveState(); });
-  row.querySelector('[data-role="duration"]').addEventListener('input', e => { act.duration = e.target.value; saveState(); });
-  row.querySelector('[data-role="hours"]').addEventListener('input', e => { act.hours = e.target.value; saveState(); });
-  row.querySelector('[data-role="priority"]').addEventListener('input', e => { act.priority = e.target.value; saveState(); });
-  row.querySelector('[data-role="partySize"]').addEventListener('input', e => { act.partySize = e.target.value; saveState(); });
-  row.querySelector('[data-role="confirmation"]').addEventListener('input', e => { act.confirmation = e.target.value; saveState(); });
-  row.querySelector('[data-role="booking"]').addEventListener('change', e => { act.booking = e.target.checked; saveState(); });
+  row.querySelector('[data-role="link"]').addEventListener('input', e => { act.link = e.target.value; touchDay(day); saveState(); });
+  row.querySelector('[data-role="cuisine"]').addEventListener('input', e => { act.cuisine = e.target.value; touchDay(day); saveState(); });
+  row.querySelector('[data-role="duration"]').addEventListener('input', e => { act.duration = e.target.value; touchDay(day); saveState(); });
+  row.querySelector('[data-role="hours"]').addEventListener('input', e => { act.hours = e.target.value; touchDay(day); saveState(); });
+  row.querySelector('[data-role="priority"]').addEventListener('input', e => { act.priority = e.target.value; touchDay(day); saveState(); });
+  row.querySelector('[data-role="partySize"]').addEventListener('input', e => { act.partySize = e.target.value; touchDay(day); saveState(); });
+  row.querySelector('[data-role="confirmation"]').addEventListener('input', e => { act.confirmation = e.target.value; touchDay(day); saveState(); });
+  row.querySelector('[data-role="booking"]').addEventListener('change', e => { act.booking = e.target.checked; touchDay(day); saveState(); });
   const activityEquipmentInput = row.querySelector('[data-role="equipment"]');
-  activityEquipmentInput.addEventListener('input', e => { act.equipment = e.target.value; saveState(); });
+  activityEquipmentInput.addEventListener('input', e => { act.equipment = e.target.value; touchDay(day); saveState(); });
   activityEquipmentInput.addEventListener('blur', () => syncEquipmentToPacking(act));
-  row.querySelector('[data-role="notes"]').addEventListener('input', e => { act.notes = e.target.value; saveState(); });
+  row.querySelector('[data-role="notes"]').addEventListener('input', e => { act.notes = e.target.value; touchDay(day); saveState(); });
   row.querySelector('[data-role="del-activity"]').addEventListener('click', () => {
     const idx = day.activities.indexOf(act);
     if(idx > -1) day.activities.splice(idx,1);
     row.remove();
-    saveState(); updateStats();
+    touchDay(day); saveState(); updateStats();
   });
 
   return row;
@@ -1905,9 +2010,28 @@ function renderTouringPlanResult(){
     listEl.innerHTML = b.invalidItems.map(p => {
       const name = (p.idea.nameHe || p.idea.nameEn || 'רעיון ללא שם').trim();
       const raw = (p.idea.duration || '').trim();
-      return `<div class="touring-plan-unrecognized-item">• ${escapeAttr(name)} — משך שהוזן: "${escapeAttr(raw)}"</div>`;
+      return `<div class="touring-plan-unrecognized-item touring-plan-unrecognized-clickable" data-idea-id="${escapeAttr(p.idea.id)}">• ${escapeAttr(name)} — משך שהוזן: "${escapeAttr(raw)}" <span class="unrecognized-edit-link">✏️ ערוך</span></div>`;
     }).join('') || '<div class="touring-plan-unrecognized-item">אין (כרגע) רעיונות עם משך זמן לא מזוהה.</div>';
+    listEl.querySelectorAll('[data-idea-id]').forEach(el => {
+      el.addEventListener('click', () => jumpToIdeaDuration(el.dataset.ideaId));
+    });
   }
+}
+
+// Jumps straight from a "לא מזוהה" entry to that idea's duration field:
+// expands the card if needed, scrolls it into view and focuses the input.
+function jumpToIdeaDuration(ideaId){
+  const idea = state.attractionIdeas.find(i => i.id === ideaId);
+  if(!idea) return;
+  expandedIdeaIds.add(ideaId);
+  renderAttractions();
+  requestAnimationFrame(() => {
+    const cardEl = document.querySelector(`#attractionsBody .idea-card[data-idea-id="${ideaId}"]`);
+    if(!cardEl) return; // e.g. hidden by an active idea filter
+    cardEl.scrollIntoView({ behavior:'smooth', block:'center' });
+    const durationInput = cardEl.querySelector('[data-role="duration"]');
+    if(durationInput) durationInput.focus();
+  });
 }
 
 document.getElementById('showUnrecognizedBtn').addEventListener('click', () => {
@@ -1955,17 +2079,38 @@ function updateStats(){
   const cap = Number(state.budget) || 0;
   if(cap > 0){
     const remaining = cap - total;
-    remainingEl.textContent = (remaining >= 0 ? 'נותרו ' : 'חריגה של ') + Math.round(Math.abs(remaining)).toLocaleString('he-IL') + sym;
-    remainingEl.style.color = remaining >= 0 ? 'var(--pine)' : 'var(--rust)';
+    const ratio = total / cap;
+    if(remaining >= 0){
+      // Not over yet - but flag it once we're within 20% of the cap, so the
+      // warning shows up before the limit is actually crossed, not just after.
+      const approaching = ratio >= 0.8;
+      remainingEl.textContent = (approaching ? '⚠️ מתקרבים לתקרה - נותרו ' : 'נותרו ') + Math.round(remaining).toLocaleString('he-IL') + sym;
+      remainingEl.style.color = approaching ? 'var(--brass)' : 'var(--pine)';
+    } else {
+      remainingEl.textContent = 'חריגה של ' + Math.round(Math.abs(remaining)).toLocaleString('he-IL') + sym;
+      remainingEl.style.color = 'var(--rust)';
+    }
   } else {
     remainingEl.textContent = '';
   }
 
   const labels = { lodging:'🛏 לינה', food:'🍴 אוכל', transport:'🚌 תחבורה', sight:'🎫 כניסות' };
+  const colors = { lodging:'var(--stay)', food:'var(--rust)', transport:'var(--brass)', sight:'var(--pine)' };
   const breakdownEl = document.getElementById('budgetBreakdown');
+  const maxCat = Math.max(1, ...Object.keys(labels).map(k => catTotals[k]));
   let html = Object.keys(labels).map(k =>
     `<span>${labels[k]}: <b>${Math.round(catTotals[k]).toLocaleString('he-IL')}</b>${sym}</span>`
   ).join('');
+
+  // Simple horizontal bar chart - a proportional visual read of where the
+  // money is going, alongside the raw numbers above.
+  html += `<div class="budget-chart">` + Object.keys(labels).map(k => {
+    const pct = maxCat ? Math.round((catTotals[k]/maxCat)*100) : 0;
+    return `<div class="budget-chart-row">
+      <span class="budget-chart-label">${labels[k]}</span>
+      <div class="budget-chart-track"><div class="budget-chart-fill" style="width:${pct}%;background:${colors[k]};"></div></div>
+    </div>`;
+  }).join('') + `</div>`;
 
   const rawCodes = Object.keys(rawByCurrency);
   if(rawCodes.length > 1 || (rawCodes.length === 1 && rawCodes[0] !== homeCur)){
@@ -2097,9 +2242,71 @@ document.getElementById('suggestSendBtn').addEventListener('click', async () => 
 function startSuggestionsListener(tripId){
   if(suggestionsUnsub) suggestionsUnsub();
   liveSuggestions = [];
+  let firstLoad = true;
   suggestionsUnsub = fbListenSuggestions(tripId, currentUser.uid, list => {
+    // Toast only for suggestions that showed up *after* this listener started -
+    // not for the whole backlog that arrives on first load of the trip.
+    if(!firstLoad){
+      const prevIds = new Set(liveSuggestions.map(s => s.id));
+      list.filter(s => !prevIds.has(s.id) && s.from !== currentUser.uid).forEach(s => {
+        showToast(`🎒 ${resolveMemberName(s.from)} הציע/ה לך להוסיף לאריזה: "${s.text}"`);
+      });
+    }
+    firstLoad = false;
     liveSuggestions = list;
     renderPackingSuggestions();
+  });
+}
+
+/* ---------------- Notifications: toast + browser Notification ---------------- */
+// A lightweight in-page toast, backed (when the tab is in the background and
+// permission was granted) by a real OS-level Notification. Covers: someone
+// else scheduling an idea into the itinerary, and someone sending a packing
+// suggestion - both fire this through logActivityEvent()/liveSuggestions above.
+let notificationsPermissionAsked = false;
+function ensureNotificationPermission(){
+  if(notificationsPermissionAsked || !('Notification' in window)) return;
+  notificationsPermissionAsked = true;
+  if(Notification.permission === 'default') Notification.requestPermission().catch(()=>{});
+}
+function showToast(message){
+  let wrap = document.getElementById('toastWrap');
+  if(!wrap){
+    wrap = document.createElement('div');
+    wrap.id = 'toastWrap';
+    wrap.className = 'toast-wrap';
+    document.body.appendChild(wrap);
+  }
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = message;
+  wrap.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 6000);
+  if('Notification' in window && Notification.permission === 'granted' && document.hidden){
+    try{ new Notification('מתכנן טיולים', { body: message }); }catch(e){}
+  }
+}
+
+// Fire-and-forget write to the activity log - failures here shouldn't block
+// the actual action (scheduling an idea etc.), so errors are just logged.
+function logActivityEvent(type, text){
+  if(!currentUser || !activeTripId) return;
+  fbLogActivity(activeTripId, type, text).catch(err => console.error('שגיאת יומן פעילות:', err));
+}
+
+let activityUnsub = null;
+let activityListenerStartedAt = 0;
+function startActivityListener(tripId){
+  if(activityUnsub) activityUnsub();
+  activityListenerStartedAt = Date.now();
+  activityUnsub = fbListenActivity(tripId, list => {
+    list.forEach(entry => {
+      if(entry.by === currentUser.uid) return; // don't notify yourself of your own actions
+      const ts = entry.createdAt?.toMillis?.();
+      if(!ts || ts < activityListenerStartedAt) return; // skip the pre-existing backlog on first load
+      showToast('📌 ' + entry.text);
+    });
   });
 }
 
@@ -2199,6 +2406,7 @@ function updateTouringFilterButton(){
 function buildIdeaCard(idea, index, notFitting){
   const card = document.createElement('div');
   const expanded = expandedIdeaIds.has(idea.id);
+  card.dataset.ideaId = idea.id;
   card.className = 'idea-card cat-' + idea.category + ' ' + (expanded ? 'expanded' : 'collapsed') + (notFitting ? ' not-fitting' : '');
   const dayOptions = state.days.map((d,i) => `<option value="${i}">${escapeAttr(d.destination ? (i+1)+'. '+d.destination : 'יום '+(i+1))}</option>`).join('');
   const displayName = idea.nameHe || idea.nameEn;
@@ -2299,29 +2507,50 @@ function buildIdeaCard(idea, index, notFitting){
   if(expanded){
     card.querySelector('[data-role="promote"]').addEventListener('click', () => {
       const dayIdx = Number(card.querySelector('[data-role="promote-day"]').value);
-      const day = state.days[dayIdx];
-      if(!day) return;
-      const act = newActivity();
-      act.time = card.querySelector('[data-role="promote-time"]').value || '';
-      act.title = idea.nameHe || idea.nameEn || '';
-      act.category = CATEGORY_EMOJI.hasOwnProperty(idea.category) ? idea.category : 'sight';
-      act.cost = idea.price || '';
-      act.link = idea.link || '';
-      act.cuisine = idea.cuisine || '';
-      act.duration = idea.duration || '';
-      act.priority = idea.priority || '';
-      act.hours = idea.hours || '';
-      act.booking = !!idea.booking;
-      act.equipment = idea.equipment || '';
-      act.partySize = idea.partySize || '';
-      act.notes = idea.notes || '';
-      day.activities.push(act);
-      syncEquipmentToPacking(idea);
-      saveState(); render();
+      const time = card.querySelector('[data-role="promote-time"]').value || '';
+      if(promoteIdeaToDay(idea, dayIdx, time, { confirmConflict: true })) render();
     });
   }
 
   return card;
+}
+
+// Copies an idea's fields into a real day activity. Shared by the manual
+// "הוסף לתכנון" button and by the bulk "הוסף הכל שנכנס בזמן" action.
+// Returns false (and does nothing) if the user cancels because of a
+// same-day/same-time conflict.
+function promoteIdeaToDay(idea, dayIdx, time, opts){
+  opts = opts || {};
+  const day = state.days[dayIdx];
+  if(!day) return false;
+  if(time){
+    const conflictWith = findTimeConflict(day, time, null);
+    if(conflictWith && opts.confirmConflict){
+      const ok = confirm(`⚠️ באותה שעה (${time}) כבר משובצת "${conflictWith}" ביום הזה. לשבץ בכל זאת?`);
+      if(!ok) return false;
+    }
+  }
+  const act = newActivity();
+  act.time = time || '';
+  act.title = idea.nameHe || idea.nameEn || '';
+  act.category = CATEGORY_EMOJI.hasOwnProperty(idea.category) ? idea.category : 'sight';
+  act.cost = idea.price || '';
+  act.link = idea.link || '';
+  act.cuisine = idea.cuisine || '';
+  act.duration = idea.duration || '';
+  act.priority = idea.priority || '';
+  act.hours = idea.hours || '';
+  act.booking = !!idea.booking;
+  act.equipment = idea.equipment || '';
+  act.partySize = idea.partySize || '';
+  act.notes = idea.notes || '';
+  day.activities.push(act);
+  idea.scheduled = true;
+  touchDay(day);
+  syncEquipmentToPacking(idea);
+  logActivityEvent('schedule', `${resolveMemberName(currentUser?.uid)} שיבץ/ה את "${act.title || 'רעיון'}" ליום ${dayIdx+1}`);
+  saveState();
+  return true;
 }
 
 document.getElementById('addIdeaBtn').addEventListener('click', () => {
@@ -2336,6 +2565,36 @@ document.getElementById('ideaFilterAuthor').addEventListener('change', e => { id
 document.getElementById('ideaFilterBooking').addEventListener('change', e => { ideaFilterBooking = e.target.value; renderAttractions(); });
 document.getElementById('ideaFilterPriority').addEventListener('change', e => { ideaFilterPriority = e.target.value; renderAttractions(); });
 document.getElementById('applyTouringFilterBtn').addEventListener('click', () => { touringFilterActive = !touringFilterActive; renderAttractions(); });
+
+// "הוסף הכל שנכנס בזמן": auto-schedules every idea the touring-plan math says
+// fits (see computeIdeasTouringPlan) and hasn't been scheduled yet. Higher
+// priority ideas claim day-slots first; each idea goes to the first day with
+// enough remaining touring hours, falling back to whichever day has the most
+// room left if none fits cleanly. No specific time is set (just a day), so
+// this never triggers a time-conflict prompt - people can fine-tune times after.
+document.getElementById('addAllFittingBtn').addEventListener('click', () => {
+  if(currentRole === 'viewer'){ alert('צופים לא יכולים לערוך את הטיול.'); return; }
+  const { fittingIds } = computeIdeasTouringPlan();
+  const candidates = state.attractionIdeas.filter(i => fittingIds.has(i.id) && !i.scheduled);
+  if(!candidates.length){ alert('אין רעיונות חדשים שנכנסים בזמן לשבץ (או שכולם כבר שובצו).'); return; }
+  if(!confirm(`לשבץ אוטומטית ${candidates.length} רעיונות לימים המתאימים בתכנון?`)) return;
+
+  const sorted = candidates.slice().sort((a,b) => (Number(b.priority)||0) - (Number(a.priority)||0));
+  const remaining = state.days.map(day => dayHoursFor(day));
+  let addedCount = 0;
+  sorted.forEach(idea => {
+    const hours = parseDurationHours(idea.duration) || 0;
+    let dayIdx = remaining.findIndex(h => h >= hours);
+    if(dayIdx === -1) dayIdx = remaining.indexOf(Math.max(...remaining));
+    if(dayIdx === -1) return;
+    if(promoteIdeaToDay(idea, dayIdx, '', { confirmConflict:false })){
+      remaining[dayIdx] -= hours;
+      addedCount++;
+    }
+  });
+  render();
+  alert(addedCount ? `שובצו ${addedCount} רעיונות. אפשר לקבוע שעה מדויקת לכל אחד בנפרד בתוך היום.` : 'לא הצלחתי לשבץ אף רעיון (אין ימים בטיול?).');
+});
 document.getElementById('touringFilterModeSelect').addEventListener('change', e => {
   touringFilterMode = e.target.value;
   if(touringFilterActive) renderAttractions();
@@ -2488,6 +2747,47 @@ document.getElementById('packingQuickAdd').addEventListener('click', () => {
 
 /* ---------------- Export / Import / Share ---------------- */
 document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+// Dedicated "PDF מסודר" export - separate from window.print()'s browser
+// print dialog. Temporarily hides the same UI chrome the print stylesheet
+// hides (buttons, filters, map iframes, account/sharing bars, toasts...),
+// forces a clean light theme, then renders #mainContent to a downloadable
+// PDF file via html2pdf.js, with a page break before each day.
+const PDF_HIDE_SELECTORS = '.icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,'
+  + '.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,'
+  + '.account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,'
+  + '#sharingPanelToggle,.quick-jump,#toastWrap,.trip-switcher-row';
+
+async function exportPdf(){
+  const btn = document.getElementById('exportPdfBtn');
+  if(typeof html2pdf === 'undefined'){
+    alert('ספריית ייצוא ה-PDF לא נטענה (בעיית רשת?). אפשר להשתמש בינתיים בכפתור "הדפסה" ולשמור כ-PDF מתפריט ההדפסה.');
+    return;
+  }
+  const hiddenEls = Array.from(document.querySelectorAll(PDF_HIDE_SELECTORS));
+  const prevDisplay = hiddenEls.map(el => el.style.display);
+  hiddenEls.forEach(el => { el.style.display = 'none'; });
+  document.body.classList.add('pdf-export-mode');
+  if(btn){ btn.disabled = true; btn.textContent = 'מייצא PDF...'; }
+  try{
+    await html2pdf().set({
+      margin: 10,
+      filename: (state.name || 'טיול') + '.pdf',
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css','legacy'], before: '.day-card' }
+    }).from(document.querySelector('.wrap')).save();
+  }catch(err){
+    console.error('שגיאת ייצוא PDF:', err);
+    alert('ייצוא ה-PDF נכשל. אפשר לנסות "הדפסה" ולשמור כ-PDF מתפריט ההדפסה כגיבוי.');
+  }finally{
+    hiddenEls.forEach((el,i) => { el.style.display = prevDisplay[i]; });
+    document.body.classList.remove('pdf-export-mode');
+    if(btn){ btn.disabled = false; btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18h12v3H6v-3ZM4 9h16v7H4V9Z" stroke-linecap="round" stroke-linejoin="round"/></svg> ייצוא PDF מסודר לשיתוף`; }
+  }
+}
+document.getElementById('exportPdfBtn').addEventListener('click', exportPdf);
 
 document.getElementById('exportJsonBtn').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
