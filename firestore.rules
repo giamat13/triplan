@@ -58,6 +58,34 @@ service cloud.firestore {
         allow read, write: if isSignedIn() && request.auth.uid == uid
           && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.members;
       }
+
+      // Packing-item suggestions from one member to specific/all others.
+      // `to` is an array of uids, or ['*'] to mean "every trip member".
+      // Anyone can create a suggestion naming themselves as `from`; any trip
+      // member can read (so recipients can see it); only the field
+      // `responses.{callerUid}` may ever be written by someone other than
+      // the author, so one recipient can't overwrite another's answer.
+      match /suggestions/{suggestionId} {
+        function isMember(){
+          return request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.members;
+        }
+        allow read: if isSignedIn() && isMember();
+        allow create: if isSignedIn() && isMember()
+          && request.resource.data.from == request.auth.uid
+          && request.resource.data.responses == {};
+        allow update: if isSignedIn() && isMember()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['responses'])
+          && request.resource.data.responses.diff(resource.data.responses).affectedKeys().hasOnly([request.auth.uid]);
+        allow delete: if isSignedIn() && resource.data.from == request.auth.uid;
+      }
+    }
+
+    // Per-user public profile (currently just a display name shown to other
+    // trip members instead of a raw uid/email). Anyone signed in may read any
+    // profile; only the owner of a uid may write their own.
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == uid;
     }
 
     // Lookup table: code (document ID) -> { tripId, role }.

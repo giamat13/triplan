@@ -518,6 +518,31 @@
   }
   .btn-quick:hover{border-color:var(--pine);background:rgba(76,122,104,0.08);}
   .packing-empty{font-size:13.5px;color:var(--muted);padding:6px 2px;}
+  .packing-suggest-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;}
+  .packing-suggest-row input[type=text]{
+    flex:1;min-width:160px;border:1.5px solid var(--line);border-radius:10px;
+    padding:9px 12px;font-family:'Assistant',sans-serif;font-size:14px;
+    background:transparent;color:var(--ink-text);outline:none;
+  }
+  .packing-suggest-row input[type=text]:focus{border-color:var(--brass);}
+  .packing-suggest-recipients{display:flex;gap:6px;flex-wrap:wrap;}
+  .packing-suggest-recipients label{
+    display:flex;align-items:center;gap:4px;font-size:12.5px;color:var(--muted);
+    border:1.5px solid var(--line);border-radius:20px;padding:4px 10px;cursor:pointer;
+  }
+  .packing-suggest-recipients input{accent-color:var(--pine);}
+  .suggestion-card{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    border:1.5px solid var(--brass);border-radius:10px;
+    padding:8px 12px;margin-bottom:8px;background:rgba(200,164,88,0.12);
+    font-size:13.5px;
+  }
+  .suggestion-card b{color:var(--ink-text);}
+  .map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+  .map-card{border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.25);}
+  .map-card iframe{width:100%;height:150px;border:0;display:block;}
+  .map-card-label{padding:6px 10px;font-size:12.5px;color:var(--ink-text);}
+  .map-card-label a{color:var(--pine);}
 
   /* Attractions ideas cards */
   .ideas-list{display:flex;flex-direction:column;gap:12px;}
@@ -634,7 +659,7 @@
 
   @media print{
     body{background:#fff;color:#000;padding:0;}
-    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign{display:none !important;}
+    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,#mapSection{display:none !important;}
     .account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,#sharingPanelToggle{display:none !important;}
     .header-card,.day-card,.section-card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;}
     .hotel-stub{background:#eee !important;color:#000 !important;}
@@ -724,6 +749,7 @@
     <a href="#days">📅 ימים</a>
     <a href="#ideasSection">💡 אטרקציות</a>
     <a href="#packingSection">🎒 אריזה</a>
+    <a href="#mapSection">🗺 מפה</a>
   </nav>
 
   <div class="readonly-banner" id="readonlyBanner">👁️ את/ה צופה בטיול הזה - אין אפשרות לערוך.</div>
@@ -755,8 +781,13 @@
         <select id="secondaryCurrencySelect"></select>
       </div>
       <div class="meta-field">
-        <label>תקציב משוער (מומר למטבע הבית)</label>
+        <label>תקציב יעד (מטבע הבית)</label>
+        <input type="number" min="0" id="budgetCapInput" placeholder="לא הוגדר">
+      </div>
+      <div class="meta-field">
+        <label>מתוכנן עד כה (מומר למטבע הבית)</label>
         <span class="stat"><span id="currencySymbolBudget">₪</span><b id="budgetTotal">0</b></span>
+        <span class="stat" id="budgetRemaining"></span>
       </div>
     </div>
     <div class="budget-breakdown" id="budgetBreakdown"></div>
@@ -806,6 +837,7 @@
       <button class="btn-quick" id="packingQuickAdd">הוסף פריטים נפוצים</button>
     </div>
     <p class="section-hint">🔒 הרשימה הזו אישית - נשמרת בענן ומוצגת רק לך, גם אם הטיול משותף עם עוד אנשים.</p>
+    <div id="packingSuggestionsBanner"></div>
     <div class="packing-list" id="packingList"></div>
     <div class="packing-add-row">
       <input type="text" id="packingNewItem" placeholder="הוסף פריט...">
@@ -813,6 +845,19 @@
         <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
       </button>
     </div>
+    <div class="packing-suggest-row">
+      <input type="text" id="suggestItemText" placeholder="הצע פריט לחברי הטיול...">
+      <div class="packing-suggest-recipients" id="suggestRecipients"></div>
+      <button class="btn-quick" id="suggestSendBtn">הצע לרשימה שלהם</button>
+    </div>
+  </div>
+
+  <div class="section-card" id="mapSection">
+    <div class="section-header">
+      <div class="section-title">מפה</div>
+    </div>
+    <p class="section-hint">מפה לכל אטרקציה/פעילות עם שם או קישור. מבוסס על חיפוש טקסט חופשי (בלי מפתח API), אז המיקום המדויק הוא הערכה של גוגל.</p>
+    <div class="map-grid" id="mapGrid"></div>
   </div>
 
   <div class="toolbar">
@@ -853,7 +898,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   initializeFirestore, doc, getDoc, getDocFromServer, setDoc, updateDoc, deleteDoc, deleteField,
-  collection, query, where, getDocs, serverTimestamp
+  collection, query, where, getDocs, onSnapshot, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics.js";
 
@@ -895,7 +940,7 @@ function generateCode(){
 function tripContentPayload(data){
   return {
     name: data.name || '', startDate: data.startDate || '', currency: data.currency || 'ILS',
-    secondaryCurrency: data.secondaryCurrency || '',
+    secondaryCurrency: data.secondaryCurrency || '', budget: data.budget || '',
     days: data.days || [], attractionIdeas: data.attractionIdeas || []
   };
 }
@@ -949,6 +994,27 @@ async function fbGetPackingList(tripId, uid){
 
 async function fbSavePackingList(tripId, uid, items){
   await setDoc(doc(db,'trips',tripId,'packingLists',uid), { items, updatedAt: serverTimestamp() });
+}
+
+async function fbGetDisplayName(uid){
+  const snap = await getDoc(doc(db,'users',uid));
+  return snap.exists() ? (snap.data().name || '') : '';
+}
+async function fbSetDisplayName(uid, name){
+  await setDoc(doc(db,'users',uid), { name }, { merge:true });
+}
+
+async function fbCreateSuggestion(tripId, from, to, text){
+  const ref = doc(collection(db,'trips',tripId,'suggestions'));
+  await setDoc(ref, { from, to, text, responses:{}, createdAt: serverTimestamp() });
+}
+async function fbRespondSuggestion(tripId, suggestionId, uid, status){
+  await updateDoc(doc(db,'trips',tripId,'suggestions',suggestionId), { ['responses.'+uid]: status });
+}
+// Live suggestions relevant to `uid`: sent to them by name, or broadcast to everyone ('*').
+function fbListenSuggestions(tripId, uid, callback){
+  const q = query(collection(db,'trips',tripId,'suggestions'), where('to','array-contains-any',[uid,'*']));
+  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id:d.id, ...d.data() }))), err => console.error('שגיאת הצעות אריזה:', err));
 }
 
 async function fbJoinByCode(code){
@@ -1115,11 +1181,8 @@ function newAttractionIdea(){
   return {
     id: nextId(), nameEn:'', nameHe:'', duration:'', priority:'', hours:'', price:'', booking:false, equipment:'', notes:'',
     link:'', cuisine:'', category:DEFAULT_CATEGORY, partySize:'',
-    createdAt: Date.now(), createdBy: currentIdeaAuthorName()
+    createdAt: Date.now(), createdBy: currentUser ? currentUser.uid : ''
   };
-}
-function currentIdeaAuthorName(){
-  return (currentUser && (currentUser.email || currentUser.displayName)) || '';
 }
 
 function normalizeActivity(a){
@@ -1192,6 +1255,7 @@ function normalizeState(data){
     startDate: data.startDate || '',
     currency: CURRENCY_SYMBOLS.hasOwnProperty(data.currency) ? data.currency : 'ILS',
     secondaryCurrency: mergeSecondaryCurrency(data),
+    budget: data.budget || '',
     days: Array.isArray(data.days) && data.days.length ? data.days.map(normalizeDay) : [ newDay() ],
     // starting value only - the real per-user list is loaded separately after
     // switching trips, see loadPrivatePackingList(). Kept here so a brand-new
@@ -1242,6 +1306,19 @@ let state = normalizeState({});
 let currentRole = 'owner';
 let currentCodes = {};
 let currentMembers = {};
+let memberNames = {}; // uid -> display name, refreshed per trip in switchToTrip
+let myDisplayName = '';
+
+function resolveMemberName(uid){
+  if(!uid) return '';
+  if(uid === currentUser?.uid) return myDisplayName || 'את/ה';
+  return memberNames[uid] || (uid.slice(0,8) + '…');
+}
+async function refreshMemberNames(){
+  const uids = Object.keys(currentMembers);
+  const entries = await Promise.all(uids.map(async uid => [uid, uid === currentUser.uid ? myDisplayName : await fbGetDisplayName(uid)]));
+  memberNames = Object.fromEntries(entries);
+}
 
 async function refreshTripsIndex(){
   const trips = await fbListMyTrips();
@@ -1297,10 +1374,13 @@ async function switchToTrip(id){
   currentCodes = trip.codes || {};
   currentMembers = trip.members || {};
   showSyncError(false);
+  await refreshMemberNames();
   render();
   renderTripSelect();
   renderSharingPanel();
+  renderSuggestRecipients();
   await loadPrivatePackingList(id);
+  startSuggestionsListener(id);
 }
 
 // Loads the current user's own packing list for this trip. Trips created before
@@ -1343,6 +1423,7 @@ const tripNameEl = document.getElementById('tripName');
 const startDateEl = document.getElementById('startDate');
 const currencySelectEl = document.getElementById('currencySelect');
 const secondaryCurrencySelectEl = document.getElementById('secondaryCurrencySelect');
+const budgetCapInputEl = document.getElementById('budgetCapInput');
 
 function formatDate(dateStr, offset){
   if(!dateStr) return null;
@@ -1431,6 +1512,7 @@ async function loadWeatherForDay(day, index){
 function render(){
   tripNameEl.value = state.name;
   startDateEl.value = state.startDate;
+  budgetCapInputEl.value = state.budget || '';
   currencySelectEl.value = state.currency;
   secondaryCurrencySelectEl.value = state.secondaryCurrency || '';
   daysEl.innerHTML = '';
@@ -1537,6 +1619,7 @@ function render(){
   updateStats();
   renderPacking();
   renderAttractions();
+  renderMapSection();
   applyRoleRestrictions();
 }
 
@@ -1641,6 +1724,16 @@ function updateStats(){
   document.getElementById('budgetTotal').textContent = Math.round(total).toLocaleString('he-IL');
   document.getElementById('currencySymbolBudget').textContent = sym;
 
+  const remainingEl = document.getElementById('budgetRemaining');
+  const cap = Number(state.budget) || 0;
+  if(cap > 0){
+    const remaining = cap - total;
+    remainingEl.textContent = (remaining >= 0 ? 'נותרו ' : 'חריגה של ') + Math.round(Math.abs(remaining)).toLocaleString('he-IL') + sym;
+    remainingEl.style.color = remaining >= 0 ? 'var(--pine)' : 'var(--rust)';
+  } else {
+    remainingEl.textContent = '';
+  }
+
   const labels = { lodging:'🛏 לינה', food:'🍴 אוכל', transport:'🚌 תחבורה', sight:'🎫 כניסות' };
   const breakdownEl = document.getElementById('budgetBreakdown');
   let html = Object.keys(labels).map(k =>
@@ -1653,6 +1746,30 @@ function updateStats(){
     html += `<span class="budget-raw-note">בפועל: ${rawHtml} (המרה משוערת ל-${sym}, לא בזמן אמת)</span>`;
   }
   breakdownEl.innerHTML = html;
+}
+
+/* ---------------- Map ---------------- */
+function renderMapSection(){
+  const grid = document.getElementById('mapGrid');
+  if(!grid) return;
+  const spots = [];
+  state.days.forEach((day, i) => day.activities.forEach(act => {
+    const label = act.title && act.title.trim();
+    if(label) spots.push({ label, sub: day.destination ? 'יום ' + (i+1) + ' · ' + day.destination : 'יום ' + (i+1), link: act.link });
+  }));
+  state.attractionIdeas.forEach(idea => {
+    const label = (idea.nameHe || idea.nameEn || '').trim();
+    if(label) spots.push({ label, sub: 'רעיון', link: idea.link });
+  });
+  if(!spots.length){
+    grid.innerHTML = '<div class="packing-empty">אין עדיין פעילויות או רעיונות עם שם להצגה על מפה.</div>';
+    return;
+  }
+  grid.innerHTML = spots.map(s => `
+    <div class="map-card">
+      <iframe src="https://www.google.com/maps?q=${encodeURIComponent(s.label)}&output=embed" loading="lazy" title="${escapeAttr(s.label)}"></iframe>
+      <div class="map-card-label">${escapeAttr(s.sub)} · ${escapeAttr(s.label)}${s.link ? ` · <a href="${escapeAttr(s.link)}" target="_blank" rel="noopener">קישור</a>` : ''}</div>
+    </div>`).join('');
 }
 
 /* ---------------- Packing list ---------------- */
@@ -1710,6 +1827,68 @@ function syncEquipmentToPacking(idea){
   if(added){ savePackingList(); renderPacking(); }
 }
 
+/* ---------------- Packing suggestions ---------------- */
+let suggestionsUnsub = null;
+let liveSuggestions = [];
+
+function renderSuggestRecipients(){
+  const wrap = document.getElementById('suggestRecipients');
+  if(!wrap || !currentUser) return;
+  const others = Object.keys(currentMembers).filter(uid => uid !== currentUser.uid);
+  wrap.innerHTML = `<label><input type="checkbox" value="*"> כולם</label>` +
+    others.map(uid => `<label><input type="checkbox" value="${escapeAttr(uid)}"> ${escapeAttr(resolveMemberName(uid))}</label>`).join('');
+  const allCb = wrap.querySelector('input[value="*"]');
+  allCb.addEventListener('change', () => {
+    if(allCb.checked) wrap.querySelectorAll('input[type=checkbox]').forEach(cb => { if(cb !== allCb) cb.checked = false; });
+  });
+  wrap.querySelectorAll('input[type=checkbox]:not([value="*"])').forEach(cb =>
+    cb.addEventListener('change', () => { if(cb.checked) allCb.checked = false; }));
+}
+
+document.getElementById('suggestSendBtn').addEventListener('click', async () => {
+  const text = document.getElementById('suggestItemText').value.trim();
+  if(!text) return;
+  const wrap = document.getElementById('suggestRecipients');
+  const checked = Array.from(wrap.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
+  if(!checked.length){ alert('בחרו למי להציע - כולם או משתתפים ספציפיים.'); return; }
+  await fbCreateSuggestion(activeTripId, currentUser.uid, checked, text);
+  document.getElementById('suggestItemText').value = '';
+  wrap.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+});
+
+function startSuggestionsListener(tripId){
+  if(suggestionsUnsub) suggestionsUnsub();
+  liveSuggestions = [];
+  suggestionsUnsub = fbListenSuggestions(tripId, currentUser.uid, list => {
+    liveSuggestions = list;
+    renderPackingSuggestions();
+  });
+}
+
+function renderPackingSuggestions(){
+  const banner = document.getElementById('packingSuggestionsBanner');
+  if(!banner) return;
+  const pending = liveSuggestions.filter(s => s.from !== currentUser.uid && !(s.responses && s.responses[currentUser.uid]));
+  banner.innerHTML = pending.map(s => `
+    <div class="suggestion-card" data-id="${s.id}">
+      <span>${escapeAttr(resolveMemberName(s.from))} הציע/ה לך להוסיף לרשימת האריזה: <b>${escapeAttr(s.text)}</b></span>
+      <button class="btn-quick" data-action="accept">הוסף</button>
+      <button class="btn-quick" data-action="dismiss">התעלם</button>
+    </div>`).join('');
+  banner.querySelectorAll('.suggestion-card').forEach(card => {
+    const id = card.dataset.id;
+    const suggestion = pending.find(s => s.id === id);
+    card.querySelector('[data-action="accept"]').addEventListener('click', async () => {
+      state.packing.push({ id: nextId(), text: suggestion.text, checked:false });
+      savePackingList(); renderPacking();
+      await fbRespondSuggestion(activeTripId, id, currentUser.uid, 'accepted');
+    });
+    card.querySelector('[data-action="dismiss"]').addEventListener('click', async () => {
+      await fbRespondSuggestion(activeTripId, id, currentUser.uid, 'dismissed');
+    });
+  });
+}
+
 /* ---------------- Attractions ideas ---------------- */
 const expandedIdeaIds = new Set();
 let ideaSortKey = 'manual';
@@ -1727,10 +1906,11 @@ const IDEA_SORTERS = {
 
 function renderIdeaAuthorFilterOptions(){
   const sel = document.getElementById('ideaFilterAuthor');
-  const authors = Array.from(new Set(state.attractionIdeas.map(i => i.createdBy).filter(Boolean))).sort((a,b) => a.localeCompare(b,'he'));
+  const authorUids = Array.from(new Set(state.attractionIdeas.map(i => i.createdBy).filter(Boolean)))
+    .sort((a,b) => resolveMemberName(a).localeCompare(resolveMemberName(b),'he'));
   const prev = ideaFilterAuthor;
-  sel.innerHTML = '<option value="">כל המוסיפים</option>' + authors.map(a => `<option value="${escapeAttr(a)}">${escapeAttr(a)}</option>`).join('');
-  sel.value = authors.includes(prev) ? prev : '';
+  sel.innerHTML = '<option value="">כל המוסיפים</option>' + authorUids.map(uid => `<option value="${escapeAttr(uid)}">${escapeAttr(resolveMemberName(uid))}</option>`).join('');
+  sel.value = authorUids.includes(prev) ? prev : '';
   ideaFilterAuthor = sel.value;
 }
 
@@ -1799,6 +1979,7 @@ function buildIdeaCard(idea, index){
       <select data-role="promote-day">${dayOptions}</select>
       <input data-role="promote-time" type="time" title="שעה מסוימת (אופציונלי)">
       <button class="btn-quick" data-role="promote">${ICONS.plus} הוסף לתכנון</button>
+      ${idea.createdBy ? `<span class="idea-assign-label">נוסף ע"י ${escapeAttr(resolveMemberName(idea.createdBy))}${idea.createdAt ? ' · ' + new Date(idea.createdAt).toLocaleDateString('he-IL') : ''}</span>` : ''}
     </div>
     ` : ''}
   `;
@@ -1887,6 +2068,7 @@ document.getElementById('ideaFilterBooking').addEventListener('change', e => { i
 /* ---------------- Header events ---------------- */
 tripNameEl.addEventListener('input', e => { state.name = e.target.value; saveState(); renderTripSelect(); });
 startDateEl.addEventListener('input', e => { state.startDate = e.target.value; saveState(); render(); });
+budgetCapInputEl.addEventListener('input', e => { state.budget = e.target.value; saveState(); updateStats(); });
 currencySelectEl.addEventListener('change', e => { state.currency = e.target.value; saveState(); render(); });
 secondaryCurrencySelectEl.addEventListener('change', e => { state.secondaryCurrency = e.target.value; saveState(); render(); });
 
@@ -1958,7 +2140,7 @@ function renderSharingPanel(){
     </div>`).join('');
   membersArea.innerHTML = Object.entries(currentMembers).map(([memberUid, role]) => `
     <div class="member-row">
-      <span>${memberUid === currentUser.uid ? 'את/ה' : memberUid.slice(0,8) + '…'}</span>
+      <span>${escapeAttr(resolveMemberName(memberUid))}${memberUid === currentUser.uid ? ' (את/ה)' : ''}</span>
       <span class="member-role-badge">${roleLabels[role] || role}</span>
       ${memberUid !== currentUser.uid ? `<button class="icon-btn" data-action="remove-member" data-uid="${escapeAttr(memberUid)}" title="הסר משתתף">${ICONS.trash}</button>` : ''}
     </div>`).join('');
@@ -1987,6 +2169,7 @@ function renderSharingPanel(){
       await fbRemoveMember(activeTripId, btn.dataset.uid);
       delete currentMembers[btn.dataset.uid];
       renderSharingPanel();
+      renderSuggestRecipients();
     });
   });
 }
@@ -2143,6 +2326,17 @@ function renderAccountBar(){
   if(eBtn) eBtn.addEventListener('click', () => {
     document.getElementById('emailAuthForm').style.display = 'flex';
   });
+
+  actionsEl.insertAdjacentHTML('beforeend',
+    `<input class="btn btn-ghost btn-sm" id="displayNameInput" placeholder="השם שלך לחברי הטיול" maxlength="40" value="${escapeAttr(myDisplayName)}" style="width:160px;">`);
+  const nameInput = document.getElementById('displayNameInput');
+  nameInput.addEventListener('change', async () => {
+    myDisplayName = nameInput.value.trim();
+    await fbSetDisplayName(currentUser.uid, myDisplayName);
+    memberNames[currentUser.uid] = myDisplayName;
+    renderSharingPanel();
+    renderAttractions();
+  });
 }
 
 document.getElementById('emailAuthCancel').addEventListener('click', () => {
@@ -2206,6 +2400,8 @@ if(!FIREBASE_CONFIGURED){
     if(user && !appBooted){
       appBooted = true;
       try{
+        myDisplayName = await fbGetDisplayName(user.uid);
+        renderAccountBar();
         await afterAuthReady();
       }catch(err){
         console.error('שגיאת טעינה:', err);
