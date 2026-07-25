@@ -559,6 +559,20 @@
     font-size:12.5px;color:var(--ink-text);line-height:1.7;
   }
   .touring-plan-unrecognized-item{word-break:break-word;}
+  .touring-plan-filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1.5px dashed var(--line);}
+  .touring-plan-filter-row select{
+    font-family:'JetBrains Mono', monospace;font-size:12px;
+    background:var(--paper);color:var(--ink-text);
+    border:1.5px solid var(--line-dark);border-radius:8px;
+    padding:5px 8px;cursor:pointer;
+  }
+  #applyTouringFilterBtn.active{background:var(--stay);color:var(--paper-text);border-color:var(--stay);}
+  .idea-card.not-fitting{opacity:0.45;}
+  .idea-not-fitting-badge{
+    font-family:'JetBrains Mono', monospace;font-size:10.5px;
+    color:var(--rust);border:1px solid var(--rust);border-radius:20px;
+    padding:2px 8px;white-space:nowrap;
+  }
   .ideas-map-divider{
     margin-top:18px;padding-top:14px;border-top:1.5px dashed var(--line);
     font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--muted);
@@ -846,6 +860,13 @@
       <div class="touring-plan-result" id="touringPlanResult"></div>
       <button class="btn-quick btn-sm touring-plan-unrecognized-btn" id="showUnrecognizedBtn" type="button" style="display:none;"></button>
       <div class="touring-plan-unrecognized" id="touringPlanUnrecognized" style="display:none;"></div>
+      <div class="touring-plan-filter-row">
+        <button class="btn-quick btn-sm" id="applyTouringFilterBtn" type="button">החל סינון: הצג רק מה שיהיה לו זמן</button>
+        <select id="touringFilterModeSelect" title="מה לעשות עם מה שסונן החוצה">
+          <option value="hide">מה שלא נכנס: הסתר</option>
+          <option value="dim">מה שלא נכנס: הצג מעומעם</option>
+        </select>
+      </div>
     </div>
     <div class="ideas-filters" id="ideaFilters">
       <select id="ideaFilterCategory" title="סנן לפי קטגוריה">
@@ -858,6 +879,19 @@
         <option value="">הזמנה מראש: הכל</option>
         <option value="yes">דורש הזמנה</option>
         <option value="no">לא דורש הזמנה</option>
+      </select>
+      <select id="ideaFilterPriority" title="סנן לפי עדיפות">
+        <option value="">עדיפות: הכל</option>
+        <option value="10">10 ומעלה</option>
+        <option value="9">9 ומעלה</option>
+        <option value="8">8 ומעלה</option>
+        <option value="7">7 ומעלה</option>
+        <option value="6">6 ומעלה</option>
+        <option value="5">5 ומעלה</option>
+        <option value="4">4 ומעלה</option>
+        <option value="3">3 ומעלה</option>
+        <option value="2">2 ומעלה</option>
+        <option value="1">1 ומעלה</option>
       </select>
     </div>
     <div class="ideas-list" id="attractionsBody"></div>
@@ -1789,7 +1823,8 @@ function computeIdeasTouringPlan(){
   const remainingForRanked = available - shortHours;
 
   let cutoffPriority = null;
-  if(used > available){
+  const over = used > available;
+  if(over){
     const sorted = rankedItems.slice().sort((a,b) => b.priority - a.priority);
     let acc = 0;
     for(const p of sorted){
@@ -1797,7 +1832,20 @@ function computeIdeasTouringPlan(){
       if(acc > remainingForRanked){ cutoffPriority = p.priority; break; }
     }
   }
-  return { available, used, over: used > available, invalidCount: invalidItems.length, invalidItems, shortAlwaysIncludedCount: shortItems.length, cutoffPriority };
+
+  // Which ideas "fit" within the available touring time - short/invalid-duration
+  // items always fit (see above), everything else fits when we're not over
+  // budget, or when its priority meets the cutoff. When over budget but no
+  // clean cutoff was found (the short items alone already blew the budget),
+  // don't restrict the ranked items either - there's nothing precise to cut.
+  const fittingIds = new Set();
+  parsed.forEach(p => {
+    const isShort = !p.invalid && p.hours <= SHORT_ITEM_HOURS;
+    const fits = p.invalid || isShort || !over || cutoffPriority === null || p.priority >= cutoffPriority;
+    if(fits) fittingIds.add(p.idea.id);
+  });
+
+  return { available, used, over, invalidCount: invalidItems.length, invalidItems, shortAlwaysIncludedCount: shortItems.length, cutoffPriority, fittingIds };
 }
 
 function formatHours(h){ return (Math.round(h*10)/10).toLocaleString('he-IL'); }
@@ -2085,6 +2133,9 @@ let ideaSortKey = 'manual';
 let ideaFilterCategory = '';
 let ideaFilterAuthor = '';
 let ideaFilterBooking = '';
+let ideaFilterPriority = '';
+let touringFilterActive = false;
+let touringFilterMode = 'hide';
 
 const IDEA_SORTERS = {
   manual: null,
@@ -2109,29 +2160,50 @@ function renderAttractions(){
   body.innerHTML = '';
   renderIdeaAuthorFilterOptions();
   renderTouringPlan();
+  updateTouringFilterButton();
 
   let ideas = state.attractionIdeas.map((idea, index) => ({ idea, index }));
   if(ideaFilterCategory) ideas = ideas.filter(x => x.idea.category === ideaFilterCategory);
   if(ideaFilterAuthor) ideas = ideas.filter(x => x.idea.createdBy === ideaFilterAuthor);
   if(ideaFilterBooking) ideas = ideas.filter(x => !!x.idea.booking === (ideaFilterBooking === 'yes'));
+  if(ideaFilterPriority !== '') ideas = ideas.filter(x => (Number(x.idea.priority)||0) >= Number(ideaFilterPriority));
 
   const sorter = IDEA_SORTERS[ideaSortKey];
   if(sorter) ideas = ideas.slice().sort((a,b) => sorter(a.idea, b.idea));
+
+  if(touringFilterActive){
+    const { fittingIds } = computeIdeasTouringPlan();
+    if(touringFilterMode === 'hide'){
+      ideas = ideas.filter(x => fittingIds.has(x.idea.id));
+    } else {
+      ideas = ideas.map(x => ({ ...x, notFitting: !fittingIds.has(x.idea.id) }));
+    }
+  }
 
   if(!ideas.length){
     body.innerHTML = `<div class="packing-empty">${state.attractionIdeas.length ? 'אין רעיונות התואמים לסינון.' : 'אין עדיין רעיונות לאטרקציות. הוסיפו רעיון למעלה.'}</div>`;
     return;
   }
-  ideas.forEach(({idea, index}) => body.appendChild(buildIdeaCard(idea, index)));
+  ideas.forEach(({idea, index, notFitting}) => body.appendChild(buildIdeaCard(idea, index, notFitting)));
 }
 
-function buildIdeaCard(idea, index){
+function updateTouringFilterButton(){
+  const btn = document.getElementById('applyTouringFilterBtn');
+  const modeSel = document.getElementById('touringFilterModeSelect');
+  if(!btn) return;
+  btn.classList.toggle('active', touringFilterActive);
+  btn.textContent = touringFilterActive ? 'בטל סינון (מציג הכל שוב)' : 'החל סינון: הצג רק מה שיהיה לו זמן';
+  if(modeSel) modeSel.value = touringFilterMode;
+}
+
+function buildIdeaCard(idea, index, notFitting){
   const card = document.createElement('div');
   const expanded = expandedIdeaIds.has(idea.id);
-  card.className = 'idea-card cat-' + idea.category + ' ' + (expanded ? 'expanded' : 'collapsed');
+  card.className = 'idea-card cat-' + idea.category + ' ' + (expanded ? 'expanded' : 'collapsed') + (notFitting ? ' not-fitting' : '');
   const dayOptions = state.days.map((d,i) => `<option value="${i}">${escapeAttr(d.destination ? (i+1)+'. '+d.destination : 'יום '+(i+1))}</option>`).join('');
   const displayName = idea.nameHe || idea.nameEn;
   const vis = f => categoryFieldVisible(IDEA_CATEGORY_FIELDS, idea.category, f) ? '' : 'display:none;';
+  const notFittingBadge = notFitting ? `<span class="idea-not-fitting-badge">⏳ אין זמן לזה</span>` : '';
 
   card.innerHTML = `
     <div class="idea-card-head">
@@ -2145,6 +2217,7 @@ function buildIdeaCard(idea, index){
       ` : `
       <div class="idea-name-display" data-role="toggle-expand">${displayName ? escapeAttr(displayName) : '<span class="idea-name-empty">רעיון חדש</span>'}</div>
       `}
+      ${notFittingBadge}
       <button class="icon-btn del" data-role="del-idea" title="מחק רעיון">${ICONS.trash}</button>
       <span class="idea-chevron" data-role="toggle-expand" title="${expanded ? 'כווץ' : 'הצג הכל'}">${ICONS.chevron}</span>
     </div>
@@ -2261,6 +2334,12 @@ document.getElementById('ideaSortSelect').addEventListener('change', e => { idea
 document.getElementById('ideaFilterCategory').addEventListener('change', e => { ideaFilterCategory = e.target.value; renderAttractions(); });
 document.getElementById('ideaFilterAuthor').addEventListener('change', e => { ideaFilterAuthor = e.target.value; renderAttractions(); });
 document.getElementById('ideaFilterBooking').addEventListener('change', e => { ideaFilterBooking = e.target.value; renderAttractions(); });
+document.getElementById('ideaFilterPriority').addEventListener('change', e => { ideaFilterPriority = e.target.value; renderAttractions(); });
+document.getElementById('applyTouringFilterBtn').addEventListener('click', () => { touringFilterActive = !touringFilterActive; renderAttractions(); });
+document.getElementById('touringFilterModeSelect').addEventListener('change', e => {
+  touringFilterMode = e.target.value;
+  if(touringFilterActive) renderAttractions();
+});
 
 /* ---------------- Header events ---------------- */
 tripNameEl.addEventListener('input', e => { state.name = e.target.value; saveState(); renderTripSelect(); });
