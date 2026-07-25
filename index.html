@@ -2409,13 +2409,14 @@ function updateTouringFilterButton(){
 }
 
 function ideaMapMarkup(idea){
-  const label = (idea.nameHe || idea.nameEn || '').trim();
-  if(!label) return '<div class="idea-map-empty">הוסיפו שם לרעיון כדי לראות כאן מפה.</div>';
-  const query = idea.mapQuery || label;
+  const displayLabel = (idea.nameHe || idea.nameEn || '').trim();
+  if(!displayLabel) return '<div class="idea-map-empty">הוסיפו שם לרעיון כדי לראות כאן מפה.</div>';
+  const searchName = (idea.nameEn || idea.nameHe || '').trim();
+  const query = idea.mapQuery || searchName;
   return `
     <div class="map-card" data-role="idea-map-card">
       <iframe data-role="idea-map-iframe" src="https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed" loading="lazy" title="${escapeAttr(query)}"></iframe>
-      <div class="map-card-label" data-role="idea-map-label">${escapeAttr(label)}${query !== label ? ` (חיפוש: ${escapeAttr(query)})` : ''}${idea.link ? ` · <a href="${escapeAttr(idea.link)}" target="_blank" rel="noopener">קישור</a>` : ''}</div>
+      <div class="map-card-label" data-role="idea-map-label">${escapeAttr(displayLabel)}${query !== displayLabel ? ` (חיפוש: ${escapeAttr(query)})` : ''}${idea.link ? ` · <a href="${escapeAttr(idea.link)}" target="_blank" rel="noopener">קישור</a>` : ''}</div>
       <button class="btn-quick map-card-fix" type="button" data-role="idea-map-fix">📍 זה לא זה? חפשו אחר</button>
     </div>`;
 }
@@ -2426,12 +2427,12 @@ function refreshIdeaMap(card, idea){
   const fixBtn = wrap.querySelector('[data-role="idea-map-fix"]');
   if(fixBtn){
     fixBtn.addEventListener('click', () => {
-      const label = (idea.nameHe || idea.nameEn || '').trim();
-      const current = idea.mapQuery || label;
-      const val = prompt('מה לחפש במקום זה במפה? (השאירו ריק כדי לחזור לחיפוש האוטומטי לפי השם)', current);
+      const searchName = (idea.nameEn || idea.nameHe || '').trim();
+      const current = idea.mapQuery || searchName;
+      const val = prompt('מה לחפש במקום זה במפה? (השאירו ריק כדי לחזור לחיפוש האוטומטי לפי השם האנגלי)', current);
       if(val === null) return;
       const trimmed = val.trim();
-      idea.mapQuery = (trimmed && trimmed !== label) ? trimmed : '';
+      idea.mapQuery = (trimmed && trimmed !== searchName) ? trimmed : '';
       saveState();
       refreshIdeaMap(card, idea);
     });
