@@ -682,6 +682,15 @@
   .idea-field.notes{flex-basis:100%;}
   .idea-field.booking{flex-direction:row;align-items:center;gap:6px;flex:0 0 auto;}
   .idea-field.booking input[type=checkbox]{width:16px;height:16px;accent-color:var(--pine);cursor:pointer;}
+  .idea-map-wrap{
+    border-top:1px dashed var(--line);
+    padding-top:10px;margin-top:10px;
+  }
+  .idea-map-wrap .map-card{margin:0;}
+  .idea-map-wrap .map-card iframe{height:170px;}
+  .idea-map-empty{
+    font-family:'JetBrains Mono', monospace;font-size:11.5px;color:var(--muted);
+  }
   .idea-assign{
     display:flex;align-items:center;gap:8px;flex-wrap:wrap;
     border-top:1px dashed var(--line);
@@ -721,7 +730,7 @@
 
   @media print{
     body{background:#fff;color:#000;padding:0;}
-    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid{display:none !important;}
+    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,.idea-map-wrap{display:none !important;}
     .account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,#sharingPanelToggle{display:none !important;}
     .header-card,.day-card,.section-card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;}
     .hotel-stub{background:#eee !important;color:#000 !important;}
@@ -926,8 +935,8 @@
       </select>
     </div>
     <div class="ideas-list" id="attractionsBody"></div>
-    <div class="ideas-map-divider">📍 מפה</div>
-    <p class="section-hint">מפה לכל אטרקציה/פעילות עם שם או קישור. מבוסס על חיפוש טקסט חופשי (בלי מפתח API), אז המיקום המדויק הוא הערכה של גוגל.</p>
+    <div class="ideas-map-divider">📍 מפה של התכנון (הימים)</div>
+    <p class="section-hint">מפה לכל פעילות ששובצה בתכנון עם שם או קישור. לרעיונות לאטרקציות יש עכשיו מפה משלהם - פתחו רעיון כדי לראות אותה. מבוסס על חיפוש טקסט חופשי (בלי מפתח API), אז המיקום המדויק הוא הערכה של גוגל.</p>
     <div class="map-grid" id="mapGrid"></div>
   </div>
 
@@ -2129,12 +2138,8 @@ function renderMapSection(){
     const label = act.title && act.title.trim();
     if(label) spots.push({ label, query: act.mapQuery || label, sub: day.destination ? 'יום ' + (i+1) + ' · ' + day.destination : 'יום ' + (i+1), link: act.link, obj: act });
   }));
-  state.attractionIdeas.forEach(idea => {
-    const label = (idea.nameHe || idea.nameEn || '').trim();
-    if(label) spots.push({ label, query: idea.mapQuery || label, sub: 'רעיון', link: idea.link, obj: idea });
-  });
   if(!spots.length){
-    grid.innerHTML = '<div class="packing-empty">אין עדיין פעילויות או רעיונות עם שם להצגה על מפה.</div>';
+    grid.innerHTML = '<div class="packing-empty">אין עדיין פעילויות עם שם משובצות בתכנון להצגה על מפה. (לרעיונות לאטרקציות יש מפה בתוך כל רעיון שנפתח.)</div>';
     return;
   }
   grid.innerHTML = spots.map((s,i) => `
@@ -2403,6 +2408,35 @@ function updateTouringFilterButton(){
   if(modeSel) modeSel.value = touringFilterMode;
 }
 
+function ideaMapMarkup(idea){
+  const label = (idea.nameHe || idea.nameEn || '').trim();
+  if(!label) return '<div class="idea-map-empty">הוסיפו שם לרעיון כדי לראות כאן מפה.</div>';
+  const query = idea.mapQuery || label;
+  return `
+    <div class="map-card" data-role="idea-map-card">
+      <iframe data-role="idea-map-iframe" src="https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed" loading="lazy" title="${escapeAttr(query)}"></iframe>
+      <div class="map-card-label" data-role="idea-map-label">${escapeAttr(label)}${query !== label ? ` (חיפוש: ${escapeAttr(query)})` : ''}${idea.link ? ` · <a href="${escapeAttr(idea.link)}" target="_blank" rel="noopener">קישור</a>` : ''}</div>
+      <button class="btn-quick map-card-fix" type="button" data-role="idea-map-fix">📍 זה לא זה? חפשו אחר</button>
+    </div>`;
+}
+function refreshIdeaMap(card, idea){
+  const wrap = card.querySelector('[data-role="idea-map-wrap"]');
+  if(!wrap) return;
+  wrap.innerHTML = ideaMapMarkup(idea);
+  const fixBtn = wrap.querySelector('[data-role="idea-map-fix"]');
+  if(fixBtn){
+    fixBtn.addEventListener('click', () => {
+      const label = (idea.nameHe || idea.nameEn || '').trim();
+      const current = idea.mapQuery || label;
+      const val = prompt('מה לחפש במקום זה במפה? (השאירו ריק כדי לחזור לחיפוש האוטומטי לפי השם)', current);
+      if(val === null) return;
+      const trimmed = val.trim();
+      idea.mapQuery = (trimmed && trimmed !== label) ? trimmed : '';
+      saveState();
+      refreshIdeaMap(card, idea);
+    });
+  }
+}
 function buildIdeaCard(idea, index, notFitting){
   const card = document.createElement('div');
   const expanded = expandedIdeaIds.has(idea.id);
@@ -2446,6 +2480,7 @@ function buildIdeaCard(idea, index, notFitting){
       <div class="idea-field booking" data-role="booking-wrap" style="${vis('booking')}"><input data-role="booking" type="checkbox" ${idea.booking ? 'checked' : ''}><label>הזמנה מראש?</label></div>
       <div class="idea-field notes"><label>הערות</label><input data-role="notes" placeholder="הערות" value="${escapeAttr(idea.notes)}"></div>
     </div>
+    <div class="idea-map-wrap" data-role="idea-map-wrap"></div>
     <div class="idea-assign">
       <span class="idea-assign-label">שבצו לתכנון:</span>
       <select data-role="promote-day">${dayOptions}</select>
@@ -2464,8 +2499,9 @@ function buildIdeaCard(idea, index, notFitting){
   card.querySelectorAll('[data-role="toggle-expand"]').forEach(el => el.addEventListener('click', toggleExpanded));
 
   if(expanded){
-    card.querySelector('[data-role="nameEn"]').addEventListener('input', e => { idea.nameEn = e.target.value; saveState(); });
-    card.querySelector('[data-role="nameHe"]').addEventListener('input', e => { idea.nameHe = e.target.value; saveState(); });
+    refreshIdeaMap(card, idea);
+    card.querySelector('[data-role="nameEn"]').addEventListener('input', e => { idea.nameEn = e.target.value; saveState(); refreshIdeaMap(card, idea); });
+    card.querySelector('[data-role="nameHe"]').addEventListener('input', e => { idea.nameHe = e.target.value; saveState(); refreshIdeaMap(card, idea); });
     const ideaDurationWrap = card.querySelector('[data-role="duration-wrap"]');
     markDurationValidity(ideaDurationWrap, idea.duration);
     card.querySelector('[data-role="duration"]').addEventListener('input', e => {
@@ -2476,7 +2512,7 @@ function buildIdeaCard(idea, index, notFitting){
     card.querySelector('[data-role="priority"]').addEventListener('input', e => { idea.priority = e.target.value; saveState(); renderTouringPlanResult(); });
     card.querySelector('[data-role="hours"]').addEventListener('input', e => { idea.hours = e.target.value; saveState(); });
     card.querySelector('[data-role="price"]').addEventListener('input', e => { idea.price = e.target.value; saveState(); });
-    card.querySelector('[data-role="link"]').addEventListener('input', e => { idea.link = e.target.value; saveState(); });
+    card.querySelector('[data-role="link"]').addEventListener('input', e => { idea.link = e.target.value; saveState(); refreshIdeaMap(card, idea); });
     card.querySelector('[data-role="cuisine"]').addEventListener('input', e => { idea.cuisine = e.target.value; saveState(); });
     card.querySelector('[data-role="partySize"]').addEventListener('input', e => { idea.partySize = e.target.value; saveState(); });
     card.querySelector('[data-role="category"]').addEventListener('change', e => {
@@ -2754,7 +2790,7 @@ document.getElementById('printBtn').addEventListener('click', () => window.print
 // forces a clean light theme, then renders #mainContent to a downloadable
 // PDF file via html2pdf.js, with a page break before each day.
 const PDF_HIDE_SELECTORS = '.icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,'
-  + '.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,'
+  + '.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,.idea-map-wrap,'
   + '.account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,'
   + '#sharingPanelToggle,.quick-jump,#toastWrap,.trip-switcher-row';
 
