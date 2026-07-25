@@ -239,6 +239,14 @@
     cursor:pointer;
   }
   .day-currency-row select:focus{border-color:var(--brass);}
+  .day-currency-row input[type=number]{
+    font-family:'Assistant', sans-serif;font-size:12.5px;
+    border:1px solid var(--line);border-radius:6px;padding:2px 6px;
+    background:transparent;color:var(--ink-text);outline:none;width:56px;
+  }
+  .day-currency-row input[type=number]:focus{border-color:var(--brass);}
+  .day-touring{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.6;}
+  .day-touring.over{color:var(--rust);font-weight:600;}
   .icon-btn{
     flex:0 0 auto;
     width:34px;height:34px;
@@ -330,6 +338,7 @@
     transition:background .15s, border-color .15s;
   }
   .field-icon:focus-within{background:rgba(192,138,62,0.1);border-color:var(--brass);}
+  .field-icon.field-invalid{border-color:var(--rust);background:rgba(181,80,43,0.12);}
   .field-icon svg{width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:1.8;flex:0 0 auto;}
   .field-icon input, .field-icon select{font-size:13px;padding:2px 0;background:transparent;}
   .details .notes{flex-basis:100%;}
@@ -538,11 +547,16 @@
     font-size:13.5px;
   }
   .suggestion-card b{color:var(--ink-text);}
-  .map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+  .ideas-map-divider{
+    margin-top:18px;padding-top:14px;border-top:1.5px dashed var(--line);
+    font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--muted);
+  }
+  .map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:8px;}
   .map-card{border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.25);}
   .map-card iframe{width:100%;height:150px;border:0;display:block;}
   .map-card-label{padding:6px 10px;font-size:12.5px;color:var(--ink-text);}
   .map-card-label a{color:var(--pine);}
+  .map-card-fix{width:100%;border-radius:0;border-width:1.5px 0 0 0;font-size:11.5px;padding:6px;}
 
   /* Attractions ideas cards */
   .ideas-list{display:flex;flex-direction:column;gap:12px;}
@@ -659,7 +673,7 @@
 
   @media print{
     body{background:#fff;color:#000;padding:0;}
-    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,#mapSection{display:none !important;}
+    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid{display:none !important;}
     .account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,#sharingPanelToggle{display:none !important;}
     .header-card,.day-card,.section-card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;}
     .hotel-stub{background:#eee !important;color:#000 !important;}
@@ -749,7 +763,6 @@
     <a href="#days">📅 ימים</a>
     <a href="#ideasSection">💡 אטרקציות</a>
     <a href="#packingSection">🎒 אריזה</a>
-    <a href="#mapSection">🗺 מפה</a>
   </nav>
 
   <div class="readonly-banner" id="readonlyBanner">👁️ את/ה צופה בטיול הזה - אין אפשרות לערוך.</div>
@@ -829,6 +842,9 @@
       </select>
     </div>
     <div class="ideas-list" id="attractionsBody"></div>
+    <div class="ideas-map-divider">📍 מפה</div>
+    <p class="section-hint">מפה לכל אטרקציה/פעילות עם שם או קישור. מבוסס על חיפוש טקסט חופשי (בלי מפתח API), אז המיקום המדויק הוא הערכה של גוגל.</p>
+    <div class="map-grid" id="mapGrid"></div>
   </div>
 
   <div class="section-card" id="packingSection">
@@ -850,14 +866,6 @@
       <div class="packing-suggest-recipients" id="suggestRecipients"></div>
       <button class="btn-quick" id="suggestSendBtn">הצע לרשימה שלהם</button>
     </div>
-  </div>
-
-  <div class="section-card" id="mapSection">
-    <div class="section-header">
-      <div class="section-title">מפה</div>
-    </div>
-    <p class="section-hint">מפה לכל אטרקציה/פעילות עם שם או קישור. מבוסס על חיפוש טקסט חופשי (בלי מפתח API), אז המיקום המדויק הוא הערכה של גוגל.</p>
-    <div class="map-grid" id="mapGrid"></div>
   </div>
 
   <div class="toolbar">
@@ -1169,18 +1177,18 @@ let uid = 1;
 function nextId(){ return 'id' + (uid++) + '-' + Date.now().toString(36); }
 
 function newDay(){
-  return { id: nextId(), destination:'', currency:'', activities:[ newActivity() ], hotel:{ name:'', link:'', cost:'', notes:'' } };
+  return { id: nextId(), destination:'', currency:'', touringHours:'', activities:[ newActivity() ], hotel:{ name:'', link:'', cost:'', notes:'' } };
 }
 function newActivity(){
   return {
     id: nextId(), time:'', title:'', category:DEFAULT_CATEGORY, cuisine:'', transport:'', cost:'', link:'', notes:'',
-    duration:'', priority:'', hours:'', booking:false, equipment:'', partySize:'', confirmation:''
+    duration:'', priority:'', hours:'', booking:false, equipment:'', partySize:'', confirmation:'', mapQuery:''
   };
 }
 function newAttractionIdea(){
   return {
     id: nextId(), nameEn:'', nameHe:'', duration:'', priority:'', hours:'', price:'', booking:false, equipment:'', notes:'',
-    link:'', cuisine:'', category:DEFAULT_CATEGORY, partySize:'',
+    link:'', cuisine:'', category:DEFAULT_CATEGORY, partySize:'', mapQuery:'',
     createdAt: Date.now(), createdBy: currentUser ? currentUser.uid : ''
   };
 }
@@ -1203,7 +1211,8 @@ function normalizeActivity(a){
     booking: !!a.booking,
     equipment: a.equipment || '',
     partySize: a.partySize || '',
-    confirmation: a.confirmation || ''
+    confirmation: a.confirmation || '',
+    mapQuery: a.mapQuery || ''
   };
 }
 function normalizeDay(d){
@@ -1213,6 +1222,7 @@ function normalizeDay(d){
     id: d.id || nextId(),
     destination: d.destination || '',
     currency: CURRENCY_SYMBOLS.hasOwnProperty(d.currency) ? d.currency : '',
+    touringHours: d.touringHours || '',
     activities: Array.isArray(d.activities) && d.activities.length ? d.activities.map(normalizeActivity) : [ newActivity() ],
     hotel: { name: hotel.name || '', link: hotel.link || '', cost: hotel.cost || '', notes: hotel.notes || '' }
   };
@@ -1234,6 +1244,7 @@ function normalizeIdea(a){
     cuisine: a.cuisine || '',
     category: (a.category === 'food' || a.category === 'sight') ? a.category : 'sight',
     partySize: a.partySize || '',
+    mapQuery: a.mapQuery || '',
     createdAt: a.createdAt || 0,
     createdBy: a.createdBy || ''
   };
@@ -1530,6 +1541,8 @@ function render(){
           <div class="day-date">${dateLabel ? dateLabel : 'יום ' + (index+1)} <span class="weather-badge" id="weather-${day.id}"></span></div>
           <input class="day-dest" data-role="destination" placeholder="לאן הולכים היום?" value="${escapeAttr(day.destination)}">
           <label class="day-currency-row">מטבע ליום זה: <select data-role="day-currency">${dayCurrencyOptionsHTML(day.currency)}</select></label>
+          <label class="day-currency-row">שעות טיול פנויות (יום יוצא דופן?): <input type="number" min="0" step="0.5" data-role="touring-hours" placeholder="${DEFAULT_TOURING_HOURS}" value="${escapeAttr(day.touringHours)}"></label>
+          <div class="day-touring" id="touring-${day.id}"></div>
         </div>
         <button class="icon-btn" data-role="del-day" title="מחק יום">${ICONS.trash}</button>
       </div>
@@ -1574,6 +1587,10 @@ function render(){
       day.currency = e.target.value;
       saveState(); render();
     });
+    card.querySelector('[data-role="touring-hours"]').addEventListener('input', e => {
+      day.touringHours = e.target.value;
+      saveState(); renderDayTouringBadge(day);
+    });
     card.querySelector('[data-role="del-day"]').addEventListener('click', () => {
       if(state.days.length <= 1){
         if(!confirm('זהו היום היחיד בטיול. למחוק בכל זאת ולהתחיל מחדש?')) return;
@@ -1586,7 +1603,7 @@ function render(){
       const act = newActivity();
       day.activities.push(act);
       actsEl.appendChild(buildActivityRow(day, act));
-      saveState();
+      saveState(); renderDayTouringBadge(day);
     });
 
     const hn = card.querySelector('[data-role="hotel-name"]');
@@ -1613,6 +1630,7 @@ function render(){
     }
 
     daysEl.appendChild(card);
+    renderDayTouringBadge(day);
     loadWeatherForDay(day, index);
   });
 
@@ -1675,9 +1693,15 @@ function buildActivityRow(day, act){
   });
   row.querySelector('[data-role="link"]').addEventListener('input', e => { act.link = e.target.value; saveState(); });
   row.querySelector('[data-role="cuisine"]').addEventListener('input', e => { act.cuisine = e.target.value; saveState(); });
-  row.querySelector('[data-role="duration"]').addEventListener('input', e => { act.duration = e.target.value; saveState(); });
+  const durationWrap = row.querySelector('[data-role="duration-wrap"]');
+  markDurationValidity(durationWrap, act.duration);
+  row.querySelector('[data-role="duration"]').addEventListener('input', e => {
+    act.duration = e.target.value;
+    markDurationValidity(durationWrap, act.duration);
+    saveState(); renderDayTouringBadge(day);
+  });
   row.querySelector('[data-role="hours"]').addEventListener('input', e => { act.hours = e.target.value; saveState(); });
-  row.querySelector('[data-role="priority"]').addEventListener('input', e => { act.priority = e.target.value; saveState(); });
+  row.querySelector('[data-role="priority"]').addEventListener('input', e => { act.priority = e.target.value; saveState(); renderDayTouringBadge(day); });
   row.querySelector('[data-role="partySize"]').addEventListener('input', e => { act.partySize = e.target.value; saveState(); });
   row.querySelector('[data-role="confirmation"]').addEventListener('input', e => { act.confirmation = e.target.value; saveState(); });
   row.querySelector('[data-role="booking"]').addEventListener('change', e => { act.booking = e.target.checked; saveState(); });
@@ -1689,10 +1713,79 @@ function buildActivityRow(day, act){
     const idx = day.activities.indexOf(act);
     if(idx > -1) day.activities.splice(idx,1);
     row.remove();
-    saveState(); updateStats();
+    saveState(); updateStats(); renderDayTouringBadge(day);
   });
 
   return row;
+}
+
+/* ---------------- Touring-hours budget per day ---------------- */
+const DEFAULT_TOURING_HOURS = 8;
+
+// Parses free-text duration ("2 שעות", "90 דקות", "1:30", "חצי יום"...) to hours.
+// Returns null when the text isn't empty but doesn't match a known pattern -
+// that's the signal buildActivityRow uses to mark the field red.
+function parseDurationHours(text){
+  text = (text || '').trim();
+  if(!text) return 0;
+  const namedHalfDay = /^חצי\s*יום$/, namedFullDay = /^יום\s*(שלם|מלא)$/;
+  if(namedHalfDay.test(text)) return 4;
+  if(namedFullDay.test(text)) return 8;
+  if(/^שעה\s*וחצי$/.test(text)) return 1.5;
+  if(/^חצי\s*שעה$/.test(text)) return 0.5;
+  if(/^שעה$/.test(text)) return 1;
+  let m = text.match(/^(\d+(?:[.,]\d+)?)\s*(שעות|שעה|שע|h|hr|hours?)\.?$/i);
+  if(m) return parseFloat(m[1].replace(',','.'));
+  m = text.match(/^(\d+(?:[.,]\d+)?)\s*(דקות|דקה|דק|min|m)\.?$/i);
+  if(m) return parseFloat(m[1].replace(',','.')) / 60;
+  m = text.match(/^(\d{1,2}):(\d{2})$/);
+  if(m) return parseInt(m[1],10) + parseInt(m[2],10)/60;
+  m = text.match(/^(\d+(?:[.,]\d+)?)$/);
+  if(m) return parseFloat(m[1].replace(',','.'));
+  return null;
+}
+
+function computeDayTouringBudget(day){
+  const available = day.touringHours !== '' ? Number(day.touringHours) : DEFAULT_TOURING_HOURS;
+  const parsed = day.activities.map(act => {
+    const h = parseDurationHours(act.duration);
+    return { priority: Number(act.priority) || 0, hours: h || 0, invalid: h === null };
+  });
+  const used = parsed.reduce((sum,p) => sum + p.hours, 0);
+  const invalidCount = parsed.filter(p => p.invalid).length;
+  let cutoffPriority = null;
+  if(used > available){
+    const sorted = parsed.slice().sort((a,b) => b.priority - a.priority);
+    let acc = 0;
+    for(const p of sorted){
+      acc += p.hours;
+      if(acc > available){ cutoffPriority = p.priority; break; }
+    }
+  }
+  return { available, used, over: used > available, invalidCount, cutoffPriority };
+}
+
+function formatHours(h){ return (Math.round(h*10)/10).toLocaleString('he-IL'); }
+
+function markDurationValidity(wrapEl, text){
+  const bad = parseDurationHours(text) === null;
+  wrapEl.classList.toggle('field-invalid', bad);
+  wrapEl.title = bad ? 'משך זמן לא מזוהה - נסו למשל: "2 שעות", "90 דקות", "1:30", "חצי יום"' : '';
+}
+
+function renderDayTouringBadge(day){
+  const el = document.getElementById('touring-' + day.id);
+  if(!el) return;
+  const b = computeDayTouringBudget(day);
+  let html = `🕐 ${formatHours(b.used)} / ${formatHours(b.available)} שעות טיול מתוכננות`;
+  if(b.invalidCount) html += ` · ${b.invalidCount} משכי זמן לא מזוהים (מסומנים באדום)`;
+  if(b.over){
+    html += b.cutoffPriority !== null
+      ? `<br>⚠️ לא יהיה זמן לדברים בעדיפות מתחת ל-${b.cutoffPriority} (חסרות כ-${formatHours(b.used - b.available)} שעות)`
+      : `<br>⚠️ התוכנית עמוסה מדי ליום הזה`;
+  }
+  el.className = 'day-touring' + (b.over ? ' over' : '');
+  el.innerHTML = html;
 }
 
 function updateStats(){
@@ -1755,21 +1848,32 @@ function renderMapSection(){
   const spots = [];
   state.days.forEach((day, i) => day.activities.forEach(act => {
     const label = act.title && act.title.trim();
-    if(label) spots.push({ label, sub: day.destination ? 'יום ' + (i+1) + ' · ' + day.destination : 'יום ' + (i+1), link: act.link });
+    if(label) spots.push({ label, query: act.mapQuery || label, sub: day.destination ? 'יום ' + (i+1) + ' · ' + day.destination : 'יום ' + (i+1), link: act.link, obj: act });
   }));
   state.attractionIdeas.forEach(idea => {
     const label = (idea.nameHe || idea.nameEn || '').trim();
-    if(label) spots.push({ label, sub: 'רעיון', link: idea.link });
+    if(label) spots.push({ label, query: idea.mapQuery || label, sub: 'רעיון', link: idea.link, obj: idea });
   });
   if(!spots.length){
     grid.innerHTML = '<div class="packing-empty">אין עדיין פעילויות או רעיונות עם שם להצגה על מפה.</div>';
     return;
   }
-  grid.innerHTML = spots.map(s => `
-    <div class="map-card">
-      <iframe src="https://www.google.com/maps?q=${encodeURIComponent(s.label)}&output=embed" loading="lazy" title="${escapeAttr(s.label)}"></iframe>
-      <div class="map-card-label">${escapeAttr(s.sub)} · ${escapeAttr(s.label)}${s.link ? ` · <a href="${escapeAttr(s.link)}" target="_blank" rel="noopener">קישור</a>` : ''}</div>
+  grid.innerHTML = spots.map((s,i) => `
+    <div class="map-card" data-idx="${i}">
+      <iframe src="https://www.google.com/maps?q=${encodeURIComponent(s.query)}&output=embed" loading="lazy" title="${escapeAttr(s.query)}"></iframe>
+      <div class="map-card-label">${escapeAttr(s.sub)} · ${escapeAttr(s.label)}${s.query !== s.label ? ` (חיפוש: ${escapeAttr(s.query)})` : ''}${s.link ? ` · <a href="${escapeAttr(s.link)}" target="_blank" rel="noopener">קישור</a>` : ''}</div>
+      <button class="btn-quick map-card-fix" data-action="wrong-spot">📍 זה לא זה? חפשו אחר</button>
     </div>`).join('');
+  grid.querySelectorAll('[data-action="wrong-spot"]').forEach(btn => {
+    const s = spots[Number(btn.closest('.map-card').dataset.idx)];
+    btn.addEventListener('click', () => {
+      const val = prompt('מה לחפש במקום זה במפה? (השאירו ריק כדי לחזור לחיפוש האוטומטי לפי השם)', s.query);
+      if(val === null) return;
+      const trimmed = val.trim();
+      s.obj.mapQuery = (trimmed && trimmed !== s.label) ? trimmed : '';
+      saveState(); renderMapSection();
+    });
+  });
 }
 
 /* ---------------- Packing list ---------------- */
@@ -2179,12 +2283,12 @@ function applyRoleRestrictions(){
   document.getElementById('readonlyBanner').style.display = isViewer ? 'block' : 'none';
   // Packing list is excluded here on purpose - it's each member's own private
   // list, so it stays editable regardless of the viewer/editor/owner trip role.
-  [daysEl, document.getElementById('attractionsBody')].forEach(scope => {
+  [daysEl, document.getElementById('attractionsBody'), document.getElementById('mapGrid')].forEach(scope => {
     if(!scope) return;
     scope.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = isViewer; });
     scope.querySelectorAll('button').forEach(el => { el.style.display = isViewer ? 'none' : ''; });
   });
-  [tripNameEl, startDateEl, currencySelectEl, secondaryCurrencySelectEl].forEach(el => { el.disabled = isViewer; });
+  [tripNameEl, startDateEl, currencySelectEl, secondaryCurrencySelectEl, budgetCapInputEl].forEach(el => { el.disabled = isViewer; });
   const toggle = id => { const el = document.getElementById(id); if(el) el.style.display = isViewer ? 'none' : ''; };
   toggle('addDay'); toggle('addIdeaBtn');
 }
