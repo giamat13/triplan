@@ -103,8 +103,12 @@
   .day-picker{
     display:flex; align-items:center; gap:0;
     overflow-x:auto; padding:6px 4px 16px;
-    scrollbar-width:thin;
+    scrollbar-width:thin; scrollbar-color:var(--line-dark) transparent;
   }
+  .day-picker::-webkit-scrollbar{height:5px;}
+  .day-picker::-webkit-scrollbar-track{background:transparent;}
+  .day-picker::-webkit-scrollbar-thumb{background:var(--line-dark); border-radius:10px;}
+  .day-picker::-webkit-scrollbar-thumb:hover{background:var(--brass);}
   .day-pill{
     flex:0 0 auto;
     display:flex; flex-direction:column; align-items:center; gap:5px;
