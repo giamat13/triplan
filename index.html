@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700;900&family=Assistant:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root{
     --ink:#1B2A2F;
@@ -707,11 +709,28 @@
     font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--muted);
   }
   .map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:8px;}
-  .map-grid-inner{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:22px;}
-  .map-group-title{
-    font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.08em;
-    color:var(--muted); text-transform:uppercase; margin:0 0 10px;
+
+  /* ---------- Single consolidated map (Map tab) ---------- */
+  .map-legend{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0 4px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-text);}
+  .map-legend-item{display:flex;align-items:center;gap:6px;}
+  .map-legend-dot{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink);display:inline-block;}
+  .map-legend-dot--sched{background:var(--pine);}
+  .map-legend-dot--idea{background:var(--brass);}
+  .map-single{height:440px;border-radius:14px;overflow:hidden;border:1.5px solid var(--line);margin-top:10px;background:var(--paper-soft);}
+  .map-single .leaflet-popup-content-wrapper{background:var(--paper);color:var(--ink-text);border-radius:10px;}
+  .map-single .leaflet-popup-tip{background:var(--paper);}
+  .map-popup{font-family:'Assistant',sans-serif;font-size:13px;max-width:200px;}
+  .map-popup b{font-family:'Frank Ruhl Libre',serif;font-size:14.5px;}
+  .map-popup a{color:var(--pine);}
+  .map-popup-fix{margin-top:6px;width:100%;font-size:11px;padding:5px;}
+  .map-status{margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--muted);}
+  .map-unresolved{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+  .map-unresolved-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    padding:8px 12px;border:1.5px dashed var(--rust);border-radius:10px;background:rgba(181,80,43,0.08);
+    font-size:12.5px;color:var(--ink-text);
   }
+  @media(max-width:680px){ .map-single{height:320px;} }
   .map-card{border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.25);}
   .map-card iframe{width:100%;height:150px;border:0;display:block;}
   .map-card-label{padding:6px 10px;font-size:12.5px;color:var(--ink-text);}
@@ -851,7 +870,7 @@
 
   @media print{
     body{background:#fff;color:#000;padding:0;}
-    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,.idea-map-wrap,.doc-attach-row{display:none !important;}
+    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,#mapSingle,.map-legend,.idea-map-wrap,.doc-attach-row{display:none !important;}
     .account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,#sharingPanelToggle{display:none !important;}
     .header-card,.day-card,.section-card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;}
     .hotel-stub{background:#eee !important;color:#000 !important;}
@@ -1087,8 +1106,13 @@
     <div class="section-header">
       <div class="section-title">📍 מפה של המסלול</div>
     </div>
-    <p class="section-hint">מפה לכל פעילות ששובצה בתכנון עם שם או קישור. מבוסס על חיפוש טקסט חופשי (בלי מפתח API), אז המיקום המדויק הוא הערכה של גוגל.</p>
-    <div class="map-grid" id="mapGrid"></div>
+    <p class="section-hint">מפה אחת עם כל המיקומים: מה ששובץ לימים ומה שעדיין רק רעיון. מבוסס על מיקום חופשי לפי שם (בלי מפתח API), אז המיקום המדויק הוא הערכה.</p>
+    <div class="map-legend">
+      <span class="map-legend-item"><span class="map-legend-dot map-legend-dot--sched"></span>מתוכנן ליום</span>
+      <span class="map-legend-item"><span class="map-legend-dot map-legend-dot--idea"></span>רעיון שטרם שובץ</span>
+    </div>
+    <div class="map-single" id="mapSingle"></div>
+    <div class="map-status" id="mapGrid"></div>
   </div>
 
   <div class="section-card tab-panel" id="packingSection" data-panel="packing">
@@ -1823,6 +1847,15 @@ function setActiveTab(tab){
     p.classList.toggle('active', p.dataset.panel === tab);
   });
   try{ localStorage.setItem(ACTIVE_TAB_KEY, tab); }catch(e){}
+  if(tab === 'map'){
+    setTimeout(() => {
+      const map = ensureLeafletMap();
+      if(map){
+        map.invalidateSize();
+        if(lastMapBounds && lastMapBounds.length) map.fitBounds(lastMapBounds, { padding:[30,30], maxZoom:15 });
+      }
+    }, 60);
+  }
 }
 mainTabsEl.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
@@ -2442,53 +2475,129 @@ function updateStats(){
   }
 }
 
-/* ---------------- Map ---------------- */
-function mapCardMarkup(s, key){
-  return `
-    <div class="map-card" data-key="${key}">
-      <iframe src="https://www.google.com/maps?q=${encodeURIComponent(s.query)}&output=embed" loading="lazy" title="${escapeAttr(s.query)}"></iframe>
-      <div class="map-card-label">${escapeAttr(s.sub)} · ${escapeAttr(s.label)}${s.query !== s.label ? ` (חיפוש: ${escapeAttr(s.query)})` : ''}${s.link ? ` · <a href="${escapeAttr(s.link)}" target="_blank" rel="noopener">קישור</a>` : ''}</div>
-      <button class="btn-quick map-card-fix" type="button" data-action="wrong-spot">📍 זה לא זה? חפשו אחר</button>
-    </div>`;
+/* ---------------- Map (single consolidated map via Leaflet + OpenStreetMap -
+   no API key needed. Locations are found by free-text geocoding through the
+   public Nominatim service, cached in localStorage so we don't re-geocode
+   the same place every render, and throttled to ~1 request/second per
+   Nominatim's usage policy.) ---------------- */
+const GEOCODE_CACHE_KEY = 'triplan-geocode-cache-v1';
+let geocodeCache = {};
+try{ geocodeCache = JSON.parse(localStorage.getItem(GEOCODE_CACHE_KEY) || '{}'); }catch(e){ geocodeCache = {}; }
+function saveGeocodeCache(){ try{ localStorage.setItem(GEOCODE_CACHE_KEY, JSON.stringify(geocodeCache)); }catch(e){} }
+
+let lastGeocodeCallAt = 0;
+async function geocodeQuery(query){
+  const key = (query || '').trim().toLowerCase();
+  if(!key) return null;
+  if(Object.prototype.hasOwnProperty.call(geocodeCache, key)) return geocodeCache[key];
+  const wait = Math.max(0, lastGeocodeCallAt + 1100 - Date.now());
+  if(wait) await new Promise(r => setTimeout(r, wait));
+  lastGeocodeCallAt = Date.now();
+  try{
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    const result = (data && data[0]) ? { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) } : null;
+    geocodeCache[key] = result;
+    saveGeocodeCache();
+    return result;
+  }catch(err){
+    console.error('שגיאת איתור מיקום:', err);
+    return null;
+  }
 }
-function renderMapSection(){
-  const grid = document.getElementById('mapGrid');
-  if(!grid) return;
+
+let leafletMap = null;
+let mapMarkersLayer = null;
+let lastMapBounds = null;
+function ensureLeafletMap(){
+  if(leafletMap) return leafletMap;
+  const container = document.getElementById('mapSingle');
+  if(!container || typeof L === 'undefined') return null;
+  leafletMap = L.map(container, { scrollWheelZoom:true }).setView([31.5, 34.8], 6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom:19,
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+  }).addTo(leafletMap);
+  mapMarkersLayer = L.layerGroup().addTo(leafletMap);
+  return leafletMap;
+}
+
+let mapRenderToken = 0;
+async function renderMapSection(){
+  const statusEl = document.getElementById('mapGrid');
+  const mapEl = document.getElementById('mapSingle');
+  if(!statusEl || !mapEl) return;
+  const myToken = ++mapRenderToken;
+
   const scheduledSpots = [];
   state.days.forEach((day, i) => day.activities.forEach(act => {
     const label = act.title && act.title.trim();
-    if(label) scheduledSpots.push({ label, query: act.mapQuery || label, sub: day.destination ? 'יום ' + (i+1) + ' · ' + day.destination : 'יום ' + (i+1), link: act.link, obj: act });
+    if(label) scheduledSpots.push({ label, query: act.mapQuery || label, sub: day.destination ? 'יום ' + (i+1) + ' · ' + day.destination : 'יום ' + (i+1), link: act.link, obj: act, kind:'sched' });
   }));
-
   const ideaSpots = state.attractionIdeas.filter(idea => !idea.scheduled).map(idea => {
     const label = (idea.nameHe || idea.nameEn || '').trim();
     if(!label) return null;
     const searchName = (idea.nameEn || idea.nameHe || '').trim();
-    return { label, query: idea.mapQuery || searchName, sub: '💡 רעיון · טרם שובץ ליום', link: idea.link, obj: idea };
+    return { label, query: idea.mapQuery || searchName, sub: '💡 רעיון · טרם שובץ ליום', link: idea.link, obj: idea, kind:'idea' };
   }).filter(Boolean);
+  const allSpots = [...scheduledSpots, ...ideaSpots];
 
-  if(!scheduledSpots.length && !ideaSpots.length){
-    grid.innerHTML = '<div class="packing-empty">אין עדיין פעילויות משובצות או רעיונות עם שם להצגה על מפה.</div>';
+  if(!allSpots.length){
+    mapEl.style.display = 'none';
+    statusEl.innerHTML = '<div class="packing-empty">אין עדיין פעילויות משובצות או רעיונות עם שם להצגה על מפה.</div>';
     return;
   }
 
-  let html = '';
-  if(scheduledSpots.length){
-    html += `<div class="map-group-title">🗓️ מסלול מתוכנן (${scheduledSpots.length})</div>`;
-    html += `<div class="map-grid-inner">` + scheduledSpots.map((s,i) => mapCardMarkup(s, 'sched-'+i)).join('') + `</div>`;
+  const map = ensureLeafletMap();
+  if(!map){
+    mapEl.style.display = 'none';
+    statusEl.innerHTML = '<div class="packing-empty">המפה לא נטענה (בעיית רשת?). רעננו את הדף ונסו שוב.</div>';
+    return;
   }
-  if(ideaSpots.length){
-    html += `<div class="map-group-title">💡 רעיונות לאטרקציות שטרם שובצו ליום (${ideaSpots.length})</div>`;
-    html += `<div class="map-grid-inner">` + ideaSpots.map((s,i) => mapCardMarkup(s, 'idea-'+i)).join('') + `</div>`;
-  }
-  grid.innerHTML = html;
+  mapEl.style.display = 'block';
+  statusEl.innerHTML = `<div class="packing-empty">📍 ממקם ${allSpots.length} מקומות על המפה... (יכול לקחת כמה שניות בפעם הראשונה)</div>`;
+  mapMarkersLayer.clearLayers();
 
-  grid.querySelectorAll('[data-action="wrong-spot"]').forEach(btn => {
-    const key = btn.closest('.map-card').dataset.key;
-    const sepIdx = key.indexOf('-');
-    const kind = key.slice(0, sepIdx);
-    const idx = Number(key.slice(sepIdx+1));
-    const s = kind === 'sched' ? scheduledSpots[idx] : ideaSpots[idx];
+  const bounds = [];
+  const unresolved = [];
+  for(const s of allSpots){
+    const coords = await geocodeQuery(s.query);
+    if(myToken !== mapRenderToken) return; // a newer render started meanwhile - abandon this one
+    if(!coords){ unresolved.push(s); continue; }
+    bounds.push([coords.lat, coords.lng]);
+    const color = s.kind === 'idea' ? '#C08A3E' : '#4C7A68';
+    const marker = L.circleMarker([coords.lat, coords.lng], { radius:9, color:'#1B2A2F', weight:2, fillColor:color, fillOpacity:0.9 }).addTo(mapMarkersLayer);
+    const fixBtnHtml = currentRole === 'viewer' ? '' : `<button type="button" class="btn-quick map-popup-fix" data-fix="1">📍 זה לא זה?</button>`;
+    marker.bindPopup(`<div class="map-popup"><b>${escapeAttr(s.label)}</b><br>${escapeAttr(s.sub)}${s.link ? `<br><a href="${escapeAttr(s.link)}" target="_blank" rel="noopener">קישור</a>` : ''}${fixBtnHtml}</div>`);
+    marker.on('popupopen', e => {
+      const btn = e.popup.getElement() && e.popup.getElement().querySelector('[data-fix]');
+      if(!btn) return;
+      btn.addEventListener('click', () => {
+        const val = prompt('מה לחפש במקום זה במפה? (השאירו ריק כדי לחזור לחיפוש האוטומטי לפי השם)', s.query);
+        if(val === null) return;
+        const trimmed = val.trim();
+        s.obj.mapQuery = (trimmed && trimmed !== s.label) ? trimmed : '';
+        saveState(); renderMapSection();
+      });
+    });
+  }
+  if(myToken !== mapRenderToken) return;
+
+  lastMapBounds = bounds;
+  if(bounds.length) map.fitBounds(bounds, { padding:[30,30], maxZoom:15 });
+  setTimeout(() => map.invalidateSize(), 50);
+
+  let statusHtml = `<div class="map-status">נמצאו ${bounds.length} מתוך ${allSpots.length} מקומות על המפה.</div>`;
+  if(unresolved.length && currentRole !== 'viewer'){
+    statusHtml += `<div class="map-unresolved">` + unresolved.map((s,i) => `
+      <div class="map-unresolved-row" data-fix-idx="${i}">
+        <span>⚠️ לא אותר אוטומטית: ${escapeAttr(s.sub)} · ${escapeAttr(s.label)}</span>
+        <button type="button" class="btn-quick" data-action="fix-unresolved">חפשו לפי שם אחר</button>
+      </div>`).join('') + `</div>`;
+  }
+  statusEl.innerHTML = statusHtml;
+  statusEl.querySelectorAll('[data-action="fix-unresolved"]').forEach(btn => {
+    const s = unresolved[Number(btn.closest('.map-unresolved-row').dataset.fixIdx)];
     btn.addEventListener('click', () => {
       const val = prompt('מה לחפש במקום זה במפה? (השאירו ריק כדי לחזור לחיפוש האוטומטי לפי השם)', s.query);
       if(val === null) return;
@@ -3300,7 +3409,7 @@ document.getElementById('printBtn').addEventListener('click', () => window.print
 // forces a clean light theme, then renders #mainContent to a downloadable
 // PDF file via html2pdf.js, with a page break before each day.
 const PDF_HIDE_SELECTORS = '.icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,'
-  + '.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,.idea-map-wrap,.doc-attach-row,'
+  + '.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,#mapSingle,.map-legend,.idea-map-wrap,.doc-attach-row,'
   + '.account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,'
   + '#sharingPanelToggle,.main-tabs,.day-picker,#toastWrap,.trip-switcher-row';
 
