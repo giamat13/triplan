@@ -707,6 +707,11 @@
     font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--muted);
   }
   .map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:8px;}
+  .map-grid-inner{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:22px;}
+  .map-group-title{
+    font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.08em;
+    color:var(--muted); text-transform:uppercase; margin:0 0 10px;
+  }
   .map-card{border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.25);}
   .map-card iframe{width:100%;height:150px;border:0;display:block;}
   .map-card-label{padding:6px 10px;font-size:12.5px;color:var(--ink-text);}
@@ -2438,26 +2443,52 @@ function updateStats(){
 }
 
 /* ---------------- Map ---------------- */
+function mapCardMarkup(s, key){
+  return `
+    <div class="map-card" data-key="${key}">
+      <iframe src="https://www.google.com/maps?q=${encodeURIComponent(s.query)}&output=embed" loading="lazy" title="${escapeAttr(s.query)}"></iframe>
+      <div class="map-card-label">${escapeAttr(s.sub)} · ${escapeAttr(s.label)}${s.query !== s.label ? ` (חיפוש: ${escapeAttr(s.query)})` : ''}${s.link ? ` · <a href="${escapeAttr(s.link)}" target="_blank" rel="noopener">קישור</a>` : ''}</div>
+      <button class="btn-quick map-card-fix" type="button" data-action="wrong-spot">📍 זה לא זה? חפשו אחר</button>
+    </div>`;
+}
 function renderMapSection(){
   const grid = document.getElementById('mapGrid');
   if(!grid) return;
-  const spots = [];
+  const scheduledSpots = [];
   state.days.forEach((day, i) => day.activities.forEach(act => {
     const label = act.title && act.title.trim();
-    if(label) spots.push({ label, query: act.mapQuery || label, sub: day.destination ? 'יום ' + (i+1) + ' · ' + day.destination : 'יום ' + (i+1), link: act.link, obj: act });
+    if(label) scheduledSpots.push({ label, query: act.mapQuery || label, sub: day.destination ? 'יום ' + (i+1) + ' · ' + day.destination : 'יום ' + (i+1), link: act.link, obj: act });
   }));
-  if(!spots.length){
-    grid.innerHTML = '<div class="packing-empty">אין עדיין פעילויות עם שם משובצות בתכנון להצגה על מפה. (לרעיונות לאטרקציות יש מפה בתוך כל רעיון שנפתח.)</div>';
+
+  const ideaSpots = state.attractionIdeas.filter(idea => !idea.scheduled).map(idea => {
+    const label = (idea.nameHe || idea.nameEn || '').trim();
+    if(!label) return null;
+    const searchName = (idea.nameEn || idea.nameHe || '').trim();
+    return { label, query: idea.mapQuery || searchName, sub: '💡 רעיון · טרם שובץ ליום', link: idea.link, obj: idea };
+  }).filter(Boolean);
+
+  if(!scheduledSpots.length && !ideaSpots.length){
+    grid.innerHTML = '<div class="packing-empty">אין עדיין פעילויות משובצות או רעיונות עם שם להצגה על מפה.</div>';
     return;
   }
-  grid.innerHTML = spots.map((s,i) => `
-    <div class="map-card" data-idx="${i}">
-      <iframe src="https://www.google.com/maps?q=${encodeURIComponent(s.query)}&output=embed" loading="lazy" title="${escapeAttr(s.query)}"></iframe>
-      <div class="map-card-label">${escapeAttr(s.sub)} · ${escapeAttr(s.label)}${s.query !== s.label ? ` (חיפוש: ${escapeAttr(s.query)})` : ''}${s.link ? ` · <a href="${escapeAttr(s.link)}" target="_blank" rel="noopener">קישור</a>` : ''}</div>
-      <button class="btn-quick map-card-fix" data-action="wrong-spot">📍 זה לא זה? חפשו אחר</button>
-    </div>`).join('');
+
+  let html = '';
+  if(scheduledSpots.length){
+    html += `<div class="map-group-title">🗓️ מסלול מתוכנן (${scheduledSpots.length})</div>`;
+    html += `<div class="map-grid-inner">` + scheduledSpots.map((s,i) => mapCardMarkup(s, 'sched-'+i)).join('') + `</div>`;
+  }
+  if(ideaSpots.length){
+    html += `<div class="map-group-title">💡 רעיונות לאטרקציות שטרם שובצו ליום (${ideaSpots.length})</div>`;
+    html += `<div class="map-grid-inner">` + ideaSpots.map((s,i) => mapCardMarkup(s, 'idea-'+i)).join('') + `</div>`;
+  }
+  grid.innerHTML = html;
+
   grid.querySelectorAll('[data-action="wrong-spot"]').forEach(btn => {
-    const s = spots[Number(btn.closest('.map-card').dataset.idx)];
+    const key = btn.closest('.map-card').dataset.key;
+    const sepIdx = key.indexOf('-');
+    const kind = key.slice(0, sepIdx);
+    const idx = Number(key.slice(sepIdx+1));
+    const s = kind === 'sched' ? scheduledSpots[idx] : ideaSpots[idx];
     btn.addEventListener('click', () => {
       const val = prompt('מה לחפש במקום זה במפה? (השאירו ריק כדי לחזור לחיפוש האוטומטי לפי השם)', s.query);
       if(val === null) return;
@@ -2703,6 +2734,7 @@ function renderAttractions(){
   renderIdeaAuthorFilterOptions();
   renderTouringPlan();
   updateTouringFilterButton();
+  renderMapSection();
 
   let ideas = state.attractionIdeas.map((idea, index) => ({ idea, index }));
   if(ideaFilterCategory) ideas = ideas.filter(x => x.idea.category === ideaFilterCategory);
