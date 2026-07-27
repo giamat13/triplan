@@ -254,6 +254,22 @@
   .budget-chart-track{flex:1 1 auto;height:9px;background:var(--paper-soft);border-radius:5px;overflow:hidden;}
   .budget-chart-fill{height:100%;border-radius:5px;transition:width .3s ease;}
 
+  /* ---------- Budget tab: per-day breakdown ---------- */
+  .budget-by-day{margin-top:24px;padding-top:18px;border-top:1.5px dashed var(--line);}
+  .budget-by-day-title{
+    font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.08em;
+    color:var(--muted); text-transform:uppercase; margin-bottom:12px;
+  }
+  .budget-day-row{display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px dashed var(--line); flex-wrap:wrap;}
+  .budget-day-label{flex:1 1 200px; font-size:13px; color:var(--ink-text); min-width:0;}
+  .budget-day-track{flex:1 1 120px; height:8px; background:var(--paper-soft); border-radius:5px; overflow:hidden;}
+  .budget-day-fill{height:100%; border-radius:5px; background:var(--brass);}
+  .budget-day-nums{
+    flex:0 0 auto; display:flex; gap:10px; align-items:center;
+    font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted);
+  }
+  .budget-day-nums b{color:var(--rust); font-size:13px;}
+
   /* ---------- Days ---------- */
   .days{display:flex;flex-direction:column;gap:34px;margin-top:36px;}
 
@@ -930,6 +946,8 @@
     <button type="button" class="tab-btn active" data-tab="days" role="tab" aria-selected="true"><span class="tab-icon">📅</span><span class="tab-label">ימים</span></button>
     <button type="button" class="tab-btn" data-tab="documents" role="tab" aria-selected="false"><span class="tab-icon">📄</span><span class="tab-label">מסמכים</span></button>
     <button type="button" class="tab-btn" data-tab="ideas" role="tab" aria-selected="false"><span class="tab-icon">💡</span><span class="tab-label">רעיונות</span></button>
+    <button type="button" class="tab-btn" data-tab="budget" role="tab" aria-selected="false"><span class="tab-icon">💰</span><span class="tab-label">תקציב</span></button>
+    <button type="button" class="tab-btn" data-tab="map" role="tab" aria-selected="false"><span class="tab-icon">📍</span><span class="tab-label">מפה</span></button>
     <button type="button" class="tab-btn" data-tab="packing" role="tab" aria-selected="false"><span class="tab-icon">🎒</span><span class="tab-label">אריזה</span></button>
   </nav>
 
@@ -971,7 +989,6 @@
         <span class="stat" id="budgetRemaining"></span>
       </div>
     </div>
-    <div class="budget-breakdown" id="budgetBreakdown"></div>
   </div>
 
   <section class="tab-panel active" data-panel="days" id="panelDays">
@@ -1050,8 +1067,22 @@
       </select>
     </div>
     <div class="ideas-list" id="attractionsBody"></div>
-    <div class="ideas-map-divider">📍 מפה של התכנון (הימים)</div>
-    <p class="section-hint">מפה לכל פעילות ששובצה בתכנון עם שם או קישור. לרעיונות לאטרקציות יש עכשיו מפה משלהם - פתחו רעיון כדי לראות אותה. מבוסס על חיפוש טקסט חופשי (בלי מפתח API), אז המיקום המדויק הוא הערכה של גוגל.</p>
+  </div>
+
+  <div class="section-card tab-panel" id="budgetSection" data-panel="budget">
+    <div class="section-header">
+      <div class="section-title">💰 תקציב</div>
+    </div>
+    <p class="section-hint">פירוט מלא של איפה הכסף הולך: לפי קטגוריה, לפי יום, ומול התקציב היעד שהוגדר בכרטיס העליון.</p>
+    <div class="budget-breakdown" id="budgetBreakdown"></div>
+    <div class="budget-by-day" id="budgetByDay"></div>
+  </div>
+
+  <div class="section-card tab-panel" id="mapSection" data-panel="map">
+    <div class="section-header">
+      <div class="section-title">📍 מפה של המסלול</div>
+    </div>
+    <p class="section-hint">מפה לכל פעילות ששובצה בתכנון עם שם או קישור. מבוסס על חיפוש טקסט חופשי (בלי מפתח API), אז המיקום המדויק הוא הערכה של גוגל.</p>
     <div class="map-grid" id="mapGrid"></div>
   </div>
 
@@ -1776,7 +1807,7 @@ let activeDayIndex = 0;
 const ACTIVE_TAB_KEY = 'triplan-active-tab-v1';
 
 function setActiveTab(tab){
-  const valid = ['days','documents','ideas','packing'];
+  const valid = ['days','documents','ideas','budget','map','packing'];
   if(!valid.includes(tab)) tab = 'days';
   document.querySelectorAll('.tab-btn').forEach(b => {
     const isActive = b.dataset.tab === tab;
@@ -2310,23 +2341,30 @@ function updateStats(){
   const catTotals = { lodging:0, food:0, transport:0, sight:0 };
   const rawByCurrency = {};
   const addRaw = (code, val) => { if(val) rawByCurrency[code] = (rawByCurrency[code] || 0) + val; };
+  const dayBreakdown = [];
 
-  state.days.forEach(day => {
+  state.days.forEach((day, dayIdx) => {
     const curCode = dayCurrency(day);
+    let dayActCost = 0;
     day.activities.forEach(a => {
       const val = Number(a.cost) || 0;
       if(!val) return;
       addRaw(curCode, val);
-      total += convertAmount(val, curCode, homeCur);
+      const converted = convertAmount(val, curCode, homeCur);
+      total += converted;
+      dayActCost += converted;
       const cat = catTotals.hasOwnProperty(a.category) ? a.category : DEFAULT_CATEGORY;
-      catTotals[cat] += convertAmount(val, curCode, homeCur);
+      catTotals[cat] += converted;
     });
     const hc = Number(day.hotel.cost) || 0;
+    let dayHotelCost = 0;
     if(hc){
       addRaw(curCode, hc);
-      total += convertAmount(hc, curCode, homeCur);
-      catTotals.lodging += convertAmount(hc, curCode, homeCur);
+      dayHotelCost = convertAmount(hc, curCode, homeCur);
+      total += dayHotelCost;
+      catTotals.lodging += dayHotelCost;
     }
+    dayBreakdown.push({ index:dayIdx, destination: day.destination, activities: dayActCost, hotel: dayHotelCost, total: dayActCost + dayHotelCost });
   });
   const sym = currencySymbolFor(homeCur);
   document.getElementById('budgetTotal').textContent = Math.round(total).toLocaleString('he-IL');
@@ -2375,6 +2413,28 @@ function updateStats(){
     html += `<span class="budget-raw-note">בפועל: ${rawHtml} (המרה משוערת ל-${sym}, לא בזמן אמת)</span>`;
   }
   breakdownEl.innerHTML = html;
+
+  const byDayEl = document.getElementById('budgetByDay');
+  if(byDayEl){
+    const maxDayTotal = Math.max(1, ...dayBreakdown.map(d => d.total));
+    if(!dayBreakdown.some(d => d.total > 0)){
+      byDayEl.innerHTML = '<div class="packing-empty">עדיין אין עלויות רשומות בימים (הוסיפו עלות לפעילות או ללינה כדי לראות פירוט כאן).</div>';
+    } else {
+      byDayEl.innerHTML = `<div class="budget-by-day-title">פירוט לפי יום</div>` + dayBreakdown.map(d => {
+        const dateLabel = formatDate(state.startDate, d.index);
+        const pct = maxDayTotal ? Math.round((d.total/maxDayTotal)*100) : 0;
+        return `<div class="budget-day-row">
+          <div class="budget-day-label">יום ${d.index+1}${dateLabel ? ' · ' + escapeAttr(dateLabel) : ''}${d.destination ? ' · ' + escapeAttr(d.destination) : ''}</div>
+          <div class="budget-day-track"><div class="budget-day-fill" style="width:${pct}%;"></div></div>
+          <div class="budget-day-nums">
+            <span title="עלות לינה">🛏 ${Math.round(d.hotel).toLocaleString('he-IL')}</span>
+            <span title="עלות פעילויות">🎫 ${Math.round(d.activities).toLocaleString('he-IL')}</span>
+            <b>${Math.round(d.total).toLocaleString('he-IL')}${sym}</b>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
 }
 
 /* ---------------- Map ---------------- */
