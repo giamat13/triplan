@@ -73,19 +73,100 @@
   }
   .btn-sm{padding:7px 13px;font-size:12.5px;}
 
-  /* ---------- Quick jump nav (skip the header card straight to the lists) ---------- */
-  .quick-jump{
+  /* ---------- Main section tabs (desktop: sticky top row; mobile: fixed bottom bar) ---------- */
+  .main-tabs{
     position:sticky; top:0; z-index:30;
-    display:flex; gap:8px; flex-wrap:wrap;
-    background:var(--ink); padding:8px 0; margin-bottom:10px;
+    display:flex; gap:6px;
+    background:var(--ink); padding:10px 0; margin-bottom:16px;
+    border-bottom:1.5px solid var(--line-dark);
   }
-  .quick-jump a{
+  .tab-btn{
+    flex:1 1 auto;
+    display:flex; align-items:center; justify-content:center; gap:6px;
     font-family:'JetBrains Mono', monospace; font-size:12.5px;
-    background:var(--paper); color:var(--ink-text);
+    background:transparent; color:var(--paper);
     border:1.5px solid var(--line-dark); border-radius:20px;
-    padding:7px 14px; text-decoration:none; white-space:nowrap;
+    padding:9px 10px; cursor:pointer; white-space:nowrap;
+    opacity:0.6; transition:opacity .15s ease, background .15s ease, color .15s ease;
   }
-  #days, #ideasSection, #packingSection{scroll-margin-top:56px;}
+  .tab-btn:hover{opacity:0.85;}
+  .tab-btn.active{
+    background:var(--paper); color:var(--ink-text);
+    border-color:var(--brass); opacity:1;
+    box-shadow:0 6px 16px -8px rgba(0,0,0,0.5);
+  }
+  .tab-icon{font-size:15px;}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  /* ---------- Day picker (navigate one day at a time instead of one long scroll) ---------- */
+  .day-picker{
+    display:flex; align-items:center; gap:0;
+    overflow-x:auto; padding:6px 4px 16px;
+    scrollbar-width:thin;
+  }
+  .day-pill{
+    flex:0 0 auto;
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    font-family:'JetBrains Mono', monospace;
+    background:var(--paper); color:var(--ink-text);
+    border:1.5px dashed var(--line-dark);
+    border-radius:10px;
+    padding:8px 14px 7px;
+    margin-inline-end:9px;
+    cursor:pointer; min-width:56px;
+    opacity:0.55;
+    transition:opacity .15s ease, border-color .15s ease, box-shadow .15s ease;
+  }
+  .day-pill:last-child{margin-inline-end:0;}
+  .day-pill:hover{opacity:0.85;}
+  .day-pill .pill-badge{
+    width:24px;height:24px;border-radius:50%;
+    background:var(--muted); color:var(--paper);
+    font-weight:700; font-size:11.5px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .day-pill .pill-date{font-size:9.5px; color:var(--muted); letter-spacing:0.03em; white-space:nowrap;}
+  .day-pill.active{
+    opacity:1; border-style:solid; border-color:var(--brass);
+    box-shadow:0 8px 18px -10px rgba(0,0,0,0.45);
+  }
+  .day-pill.active .pill-badge{background:var(--brass); color:var(--ink-text);}
+  .day-nav-arrow{
+    flex:0 0 auto;
+    background:transparent; color:var(--brass-soft);
+    border:1.5px solid var(--line-dark); border-radius:50%;
+    width:32px; height:32px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:14px; line-height:1;
+    margin-inline-end:10px;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .day-nav-arrow:last-child{margin-inline-end:0; margin-inline-start:10px;}
+  .day-nav-arrow:hover:not(:disabled){background:var(--rust); border-color:var(--rust); color:var(--paper);}
+  .day-nav-arrow:disabled{opacity:0.3; cursor:default;}
+  .day-card.day-hidden{display:none;}
+
+  @media(max-width:680px){
+    .main-tabs{
+      position:fixed; inset-inline-start:0; inset-inline-end:0; bottom:0; top:auto;
+      background:var(--ink); border-top:1.5px solid var(--line-dark); border-bottom:none;
+      padding:8px 6px calc(6px + env(safe-area-inset-bottom));
+      box-shadow:0 -8px 20px -12px rgba(0,0,0,0.6);
+      margin-bottom:0; z-index:60;
+    }
+    .tab-btn{flex-direction:column; gap:2px; padding:6px 2px; border-radius:12px; font-size:10px;}
+    .tab-icon{font-size:19px;}
+    body{padding-bottom:84px;}
+  }
+
+  @media print{
+    .main-tabs,.day-picker{display:none !important;}
+    .tab-panel{display:block !important;}
+    .day-card.day-hidden{display:block !important;}
+  }
+  body.pdf-export-mode .tab-panel{display:block !important;}
+  body.pdf-export-mode .day-card.day-hidden{display:block !important;}
+  body.pdf-export-mode .main-tabs,body.pdf-export-mode .day-picker{display:none !important;}
 
   /* ---------- Header ticket ---------- */
   .header-card{
@@ -841,11 +922,11 @@
     </div>
   </div>
 
-  <nav class="quick-jump" aria-label="ניווט מהיר">
-    <a href="#days">📅 ימים</a>
-    <a href="#documentsSection">📄 מסמכים</a>
-    <a href="#ideasSection">💡 אטרקציות</a>
-    <a href="#packingSection">🎒 אריזה</a>
+  <nav class="main-tabs" id="mainTabs" role="tablist" aria-label="ניווט ראשי">
+    <button type="button" class="tab-btn active" data-tab="days" role="tab" aria-selected="true"><span class="tab-icon">📅</span><span class="tab-label">ימים</span></button>
+    <button type="button" class="tab-btn" data-tab="documents" role="tab" aria-selected="false"><span class="tab-icon">📄</span><span class="tab-label">מסמכים</span></button>
+    <button type="button" class="tab-btn" data-tab="ideas" role="tab" aria-selected="false"><span class="tab-icon">💡</span><span class="tab-label">רעיונות</span></button>
+    <button type="button" class="tab-btn" data-tab="packing" role="tab" aria-selected="false"><span class="tab-icon">🎒</span><span class="tab-label">אריזה</span></button>
   </nav>
 
   <div class="readonly-banner" id="readonlyBanner">👁️ את/ה צופה בטיול הזה - אין אפשרות לערוך.</div>
@@ -889,16 +970,19 @@
     <div class="budget-breakdown" id="budgetBreakdown"></div>
   </div>
 
-  <div class="days" id="days"></div>
+  <section class="tab-panel active" data-panel="days" id="panelDays">
+    <div class="day-picker" id="dayPicker"></div>
+    <div class="days" id="days"></div>
 
-  <div class="day-actions" style="margin-top:22px;">
-    <button class="btn btn-primary" id="addDay">
-      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
-      הוסף יום
-    </button>
-  </div>
+    <div class="day-actions" style="margin-top:22px;">
+      <button class="btn btn-primary" id="addDay">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+        הוסף יום
+      </button>
+    </div>
+  </section>
 
-  <div class="section-card" id="documentsSection">
+  <div class="section-card tab-panel" id="documentsSection" data-panel="documents">
     <div class="section-header">
       <div class="section-title">📄 מסמכים והזמנות</div>
       <button class="btn-quick" id="addDocumentBtn">הוסף מסמך</button>
@@ -907,7 +991,7 @@
     <div class="ideas-list" id="documentsBody"></div>
   </div>
 
-  <div class="section-card" id="ideasSection">
+  <div class="section-card tab-panel" id="ideasSection" data-panel="ideas">
     <div class="section-header">
       <div class="section-title" id="attractionsTitle">רעיונות לאטרקציות</div>
       <select class="btn-quick" id="ideaSortSelect" title="מיין לפי">
@@ -967,7 +1051,7 @@
     <div class="map-grid" id="mapGrid"></div>
   </div>
 
-  <div class="section-card" id="packingSection">
+  <div class="section-card tab-panel" id="packingSection" data-panel="packing">
     <div class="section-header">
       <div class="section-title">🎒 רשימת אריזה וצ'ק ליסט</div>
       <button class="btn-quick" id="packingQuickAdd">הוסף פריטים נפוצים</button>
@@ -1682,6 +1766,67 @@ function convertAmount(amount, fromCode, toCode){
 }
 
 const daysEl = document.getElementById('days');
+const dayPickerEl = document.getElementById('dayPicker');
+const mainTabsEl = document.getElementById('mainTabs');
+let activeDayIndex = 0;
+const ACTIVE_TAB_KEY = 'triplan-active-tab-v1';
+
+function setActiveTab(tab){
+  const valid = ['days','documents','ideas','packing'];
+  if(!valid.includes(tab)) tab = 'days';
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    const isActive = b.dataset.tab === tab;
+    b.classList.toggle('active', isActive);
+    b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.dataset.panel === tab);
+  });
+  try{ localStorage.setItem(ACTIVE_TAB_KEY, tab); }catch(e){}
+}
+mainTabsEl.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+});
+setActiveTab(localStorage.getItem(ACTIVE_TAB_KEY) || 'days');
+
+/* ---- Day picker: shows one day at a time instead of one long scroll ---- */
+function applyDayVisibility(){
+  daysEl.querySelectorAll('.day-card').forEach((card,i) => {
+    card.classList.toggle('day-hidden', i !== activeDayIndex);
+  });
+}
+function updatePickerActiveState(){
+  dayPickerEl.querySelectorAll('.day-pill').forEach((p,i) => p.classList.toggle('active', i===activeDayIndex));
+  const arrows = dayPickerEl.querySelectorAll('.day-nav-arrow');
+  if(arrows[0]) arrows[0].disabled = activeDayIndex <= 0;
+  if(arrows[1]) arrows[1].disabled = activeDayIndex >= state.days.length - 1;
+}
+function goToDay(i){
+  activeDayIndex = Math.max(0, Math.min(i, state.days.length - 1));
+  applyDayVisibility(); updatePickerActiveState();
+}
+function renderDayPicker(){
+  dayPickerEl.innerHTML = '';
+  if(state.days.length <= 1){ dayPickerEl.style.display = 'none'; return; }
+  dayPickerEl.style.display = 'flex';
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button'; prevBtn.className = 'day-nav-arrow'; prevBtn.title = 'יום קודם'; prevBtn.textContent = '❮';
+  prevBtn.addEventListener('click', () => goToDay(activeDayIndex - 1));
+  dayPickerEl.appendChild(prevBtn);
+  state.days.forEach((day, i) => {
+    const pill = document.createElement('button');
+    pill.type = 'button'; pill.className = 'day-pill' + (i===activeDayIndex ? ' active' : '');
+    const dateLabel = formatDate(state.startDate, i);
+    pill.innerHTML = `<span class="pill-badge">${i+1}</span><span class="pill-date">${dateLabel ? escapeAttr(dateLabel) : 'יום ' + (i+1)}</span>`;
+    pill.addEventListener('click', () => { goToDay(i); pill.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'}); });
+    dayPickerEl.appendChild(pill);
+  });
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button'; nextBtn.className = 'day-nav-arrow'; nextBtn.title = 'יום הבא'; nextBtn.textContent = '❯';
+  nextBtn.addEventListener('click', () => goToDay(activeDayIndex + 1));
+  dayPickerEl.appendChild(nextBtn);
+  updatePickerActiveState();
+}
 const tripNameEl = document.getElementById('tripName');
 const startDateEl = document.getElementById('startDate');
 const currencySelectEl = document.getElementById('currencySelect');
@@ -1843,6 +1988,7 @@ function render(){
       } else if(!confirm('למחוק את היום הזה?')){ return; }
       state.days.splice(index,1);
       if(state.days.length === 0) state.days.push(newDay());
+      if(activeDayIndex >= state.days.length) activeDayIndex = state.days.length - 1;
       saveState(); render();
     });
     card.querySelector('[data-role="add-activity"]').addEventListener('click', () => {
@@ -1878,6 +2024,11 @@ function render(){
     daysEl.appendChild(card);
     loadWeatherForDay(day, index);
   });
+
+  if(activeDayIndex > state.days.length - 1) activeDayIndex = state.days.length - 1;
+  if(activeDayIndex < 0) activeDayIndex = 0;
+  renderDayPicker();
+  applyDayVisibility();
 
   updateStats();
   renderPacking();
@@ -3009,6 +3160,7 @@ function applyRoleRestrictions(){
 
 document.getElementById('addDay').addEventListener('click', () => {
   state.days.push(newDay());
+  activeDayIndex = state.days.length - 1;
   saveState(); render();
 });
 
@@ -3054,7 +3206,7 @@ document.getElementById('printBtn').addEventListener('click', () => window.print
 const PDF_HIDE_SELECTORS = '.icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,'
   + '.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,.idea-map-wrap,.doc-attach-row,'
   + '.account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,'
-  + '#sharingPanelToggle,.quick-jump,#toastWrap,.trip-switcher-row';
+  + '#sharingPanelToggle,.main-tabs,.day-picker,#toastWrap,.trip-switcher-row';
 
 async function exportPdf(){
   const btn = document.getElementById('exportPdfBtn');
