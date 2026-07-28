@@ -145,6 +145,8 @@
     box-shadow:0 8px 18px -10px rgba(0,0,0,0.45);
   }
   .day-pill.active .pill-badge{background:var(--brass); color:var(--ink-text);}
+  .day-pill-today{border-color:var(--rust) !important;}
+  .day-pill-today .pill-badge{box-shadow:0 0 0 2px var(--rust);}
   .day-nav-arrow{
     flex:0 0 auto;
     background:transparent; color:var(--brass-soft);
@@ -202,6 +204,52 @@
     width:10px;
     background:repeating-linear-gradient(180deg, var(--brass) 0 10px, transparent 10px 20px);
     opacity:0.7;
+  }
+  .hero-top-row{display:flex;align-items:flex-start;gap:16px;}
+  .hero-stamp{
+    flex:0 0 auto;
+    width:52px;height:52px;
+    border-radius:50%;
+    border:2px dashed var(--brass);
+    box-shadow:0 0 0 3px var(--paper), 0 0 0 4.5px var(--brass-soft);
+    background:transparent;
+    color:var(--brass);
+    display:flex;align-items:center;justify-content:center;
+    transform:rotate(-8deg);
+    margin-top:2px;
+    animation:badgeStamp .5s cubic-bezier(.2,.85,.3,1) both;
+  }
+  .hero-stamp svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .trip-countdown{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:0.04em;
+    color:var(--ink-text);
+    margin-top:16px;
+    padding-top:14px;
+    border-top:1.5px dashed var(--line);
+    display:none;
+    align-items:baseline;
+    gap:8px;
+  }
+  .trip-countdown.show{display:flex;}
+  .trip-countdown svg{width:13px;height:13px;stroke:var(--muted);fill:none;stroke-width:1.8;flex:0 0 auto;}
+  .trip-countdown .cd-num{
+    font-family:'Frank Ruhl Libre', serif;
+    font-size:22px;
+    font-weight:700;
+    color:var(--rust);
+  }
+  .trip-countdown.cd-live .cd-num{color:var(--pine);}
+  .trip-countdown.cd-done .cd-num{color:var(--muted);}
+  .trip-progress-track{
+    height:5px; border-radius:3px; margin-top:10px;
+    background:var(--paper-soft); overflow:hidden;
+  }
+  .trip-progress-fill{
+    height:100%; border-radius:3px;
+    background:var(--brass);
+    transition:width .4s ease;
   }
   .trip-title{
     font-family:'Frank Ruhl Libre', serif;
@@ -351,6 +399,14 @@
     font-size:12px;
     color:var(--pine);
   }
+  .day-dest-row{display:flex;align-items:center;gap:8px;}
+  .day-dest-icon{
+    flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+    color:var(--muted);
+    transition:color .2s ease;
+  }
+  .day-dest-icon svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7;}
+  .day-dest-row:hover .day-dest-icon{color:var(--brass);}
   .day-dest{
     font-family:'Frank Ruhl Libre', serif;
     font-weight:600;
@@ -362,6 +418,23 @@
     width:100%;
     border-bottom:1.5px solid transparent;
     transition:border-color .15s;
+  }
+  .today-ribbon{
+    display:inline-flex; align-items:center; gap:4px;
+    color:var(--rust);
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px; font-weight:700; letter-spacing:0.05em;
+    border:1.5px dashed var(--rust);
+    border-radius:20px;
+    padding:1px 9px;
+  }
+  .day-card-today{
+    border:2px solid var(--rust);
+    box-shadow:0 20px 40px -22px rgba(0,0,0,0.5);
+  }
+  .day-card-today .day-badge{
+    border-color:var(--rust); box-shadow:0 0 0 3px var(--paper), 0 0 0 4.5px var(--rust);
+    background:var(--rust); color:var(--paper);
   }
   .day-dest:focus{border-bottom-color:var(--brass);}
   .day-dest::placeholder{color:#B7A981;}
@@ -1049,7 +1122,15 @@
   </div>
 
   <div class="header-card">
-    <input class="trip-title" id="tripName" placeholder="לאן טסים?" />
+    <div class="header-card-glow" aria-hidden="true"></div>
+    <div class="hero-top-row">
+      <input class="trip-title" id="tripName" placeholder="לאן טסים?" />
+      <div class="hero-stamp" id="heroEmoji" aria-hidden="true"></div>
+    </div>
+    <div class="trip-countdown" id="tripCountdown"></div>
+    <div class="trip-progress-track" id="tripProgressTrack" style="display:none;">
+      <div class="trip-progress-fill" id="tripProgressFill"></div>
+    </div>
     <div class="header-meta">
       <div class="meta-field">
         <label>תאריך יציאה</label>
@@ -1058,6 +1139,10 @@
       <div class="meta-field">
         <label>ימים</label>
         <span class="stat" id="daysCount">0</span>
+      </div>
+      <div class="meta-field">
+        <label>יעדים</label>
+        <span class="stat" id="destCount">0</span>
       </div>
       <div class="meta-field">
         <label>מטבע ראשי (טיול)</label>
@@ -1453,6 +1538,11 @@ const ICONS = {
   booking: `<svg viewBox="0 0 24 24"><path d="M5 5h14v4a2 2 0 0 0 0 4v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-4a2 2 0 0 0 0-4V5Z" stroke-linejoin="round"/><path d="M12 5v2M12 11v2M12 17v2" stroke-linecap="round"/></svg>`,
   equipment: `<svg viewBox="0 0 24 24"><path d="M8 8V6a4 4 0 0 1 8 0v2M6 8h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke-linecap="round"/></svg>`,
   people: `<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke-linecap="round"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.2A5 5 0 0 1 21 19" stroke-linecap="round"/></svg>`,
+  compass: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5 13 13l-3.5 1.5L11 11l3.5-1.5Z" stroke-linejoin="round"/></svg>`,
+  plane: `<svg viewBox="0 0 24 24"><path d="M11 4 3 12l3 1 2-2 2 1-1 3 2 1 2-4 5-2c1-.5 2-2 1-3s-2.5-1-3.5-.5l-2 5-3-1-1-3Z" stroke-linejoin="round"/></svg>`,
+  mountain: `<svg viewBox="0 0 24 24"><path d="M3 19 9 8l3 5 2-3 7 9H3Z" stroke-linejoin="round"/><circle cx="7.5" cy="6.5" r="1.4"/></svg>`,
+  wave: `<svg viewBox="0 0 24 24"><path d="M2 15c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2M2 19c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2" stroke-linecap="round"/></svg>`,
+  landmark: `<svg viewBox="0 0 24 24"><path d="M4 21h16M5 21V10M9 21V10M15 21V10M19 21V10M3 10l9-6 9 6" stroke-linejoin="round" stroke-linecap="round"/></svg>`,
 };
 
 const TRANSPORT_OPTIONS = ['הליכה','רכב שכור','תחבורה ציבורית','מונית / אפליקציית הסעה','רכבת','אופניים','טיסה','מעבורת'];
@@ -1951,8 +2041,10 @@ function renderDayPicker(){
   prevBtn.addEventListener('click', () => goToDay(activeDayIndex - 1));
   dayPickerEl.appendChild(prevBtn);
   state.days.forEach((day, i) => {
+    const pillISO = dateForDayIndex(i);
+    const pillIsToday = pillISO && pillISO === new Date().toISOString().slice(0,10);
     const pill = document.createElement('button');
-    pill.type = 'button'; pill.className = 'day-pill' + (i===activeDayIndex ? ' active' : '');
+    pill.type = 'button'; pill.className = 'day-pill' + (i===activeDayIndex ? ' active' : '') + (pillIsToday ? ' day-pill-today' : '');
     const dateLabel = formatDate(state.startDate, i);
     pill.innerHTML = `<span class="pill-badge">${i+1}</span><span class="pill-date">${dateLabel ? escapeAttr(dateLabel) : 'יום ' + (i+1)}</span>`;
     pill.addEventListener('click', () => { goToDay(i); pill.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'}); });
@@ -2006,6 +2098,87 @@ function dateForDayIndex(index){
   if(isNaN(d)) return null;
   d.setDate(d.getDate() + index);
   return d.toISOString().slice(0,10);
+}
+
+/* ---------------- Hero stats: countdown, progress, destination flavor ---------------- */
+const DEST_ICON_RULES = [
+  [/טיסה|flight|נמל תעופה|airport/i, 'plane'],
+  [/הר|סקי|ski|mountain|אלפים|alps|מדבר|desert/i, 'mountain'],
+  [/בריכה|חוף|ים|beach|island|אי\b|מפרץ/i, 'wave'],
+  [/עיר|city|מוזיאון|museum|פריז|paris|רומא|roma|יוון|athens|יפן|tokyo|קיוטו|osaka|ניו ?יורק|new ?york|לונדון|london|ברלין|berlin|ספרד|barcelona|madrid|תאילנד|bangkok/i, 'landmark'],
+];
+function destinationIconKey(name){
+  if(!name) return null;
+  for(const [re, key] of DEST_ICON_RULES){
+    if(re.test(name)) return key;
+  }
+  return null;
+}
+function destinationIconSVG(name, fallbackKey){
+  const key = destinationIconKey(name) || fallbackKey;
+  return ICONS[key] || '';
+}
+
+function updateHeroStats(){
+  const destSet = new Set(state.days.map(d => (d.destination || '').trim()).filter(Boolean));
+  const destCountEl = document.getElementById('destCount');
+  if(destCountEl) destCountEl.textContent = destSet.size;
+
+  const heroEmojiEl = document.getElementById('heroEmoji');
+  if(heroEmojiEl){
+    const firstWithDest = state.days.find(d => d.destination && d.destination.trim());
+    heroEmojiEl.innerHTML = destinationIconSVG(firstWithDest ? firstWithDest.destination : '', 'compass');
+  }
+
+  const cdEl = document.getElementById('tripCountdown');
+  const progTrack = document.getElementById('tripProgressTrack');
+  const progFill = document.getElementById('tripProgressFill');
+  if(!cdEl) return;
+
+  if(!state.startDate || !state.days.length){
+    cdEl.classList.remove('show','cd-live','cd-done');
+    if(progTrack) progTrack.style.display = 'none';
+    return;
+  }
+  const start = new Date(state.startDate + 'T00:00:00');
+  if(isNaN(start)){
+    cdEl.classList.remove('show','cd-live','cd-done');
+    if(progTrack) progTrack.style.display = 'none';
+    return;
+  }
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const totalDays = state.days.length;
+  const end = new Date(start); end.setDate(end.getDate() + totalDays - 1);
+  const msPerDay = 86400000;
+  const diffToStart = Math.round((start - today) / msPerDay);
+
+  cdEl.classList.add('show');
+  cdEl.classList.remove('cd-live','cd-done');
+
+  if(diffToStart > 0){
+    cdEl.innerHTML = `${ICONS.time} עוד <span class="cd-num">${diffToStart}</span> ${diffToStart === 1 ? 'יום' : 'ימים'} ליציאה`;
+    if(progTrack) progTrack.style.display = 'none';
+  } else if(diffToStart === 0){
+    cdEl.innerHTML = `${ICONS.time} <span class="cd-num">היום</span> יוצאים לדרך`;
+    cdEl.classList.add('cd-live');
+    if(progTrack) progTrack.style.display = 'none';
+  } else if(today <= end){
+    const dayNum = Math.min(totalDays, Math.round((today - start) / msPerDay) + 1);
+    cdEl.innerHTML = `${ICONS.time} בעיצומו של הטיול · יום <span class="cd-num">${dayNum}</span> מתוך ${totalDays}`;
+    cdEl.classList.add('cd-live');
+    if(progTrack && progFill){
+      progTrack.style.display = 'block';
+      progFill.style.width = Math.round((dayNum / totalDays) * 100) + '%';
+    }
+  } else {
+    cdEl.innerHTML = `${ICONS.time} הטיול הסתיים · ${totalDays} ימים מתועדים`;
+    cdEl.classList.add('cd-done');
+    if(progTrack && progFill){
+      progTrack.style.display = 'block';
+      progFill.style.width = '100%';
+    }
+  }
 }
 
 function renderWeatherBadge(el, info){
@@ -2064,16 +2237,20 @@ function render(){
 
   state.days.forEach((day, index) => {
     const card = document.createElement('div');
-    card.className = 'day-card';
+    const dayISO = dateForDayIndex(index);
+    const todayISO = new Date().toISOString().slice(0,10);
+    const isToday = dayISO && dayISO === todayISO;
+    card.className = 'day-card' + (isToday ? ' day-card-today' : '');
 
     const dateLabel = formatDate(state.startDate, index);
+    const destIconSVG = destinationIconSVG(day.destination, 'place');
 
     card.innerHTML = `
       <div class="day-top">
         <div class="day-badge">${index+1}</div>
         <div class="day-heading">
-          <div class="day-date">${dateLabel ? dateLabel : 'יום ' + (index+1)} <span class="weather-badge" id="weather-${day.id}"></span>${day.lastEditedBy ? `<span class="last-edited-badge" title="${escapeAttr(new Date(day.lastEditedAt).toLocaleString('he-IL'))}">✏️ ${escapeAttr(resolveMemberName(day.lastEditedBy))} · ${timeAgoLabel(day.lastEditedAt)}</span>` : ''}</div>
-          <input class="day-dest" data-role="destination" placeholder="לאן הולכים היום?" value="${escapeAttr(day.destination)}">
+          <div class="day-date">${dateLabel ? dateLabel : 'יום ' + (index+1)} <span class="weather-badge" id="weather-${day.id}"></span>${isToday ? '<span class="today-ribbon">היום</span>' : ''}${day.lastEditedBy ? `<span class="last-edited-badge" title="${escapeAttr(new Date(day.lastEditedAt).toLocaleString('he-IL'))}">✏️ ${escapeAttr(resolveMemberName(day.lastEditedBy))} · ${timeAgoLabel(day.lastEditedAt)}</span>` : ''}</div>
+          <div class="day-dest-row"><span class="day-dest-icon" data-role="dest-emoji">${destIconSVG}</span><input class="day-dest" data-role="destination" placeholder="לאן הולכים היום?" value="${escapeAttr(day.destination)}"></div>
           <label class="day-currency-row">מטבע ליום זה: <select data-role="day-currency">${dayCurrencyOptionsHTML(day.currency)}</select></label>
         </div>
         <button class="icon-btn" data-role="del-day" title="מחק יום">${ICONS.trash}</button>
@@ -2112,6 +2289,8 @@ function render(){
 
     card.querySelector('[data-role="destination"]').addEventListener('input', e => {
       day.destination = e.target.value; touchDay(day); saveState(); updateStats();
+      const iconEl = card.querySelector('[data-role="dest-emoji"]');
+      if(iconEl) iconEl.innerHTML = destinationIconSVG(day.destination, 'place');
       clearTimeout(weatherTimers[day.id]);
       weatherTimers[day.id] = setTimeout(() => loadWeatherForDay(day, index), 700);
     });
@@ -2438,6 +2617,7 @@ function renderTouringPlan(){
 
 function updateStats(){
   document.getElementById('daysCount').textContent = state.days.length;
+  updateHeroStats();
   const homeCur = state.secondaryCurrency || state.currency;
   let total = 0;
   const catTotals = { lodging:0, food:0, transport:0, sight:0 };
