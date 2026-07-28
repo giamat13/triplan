@@ -38,6 +38,7 @@
       radial-gradient(ellipse at 20% -10%, rgba(192,138,62,0.12), transparent 55%),
       radial-gradient(ellipse at 100% 0%, rgba(76,122,104,0.14), transparent 45%),
       var(--ink);
+    background-attachment: fixed;
     color:var(--paper);
     font-family:'Assistant', sans-serif;
     min-height:100vh;
@@ -79,7 +80,12 @@
   .main-tabs{
     position:sticky; top:0; z-index:30;
     display:flex; gap:6px;
-    background:var(--ink); padding:10px 0; margin-bottom:16px;
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(192,138,62,0.12), transparent 55%),
+      radial-gradient(ellipse at 100% 0%, rgba(76,122,104,0.14), transparent 45%),
+      var(--ink);
+    background-attachment: fixed;
+    padding:10px 0; margin-bottom:16px;
     border-bottom:1.5px solid var(--line-dark);
   }
   .tab-btn{
@@ -155,7 +161,12 @@
   @media(max-width:680px){
     .main-tabs{
       position:fixed; inset-inline-start:0; inset-inline-end:0; bottom:0; top:auto;
-      background:var(--ink); border-top:1.5px solid var(--line-dark); border-bottom:none;
+      background:
+        radial-gradient(ellipse at 20% -10%, rgba(192,138,62,0.12), transparent 55%),
+        radial-gradient(ellipse at 100% 0%, rgba(76,122,104,0.14), transparent 45%),
+        var(--ink);
+      background-attachment: fixed;
+      border-top:1.5px solid var(--line-dark); border-bottom:none;
       padding:8px 6px calc(6px + env(safe-area-inset-bottom));
       box-shadow:0 -8px 20px -12px rgba(0,0,0,0.6);
       margin-bottom:0; z-index:60;
