@@ -293,6 +293,18 @@
     border-radius:var(--radius);
     overflow:hidden;
     box-shadow:0 20px 40px -22px rgba(0,0,0,0.5);
+    --stagger:0s;
+    animation:dayCardIn .5s cubic-bezier(.2,.7,.25,1) both;
+    animation-delay:var(--stagger);
+  }
+  .day-card:nth-child(2){--stagger:.07s;}
+  .day-card:nth-child(3){--stagger:.14s;}
+  .day-card:nth-child(4){--stagger:.21s;}
+  .day-card:nth-child(5){--stagger:.28s;}
+  .day-card:nth-child(n+6){--stagger:.35s;}
+  @keyframes dayCardIn{
+    from{opacity:0; transform:translateY(16px);}
+    to{opacity:1; transform:translateY(0);}
   }
   .day-top{
     display:flex;
@@ -312,9 +324,16 @@
     font-weight:700;
     font-size:16px;
     display:flex;align-items:center;justify-content:center;
-    transform:rotate(-7deg);
+    --tilt:-7deg;
+    animation:badgeStamp .5s cubic-bezier(.2,.85,.3,1) both;
+    animation-delay:calc(var(--stagger, 0s) + .2s);
   }
-  .day-card:nth-child(even) .day-badge{transform:rotate(6deg);}
+  .day-card:nth-child(even) .day-badge{--tilt:6deg;}
+  @keyframes badgeStamp{
+    0%{opacity:0; transform:scale(2.3) rotate(var(--tilt));}
+    55%{opacity:1; transform:scale(0.85) rotate(var(--tilt));}
+    100%{opacity:1; transform:scale(1) rotate(var(--tilt));}
+  }
   .day-heading{flex:1 1 auto;min-width:0;}
   .day-date{
     font-family:'JetBrains Mono', monospace;
