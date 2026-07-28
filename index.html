@@ -1883,7 +1883,7 @@ function renderDayPicker(){
   if(state.days.length <= 1){ dayPickerEl.style.display = 'none'; return; }
   dayPickerEl.style.display = 'flex';
   const prevBtn = document.createElement('button');
-  prevBtn.type = 'button'; prevBtn.className = 'day-nav-arrow'; prevBtn.title = 'יום קודם'; prevBtn.textContent = '❮';
+  prevBtn.type = 'button'; prevBtn.className = 'day-nav-arrow'; prevBtn.title = 'יום קודם'; prevBtn.textContent = '❯';
   prevBtn.addEventListener('click', () => goToDay(activeDayIndex - 1));
   dayPickerEl.appendChild(prevBtn);
   state.days.forEach((day, i) => {
@@ -1895,7 +1895,7 @@ function renderDayPicker(){
     dayPickerEl.appendChild(pill);
   });
   const nextBtn = document.createElement('button');
-  nextBtn.type = 'button'; nextBtn.className = 'day-nav-arrow'; nextBtn.title = 'יום הבא'; nextBtn.textContent = '❯';
+  nextBtn.type = 'button'; nextBtn.className = 'day-nav-arrow'; nextBtn.title = 'יום הבא'; nextBtn.textContent = '❮';
   nextBtn.addEventListener('click', () => goToDay(activeDayIndex + 1));
   dayPickerEl.appendChild(nextBtn);
   updatePickerActiveState();
