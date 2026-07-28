@@ -766,6 +766,13 @@
   .checklist-due-badge{font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--muted);white-space:nowrap;flex:0 0 auto;}
   .checklist-due-badge.overdue{color:var(--rust);font-weight:700;}
   .packing-suggest-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;}
+  .flight-video-item a.flight-video-open{
+    flex:0 0 auto;border:1.5px solid var(--line);border-radius:10px;padding:7px 10px;
+    font-family:'Assistant',sans-serif;font-size:12.5px;font-weight:600;color:var(--pine);
+    text-decoration:none;white-space:nowrap;
+  }
+  .flight-video-item a.flight-video-open:hover{border-color:var(--pine);background:rgba(76,122,104,0.08);}
+  .flight-video-note{font-size:12px;color:var(--muted);line-height:1.5;margin:6px 0 12px;}
   .packing-suggest-row input[type=text]{
     flex:1;min-width:160px;border:1.5px solid var(--line);border-radius:10px;
     padding:9px 12px;font-family:'Assistant',sans-serif;font-size:14px;
@@ -988,7 +995,7 @@
 
   @media print{
     body{background:#fff;color:#000;padding:0;}
-    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,#mapSingle,.map-legend,.idea-map-wrap,.doc-attach-row{display:none !important;}
+    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,#mapSingle,.map-legend,.idea-map-wrap,.doc-attach-row,.flight-video-open{display:none !important;}
     .account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,#sharingPanelToggle{display:none !important;}
     .header-card,.day-card,.section-card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;}
     .hotel-stub{background:#eee !important;color:#000 !important;}
@@ -1108,7 +1115,7 @@
     <button type="button" class="tab-btn active" data-tab="days" role="tab" aria-selected="true"><span class="line-icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9h16M8 3v4M16 3v4" stroke-linecap="round"/></svg></span><span class="tab-label">ימים</span></button>
     <button type="button" class="tab-btn" data-tab="ideas" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" stroke-linecap="round"/><path d="M12 3a6 6 0 0 0-3.2 11.1c.6.4 1 1 1.1 1.7l.1.7h4l.1-.7c.1-.7.5-1.3 1.1-1.7A6 6 0 0 0 12 3Z" stroke-linejoin="round"/></svg></span><span class="tab-label">רעיונות</span></button>
     <button type="button" class="tab-btn" data-tab="budget" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M12 3v18M8 7.5h6.5a2.5 2.5 0 0 1 0 5H9.5a2.5 2.5 0 0 0 0 5H17" stroke-linecap="round"/></svg></span><span class="tab-label">תקציב ומסמכים</span></button>
-    <button type="button" class="tab-btn" data-tab="packing" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M8 8V6a4 4 0 0 1 8 0v2M6 8h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke-linecap="round"/></svg></span><span class="tab-label">אריזה</span></button>
+    <button type="button" class="tab-btn" data-tab="packing" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M8 8V6a4 4 0 0 1 8 0v2M6 8h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke-linecap="round"/></svg></span><span class="tab-label">אריזה והתכוננות לטיסה</span></button>
   </nav>
 
   <div class="readonly-banner" id="readonlyBanner">👁️ את/ה צופה בטיול הזה - אין אפשרות לערוך.</div>
@@ -1265,7 +1272,7 @@
 
   <div class="section-card tab-panel" id="packingSection" data-panel="packing">
     <div class="section-header">
-      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M8 8V6a4 4 0 0 1 8 0v2M6 8h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke-linecap="round"/></svg></span> רשימת אריזה וצ'ק ליסט</div>
+      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M8 8V6a4 4 0 0 1 8 0v2M6 8h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke-linecap="round"/></svg></span> רשימת אריזה והתכוננות לטיסה</div>
       <button class="btn-quick" id="packingQuickAdd">הוסף פריטים נפוצים</button>
     </div>
     <p class="section-hint">🔒 הרשימה הזו אישית - נשמרת בענן ומוצגת רק לך, גם אם הטיול משותף עם עוד אנשים. אפשר להוסיף גם משימות עם תאריך יעד (ויזה, ביטוח נסיעות, חיסונים, חידוש דרכון, הודעה לבנק) - לא רק פריטים לתיק.</p>
@@ -1282,6 +1289,22 @@
       <input type="text" id="suggestItemText" placeholder="הצע פריט לחברי הטיול...">
       <div class="packing-suggest-recipients" id="suggestRecipients"></div>
       <button class="btn-quick" id="suggestSendBtn">הצע לרשימה שלהם</button>
+    </div>
+
+    <div class="budget-section-divider"></div>
+
+    <div class="section-header">
+      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round"/></svg></span> סרטונים להורדה לפני הטיסה</div>
+      <a class="btn btn-ghost btn-sm" href="https://turboscribe.ai/he/downloader/youtube/mp4" target="_blank" rel="noopener">פתחו אתר</a>
+    </div>
+    <p class="flight-video-note">🔒 רשימה אישית, לא נשמרת ברשימת האריזה עצמה. הדפדפן לא יכול להוריד קובץ וידאו מיוטיוב ישירות (זה גם נוגד את תנאי השימוש שלהם) - הכלי הזה עוזר לרכז מראש אילו סרטונים לפתוח ולהוריד לצפייה אופליין דרך אפליקציית יוטיוב עצמה (יוטיוב פרימיום/אופליין), ולסמן מה כבר הורד. אפשר גם ללחוץ "פתחו אתר" כדי לפתוח כלי חיצוני להורדת mp4 מיוטיוב.</p>
+    <div class="packing-list" id="flightVideosList"></div>
+    <div class="packing-add-row">
+      <input type="text" id="flightVideoTitle" placeholder="שם הסרטון...">
+      <input type="url" id="flightVideoUrl" placeholder="קישור יוטיוב...">
+      <button class="btn btn-primary" id="flightVideoAddBtn" type="button">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+      </button>
     </div>
   </div>
 
@@ -1433,16 +1456,21 @@ async function fbListMyTrips(){
 
 // Private per-user packing list: trips/{tripId}/packingLists/{uid}, readable and
 // writable only by that uid (see firestore.rules) - never mixed into the shared
-// trip document, so members never see each other's packing lists.
+// trip document, so members never see each other's packing lists. The same
+// private doc also holds this user's flight-videos watchlist.
 async function fbGetPackingList(tripId, uid){
   const snap = await getDoc(doc(db,'trips',tripId,'packingLists',uid));
   if(!snap.exists()) return null;
   const items = snap.data().items;
-  return Array.isArray(items) ? items.map(normalizePackingItem) : [];
+  const videos = snap.data().videos;
+  return {
+    items: Array.isArray(items) ? items.map(normalizePackingItem) : [],
+    videos: Array.isArray(videos) ? videos.map(normalizeFlightVideo) : []
+  };
 }
 
-async function fbSavePackingList(tripId, uid, items){
-  await setDoc(doc(db,'trips',tripId,'packingLists',uid), { items, updatedAt: serverTimestamp() });
+async function fbSavePackingList(tripId, uid, items, videos){
+  await setDoc(doc(db,'trips',tripId,'packingLists',uid), { items, videos: videos || [], updatedAt: serverTimestamp() });
 }
 
 async function fbGetDisplayName(uid){
@@ -1760,6 +1788,12 @@ function mergeSecondaryCurrency(data){
 function normalizePackingItem(p){
   return { id: p.id || nextId(), text: p.text || '', checked: !!p.checked, dueDaysBefore: p.dueDaysBefore || '' };
 }
+// A personal watchlist of YouTube videos to open+download (via YouTube's own
+// offline feature) before the flight - stored alongside the packing list,
+// see fbGetPackingList/fbSavePackingList.
+function normalizeFlightVideo(v){
+  return { id: v.id || nextId(), title: v.title || '', url: v.url || '', downloaded: !!v.downloaded };
+}
 function normalizeState(data){
   data = data || {};
   return {
@@ -1774,6 +1808,8 @@ function normalizeState(data){
     // switching trips, see loadPrivatePackingList(). Kept here so a brand-new
     // trip (or an imported JSON file) still has something to seed that list with.
     packing: Array.isArray(data.packing) ? data.packing.map(normalizePackingItem) : [],
+    // starting value only - the real per-user list is loaded separately, same as packing.
+    flightVideos: Array.isArray(data.flightVideos) ? data.flightVideos.map(normalizeFlightVideo) : [],
     attractionIdeas: Array.isArray(data.attractionIdeas) ? data.attractionIdeas.map(normalizeIdea) : [],
     documents: Array.isArray(data.documents) ? data.documents.map(normalizeDocument) : [],
     archived: !!data.archived
@@ -1900,9 +1936,10 @@ function saveState(){
 // The packing list is private per user, so it's saved separately from the rest
 // of the trip - unlike saveState() this isn't blocked for viewers, since editing
 // your own private list doesn't touch anything the trip role is meant to guard.
+// Also persists the flight-videos watchlist, which lives in the same private doc.
 function savePackingList(){
   if(!activeTripId || !currentUser) return;
-  fbSavePackingList(activeTripId, currentUser.uid, state.packing)
+  fbSavePackingList(activeTripId, currentUser.uid, state.packing, state.flightVideos)
     .then(() => showSyncError(false))
     .catch(err => { console.error('שגיאת שמירת רשימת אריזה:', err); showSyncError(true); });
 }
@@ -1947,19 +1984,20 @@ async function switchToTrip(id){
   ensureNotificationPermission();
 }
 
-// Loads the current user's own packing list for this trip. Trips created before
-// packing lists went private may still carry a legacy shared `packing` array
-// (already picked up into state.packing by normalizeState above) - the first
-// time such a trip is opened, that becomes this user's private starting list
-// instead of being silently dropped.
+// Loads the current user's own packing list (and flight-videos watchlist) for
+// this trip. Trips created before packing lists went private may still carry a
+// legacy shared `packing` array (already picked up into state.packing by
+// normalizeState above) - the first time such a trip is opened, that becomes
+// this user's private starting list instead of being silently dropped.
 async function loadPrivatePackingList(tripId){
-  const privateItems = await fbGetPackingList(tripId, currentUser.uid);
-  if(privateItems !== null){
-    state.packing = privateItems;
-  } else if(state.packing.length){
-    await fbSavePackingList(tripId, currentUser.uid, state.packing);
+  const privateData = await fbGetPackingList(tripId, currentUser.uid);
+  if(privateData !== null){
+    state.packing = privateData.items;
+    state.flightVideos = privateData.videos;
+  } else if(state.packing.length || state.flightVideos.length){
+    await fbSavePackingList(tripId, currentUser.uid, state.packing, state.flightVideos);
   }
-  if(activeTripId === tripId) renderPacking();
+  if(activeTripId === tripId){ renderPacking(); renderFlightVideos(); }
 }
 
 async function createTrip(data, fallbackName){
@@ -1967,7 +2005,7 @@ async function createTrip(data, fallbackName){
   if(!normalized.name && fallbackName) normalized.name = fallbackName;
   const id = await fbCreateTrip(normalized);
   tripsIndex.push({ id, name: normalized.name || fallbackName || 'טיול חדש', role:'owner' });
-  if(normalized.packing.length) await fbSavePackingList(id, currentUser.uid, normalized.packing);
+  if(normalized.packing.length || normalized.flightVideos.length) await fbSavePackingList(id, currentUser.uid, normalized.packing, normalized.flightVideos);
   return id;
 }
 
@@ -2347,6 +2385,7 @@ function render(){
 
   updateStats();
   renderPacking();
+  renderFlightVideos();
   renderDocuments();
   renderAttractions();
   renderMapSection();
@@ -2909,6 +2948,54 @@ function addPackingItem(){
   state.packing.push({ id: nextId(), text, checked:false, dueDaysBefore: dueInput.value || '' });
   input.value = ''; dueInput.value = '';
   savePackingList(); renderPacking();
+}
+
+// Personal watchlist of YouTube videos to open+download before the flight.
+// The browser can't fetch/save the actual video file from YouTube (blocked by
+// YouTube itself, and against their terms) - so instead of a fake "download"
+// button, each row links out to open the video, for downloading via YouTube's
+// own official offline feature, and a checkbox tracks what's already done.
+function renderFlightVideos(){
+  const listEl = document.getElementById('flightVideosList');
+  if(!listEl) return;
+  listEl.innerHTML = '';
+  if(!state.flightVideos.length){
+    listEl.innerHTML = '<div class="packing-empty">אין עדיין סרטונים ברשימה. הוסיפו למטה שם וקישור ליוטיוב.</div>';
+    return;
+  }
+  state.flightVideos.forEach(video => {
+    const row = document.createElement('div');
+    row.className = 'packing-item flight-video-item' + (video.downloaded ? ' checked' : '');
+    const href = video.url ? (/^https?:\/\//i.test(video.url) ? video.url : ('https://' + video.url)) : '';
+    row.innerHTML = `
+      <input type="checkbox" ${video.downloaded ? 'checked' : ''} title="סומן כהורד">
+      <input type="text" value="${escapeAttr(video.title)}" placeholder="שם הסרטון">
+      ${href ? `<a class="flight-video-open" href="${escapeAttr(href)}" target="_blank" rel="noopener">▶ פתח ביוטיוב</a>` : ''}
+      <button class="icon-btn" title="מחק">${ICONS.trash}</button>
+    `;
+    const chk = row.querySelector('input[type=checkbox]');
+    const txt = row.querySelector('input[type=text]');
+    const del = row.querySelector('button');
+    chk.addEventListener('change', e => { video.downloaded = e.target.checked; row.classList.toggle('checked', video.downloaded); savePackingList(); });
+    txt.addEventListener('input', e => { video.title = e.target.value; savePackingList(); });
+    del.addEventListener('click', () => {
+      const idx = state.flightVideos.indexOf(video);
+      if(idx > -1) state.flightVideos.splice(idx,1);
+      renderFlightVideos(); savePackingList();
+    });
+    listEl.appendChild(row);
+  });
+}
+
+function addFlightVideo(){
+  const titleInput = document.getElementById('flightVideoTitle');
+  const urlInput = document.getElementById('flightVideoUrl');
+  const title = titleInput.value.trim();
+  const url = urlInput.value.trim();
+  if(!title && !url) return;
+  state.flightVideos.push({ id: nextId(), title: title || url, url, downloaded:false });
+  titleInput.value = ''; urlInput.value = '';
+  savePackingList(); renderFlightVideos();
 }
 
 function syncEquipmentToPacking(idea){
@@ -3623,6 +3710,10 @@ document.getElementById('packingAddBtn').addEventListener('click', addPackingIte
 document.getElementById('packingNewItem').addEventListener('keydown', e => {
   if(e.key === 'Enter'){ e.preventDefault(); addPackingItem(); }
 });
+document.getElementById('flightVideoAddBtn').addEventListener('click', addFlightVideo);
+[document.getElementById('flightVideoTitle'), document.getElementById('flightVideoUrl')].forEach(el => {
+  el.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addFlightVideo(); } });
+});
 document.getElementById('packingQuickAdd').addEventListener('click', () => {
   const defaults = [
     { text:'דרכון' }, { text:'כרטיסי טיסה' }, { text:'מטען וכבלים' }, { text:'תרופות אישיות' },
@@ -3652,7 +3743,7 @@ document.getElementById('printBtn').addEventListener('click', () => window.print
 // forces a clean light theme, then renders #mainContent to a downloadable
 // PDF file via html2pdf.js, with a page break before each day.
 const PDF_HIDE_SELECTORS = '.icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,'
-  + '.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,#mapSingle,.map-legend,.idea-map-wrap,.doc-attach-row,'
+  + '.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,#mapSingle,.map-legend,.idea-map-wrap,.doc-attach-row,.flight-video-open,'
   + '.account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,'
   + '#sharingPanelToggle,.main-tabs,.day-picker,#toastWrap,.trip-switcher-row';
 
