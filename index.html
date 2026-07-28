@@ -1108,7 +1108,6 @@
     <button type="button" class="tab-btn active" data-tab="days" role="tab" aria-selected="true"><span class="line-icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9h16M8 3v4M16 3v4" stroke-linecap="round"/></svg></span><span class="tab-label">ימים</span></button>
     <button type="button" class="tab-btn" data-tab="ideas" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" stroke-linecap="round"/><path d="M12 3a6 6 0 0 0-3.2 11.1c.6.4 1 1 1.1 1.7l.1.7h4l.1-.7c.1-.7.5-1.3 1.1-1.7A6 6 0 0 0 12 3Z" stroke-linejoin="round"/></svg></span><span class="tab-label">רעיונות</span></button>
     <button type="button" class="tab-btn" data-tab="budget" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M12 3v18M8 7.5h6.5a2.5 2.5 0 0 1 0 5H9.5a2.5 2.5 0 0 0 0 5H17" stroke-linecap="round"/></svg></span><span class="tab-label">תקציב ומסמכים</span></button>
-    <button type="button" class="tab-btn" data-tab="map" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3"/></svg></span><span class="tab-label">מפה</span></button>
     <button type="button" class="tab-btn" data-tab="packing" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M8 8V6a4 4 0 0 1 8 0v2M6 8h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke-linecap="round"/></svg></span><span class="tab-label">אריזה</span></button>
   </nav>
 
@@ -1231,6 +1230,19 @@
       </select>
     </div>
     <div class="ideas-list" id="attractionsBody"></div>
+
+    <div class="budget-section-divider"></div>
+
+    <div class="section-header">
+      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3"/></svg></span> מפה של המסלול</div>
+    </div>
+    <p class="section-hint">מפה אחת עם כל המיקומים: מה ששובץ לימים ומה שעדיין רק רעיון. מבוסס על מיקום חופשי לפי שם (בלי מפתח API), אז המיקום המדויק הוא הערכה.</p>
+    <div class="map-legend">
+      <span class="map-legend-item"><span class="map-legend-dot map-legend-dot--sched"></span>מתוכנן ליום</span>
+      <span class="map-legend-item"><span class="map-legend-dot map-legend-dot--idea"></span>רעיון שטרם שובץ</span>
+    </div>
+    <div class="map-single" id="mapSingle"></div>
+    <div class="map-status" id="mapGrid"></div>
   </div>
 
   <div class="section-card tab-panel" id="budgetSection" data-panel="budget">
@@ -1249,19 +1261,6 @@
     <p class="section-hint">פירוט מלא של איפה הכסף הולך: לפי קטגוריה, לפי יום, ומול התקציב היעד שהוגדר בכרטיס העליון.</p>
     <div class="budget-breakdown" id="budgetBreakdown"></div>
     <div class="budget-by-day" id="budgetByDay"></div>
-  </div>
-
-  <div class="section-card tab-panel" id="mapSection" data-panel="map">
-    <div class="section-header">
-      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3"/></svg></span> מפה של המסלול</div>
-    </div>
-    <p class="section-hint">מפה אחת עם כל המיקומים: מה ששובץ לימים ומה שעדיין רק רעיון. מבוסס על מיקום חופשי לפי שם (בלי מפתח API), אז המיקום המדויק הוא הערכה.</p>
-    <div class="map-legend">
-      <span class="map-legend-item"><span class="map-legend-dot map-legend-dot--sched"></span>מתוכנן ליום</span>
-      <span class="map-legend-item"><span class="map-legend-dot map-legend-dot--idea"></span>רעיון שטרם שובץ</span>
-    </div>
-    <div class="map-single" id="mapSingle"></div>
-    <div class="map-status" id="mapGrid"></div>
   </div>
 
   <div class="section-card tab-panel" id="packingSection" data-panel="packing">
@@ -1990,7 +1989,7 @@ let activeDayIndex = 0;
 const ACTIVE_TAB_KEY = 'triplan-active-tab-v1';
 
 function setActiveTab(tab){
-  const valid = ['days','ideas','budget','map','packing'];
+  const valid = ['days','ideas','budget','packing'];
   if(!valid.includes(tab)) tab = 'days';
   document.querySelectorAll('.tab-btn').forEach(b => {
     const isActive = b.dataset.tab === tab;
@@ -2001,7 +2000,7 @@ function setActiveTab(tab){
     p.classList.toggle('active', p.dataset.panel === tab);
   });
   try{ localStorage.setItem(ACTIVE_TAB_KEY, tab); }catch(e){}
-  if(tab === 'map'){
+  if(tab === 'ideas'){
     setTimeout(() => {
       const map = ensureLeafletMap();
       if(map){
