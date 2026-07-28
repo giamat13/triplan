@@ -304,13 +304,17 @@
     flex:0 0 auto;
     width:46px;height:46px;
     border-radius:50%;
-    background:var(--brass);
-    color:var(--ink-text);
+    border:2px dashed var(--brass);
+    box-shadow:0 0 0 3px var(--paper), 0 0 0 4.5px var(--brass-soft);
+    background:transparent;
+    color:var(--brass);
     font-family:'JetBrains Mono', monospace;
     font-weight:700;
     font-size:16px;
     display:flex;align-items:center;justify-content:center;
+    transform:rotate(-7deg);
   }
+  .day-card:nth-child(even) .day-badge{transform:rotate(6deg);}
   .day-heading{flex:1 1 auto;min-width:0;}
   .day-date{
     font-family:'JetBrains Mono', monospace;
@@ -945,6 +949,26 @@
   .member-role-badge{
     font-family:'JetBrains Mono',monospace;font-size:11px;padding:2px 8px;border-radius:6px;
     background:rgba(76,122,104,0.15);color:var(--pine);text-transform:uppercase;
+  }
+
+  /* ---------- Keyboard accessibility: visible focus ring on top of every custom outline:none ---------- */
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
+  textarea:focus-visible, [tabindex]:focus-visible{
+    outline:2px solid var(--brass);
+    outline-offset:2px;
+    border-radius:4px;
+  }
+  .tab-btn:focus-visible{outline-offset:-2px;}
+  .icon-btn:focus-visible, .day-nav-arrow:focus-visible{outline-offset:1px;}
+
+  /* ---------- Respect reduced-motion preference ---------- */
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{
+      transition-duration:0.001ms !important;
+      animation-duration:0.001ms !important;
+      animation-iteration-count:1 !important;
+      scroll-behavior:auto !important;
+    }
   }
 </style>
 </head>
