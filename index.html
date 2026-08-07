@@ -948,6 +948,10 @@
   .idea-map-empty{
     font-family:'JetBrains Mono', monospace;font-size:11.5px;color:var(--muted);
   }
+  .idea-map-hint{
+    font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--muted);
+    padding:6px 10px;border-top:1px dashed var(--line);
+  }
   .idea-assign{
     display:flex;align-items:center;gap:8px;flex-wrap:wrap;
     border-top:1px dashed var(--line);
@@ -2990,7 +2994,7 @@ async function renderMapSection(){
   const scheduledSpots = [];
   state.days.forEach((day, i) => day.activities.forEach(act => {
     const label = act.title && act.title.trim();
-    if(label) scheduledSpots.push({ label, query: withDestinationContext(act.mapQuery || label, day.destination), sub: day.destination ? 'יום ' + (i+1) + ' · ' + day.destination : 'יום ' + (i+1), link: act.link, obj: act, kind:'sched', category: act.category });
+    if(label) scheduledSpots.push({ label, query: withDestinationContext(act.mapQuery || label, day.destination), mapQuery: act.mapQuery, sub: day.destination ? 'יום ' + (i+1) + ' · ' + day.destination : 'יום ' + (i+1), link: act.link, obj: act, kind:'sched', category: act.category });
   }));
   // Intentionally shows every idea, regardless of whether the touring-time
   // calculator thinks it "fits" (that filter only applies to the ideas list
@@ -3005,7 +3009,7 @@ async function renderMapSection(){
     const label = (idea.nameHe || idea.nameEn || '').trim();
     if(!label) return null;
     const searchName = (idea.nameEn || idea.nameHe || '').trim();
-    return { label, query: withDestinationContext(idea.mapQuery || searchName, primaryDestination), sub: '💡 רעיון · טרם שובץ ליום', link: idea.link, obj: idea, kind:'idea', category: idea.category };
+    return { label, query: withDestinationContext(idea.mapQuery || searchName, primaryDestination), mapQuery: idea.mapQuery, sub: '💡 רעיון · טרם שובץ ליום', link: idea.link, obj: idea, kind:'idea', category: idea.category };
   }).filter(Boolean);
   const skippedNoName = state.attractionIdeas.filter(idea => !idea.scheduled && !(idea.nameHe || idea.nameEn || '').trim());
   const allSpots = [...scheduledSpots, ...ideaSpots];
@@ -3041,7 +3045,7 @@ async function renderMapSection(){
   const bounds = [];
   const unresolved = [];
   for(const s of allSpots){
-    let coords = s.link ? coordsFromGoogleMapsLink(s.link) : null;
+    let coords = (s.link && coordsFromGoogleMapsLink(s.link)) || (s.mapQuery && coordsFromGoogleMapsLink(s.mapQuery)) || null;
     if(!coords) coords = await geocodeQuery(s.query);
     if(myToken !== mapRenderToken){
       console.warn(`[map-debug] run #${myToken} ABORTED mid-loop (a newer run #${mapRenderToken} started) - discarding partial results, keeping previous complete map as-is.`);
@@ -3059,10 +3063,15 @@ async function renderMapSection(){
       const btn = e.popup.getElement() && e.popup.getElement().querySelector('[data-fix]');
       if(!btn) return;
       btn.addEventListener('click', () => {
-        const val = prompt('מה לחפש במקום זה במפה? (השאירו ריק כדי לחזור לחיפוש האוטומטי לפי השם)', s.query);
+        const val = prompt('מה לחפש במקום זה במפה? אפשר גם להדביק כאן קישור Google Maps (עם @קואורדינטות) למיקום מדויק. (השאירו ריק כדי לחזור לחיפוש האוטומטי לפי השם)', s.query);
         if(val === null) return;
         const trimmed = val.trim();
-        s.obj.mapQuery = (trimmed && trimmed !== s.label) ? trimmed : '';
+        // A pasted Google Maps link goes into "link" (not "mapQuery") - mapQuery
+        // also feeds an idea's own small map as free-text search, and a raw URL
+        // there would break that embed. link is the one field both maps read
+        // coordinates from, so this keeps them pinned to the same spot.
+        if(trimmed && coordsFromGoogleMapsLink(trimmed)) s.obj.link = trimmed;
+        else s.obj.mapQuery = (trimmed && trimmed !== s.label) ? trimmed : '';
         saveState(); renderMapSection();
       });
     });
@@ -3097,10 +3106,11 @@ async function renderMapSection(){
   statusEl.querySelectorAll('[data-action="fix-unresolved"]').forEach(btn => {
     const s = unresolved[Number(btn.closest('.map-unresolved-row').dataset.fixIdx)];
     btn.addEventListener('click', () => {
-      const val = prompt('מה לחפש במקום זה במפה? (השאירו ריק כדי לחזור לחיפוש האוטומטי לפי השם)', s.query);
+      const val = prompt('מה לחפש במקום זה במפה? אפשר גם להדביק כאן קישור Google Maps (עם @קואורדינטות) למיקום מדויק. (השאירו ריק כדי לחזור לחיפוש האוטומטי לפי השם)', s.query);
       if(val === null) return;
       const trimmed = val.trim();
-      s.obj.mapQuery = (trimmed && trimmed !== s.label) ? trimmed : '';
+      if(trimmed && coordsFromGoogleMapsLink(trimmed)) s.obj.link = trimmed;
+      else s.obj.mapQuery = (trimmed && trimmed !== s.label) ? trimmed : '';
       saveState(); renderMapSection();
     });
   });
@@ -3429,12 +3439,30 @@ function ideaMapMarkup(idea){
   const displayLabel = (idea.nameHe || idea.nameEn || '').trim();
   if(!displayLabel) return '<div class="idea-map-empty">הוסיפו שם לרעיון כדי לראות כאן מפה.</div>';
   const searchName = (idea.nameEn || idea.nameHe || '').trim();
-  const query = idea.mapQuery || searchName;
+  // If a Google Maps link with coordinates is already sitting in "קישור",
+  // use it by default - it's an exact pin, more reliable than searching by
+  // name. A manual "fix" override still wins if the user set one; otherwise
+  // fall back to a plain name search same as before.
+  const linkCoords = idea.link ? coordsFromGoogleMapsLink(idea.link) : null;
+  const query = idea.mapQuery || (linkCoords ? `${linkCoords.lat},${linkCoords.lng}` : searchName);
+  let queryNote = '';
+  if(idea.mapQuery) queryNote = ` (חיפוש מותאם: ${escapeAttr(idea.mapQuery)})`;
+  else if(linkCoords) queryNote = ' (📍 מיקום מדויק מהקישור)';
+  else if(query !== displayLabel) queryNote = ` (חיפוש: ${escapeAttr(query)})`;
+  // The embed above is just an iframe pointed at a Google search - the page
+  // can't read back the pin Google resolved internally (cross-origin), so
+  // there's no way to "grab" its coordinates in code. Opening the same
+  // search in real Google Maps lets the address bar's @lat,lng (or a dropped
+  // pin's share link) be copied by hand and pasted into "קישור" below -
+  // which both this map and the consolidated map then read directly.
+  const openInMapsUrl = `https://www.google.com/maps?q=${encodeURIComponent(idea.mapQuery || searchName)}`;
+  const hint = linkCoords ? '' : `<div class="idea-map-hint">💡 יש לכם קישור מדויק ל-Google Maps למקום הזה? הדביקו אותו בשדה "קישור / כתובת" למעלה - המפה כאן וגם המפה המרוכזת של כל האטרקציות ישתמשו בו אוטומטית.</div>`;
   return `
     <div class="map-card" data-role="idea-map-card">
       <iframe data-role="idea-map-iframe" src="https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed" loading="lazy" title="${escapeAttr(query)}"></iframe>
-      <div class="map-card-label" data-role="idea-map-label">${escapeAttr(displayLabel)}${query !== displayLabel ? ` (חיפוש: ${escapeAttr(query)})` : ''}${idea.link ? ` · <a href="${escapeAttr(idea.link)}" target="_blank" rel="noopener">קישור</a>` : ''}</div>
+      <div class="map-card-label" data-role="idea-map-label">${escapeAttr(displayLabel)}${queryNote}${idea.link ? ` · <a href="${escapeAttr(idea.link)}" target="_blank" rel="noopener">קישור</a>` : ''} · <a href="${escapeAttr(openInMapsUrl)}" target="_blank" rel="noopener">פתח ב-Google Maps ⤴</a></div>
       <button class="btn-quick map-card-fix" type="button" data-role="idea-map-fix">📍 זה לא זה? חפשו אחר</button>
+      ${hint}
     </div>`;
 }
 function refreshIdeaMap(card, idea){
@@ -3446,10 +3474,14 @@ function refreshIdeaMap(card, idea){
     fixBtn.addEventListener('click', () => {
       const searchName = (idea.nameEn || idea.nameHe || '').trim();
       const current = idea.mapQuery || searchName;
-      const val = prompt('מה לחפש במקום זה במפה? (השאירו ריק כדי לחזור לחיפוש האוטומטי לפי השם האנגלי)', current);
+      const val = prompt('מה לחפש במקום זה במפה? אפשר גם להדביק כאן קישור Google Maps (עם @קואורדינטות) למיקום מדויק. (השאירו ריק כדי לחזור לחיפוש האוטומטי לפי השם האנגלי)', current);
       if(val === null) return;
       const trimmed = val.trim();
-      idea.mapQuery = (trimmed && trimmed !== searchName) ? trimmed : '';
+      // A pasted link goes into idea.link (read by both this map and the
+      // consolidated one), not mapQuery - mapQuery is a raw search string,
+      // and a URL there would break this map's own embed query.
+      if(trimmed && coordsFromGoogleMapsLink(trimmed)){ idea.link = trimmed; idea.mapQuery = ''; }
+      else idea.mapQuery = (trimmed && trimmed !== searchName) ? trimmed : '';
       saveState();
       refreshIdeaMap(card, idea);
     });
