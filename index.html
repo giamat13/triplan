@@ -2886,7 +2886,11 @@ function updateStats(){
    public Nominatim service, cached in localStorage so we don't re-geocode
    the same place every render, and throttled to ~1 request/second per
    Nominatim's usage policy.) ---------------- */
-const GEOCODE_CACHE_KEY = 'triplan-geocode-cache-v1';
+// Bumped to v2 to drop cached results computed before the destination-context
+// and Google-Maps-link fixes - a bad match cached under the old logic would
+// otherwise keep being served forever (a successful lookup is never re-tried,
+// only failures are), even after the code that produced it was fixed.
+const GEOCODE_CACHE_KEY = 'triplan-geocode-cache-v2';
 let geocodeCache = {};
 try{
   geocodeCache = JSON.parse(localStorage.getItem(GEOCODE_CACHE_KEY) || '{}');
@@ -2930,13 +2934,18 @@ async function geocodeQuery(query){
 // Fallback for spots the free-text geocoder can't find: if the idea/activity
 // has a Google Maps link pasted into it, that link often already carries the
 // coordinates (from the address bar or a dropped pin) - pull them out directly
-// instead of giving up.
+// instead of giving up. Order matters: !3d/!4d is Google's actual place pin
+// (present on /maps/place/... links) - the most reliable when it's there. The
+// @lat,lng in the URL path is only the map's last VIEWPORT center, which can
+// sit a little off the real pin (panned/zoomed view) - so it's checked last,
+// not first like an earlier version of this did.
 function coordsFromGoogleMapsLink(url){
   const str = (url || '').trim();
   if(!str) return null;
-  let m = str.match(/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/)
+  let m = str.match(/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/)
     || str.match(/[?&]q=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/)
-    || str.match(/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/);
+    || str.match(/[?&]ll=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/)
+    || str.match(/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
   return m ? { lat: parseFloat(m[1]), lng: parseFloat(m[2]) } : null;
 }
 
