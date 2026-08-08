@@ -183,10 +183,12 @@
     .main-tabs,.day-picker{display:none !important;}
     .tab-panel{display:block !important;}
     .day-card.day-hidden{display:block !important;}
+    #toolsSection{display:none !important;}
   }
   body.pdf-export-mode .tab-panel{display:block !important;}
   body.pdf-export-mode .day-card.day-hidden{display:block !important;}
   body.pdf-export-mode .main-tabs,body.pdf-export-mode .day-picker{display:none !important;}
+  body.pdf-export-mode #toolsSection{display:none !important;}
 
   /* ---------- Header ticket ---------- */
   .header-card{
@@ -829,6 +831,11 @@
     color:var(--rust);border:1px solid var(--rust);border-radius:20px;
     padding:2px 8px;white-space:nowrap;
   }
+  .idea-priority-badge{
+    font-family:'JetBrains Mono', monospace;font-size:10.5px;
+    color:var(--muted);border:1px solid var(--line-dark);border-radius:20px;
+    padding:2px 8px;white-space:nowrap;
+  }
   .ideas-map-divider{
     margin-top:18px;padding-top:14px;border-top:1.5px dashed var(--line);
     font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--muted);
@@ -1099,6 +1106,24 @@
     background:transparent;border:1.5px solid var(--brass-soft);color:var(--brass-soft);
   }
   .ai-day-btn{ flex:0 0 auto; }
+  .ai-schedule-result{ display:flex;flex-direction:column;gap:6px;margin:6px 0; }
+  .ai-schedule-tip{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    font-family:'JetBrains Mono', monospace;font-size:11.5px;
+    background:var(--paper);border:1px solid var(--brass-soft);border-radius:8px;
+    padding:6px 10px;
+  }
+  .ai-schedule-tip span{flex:1 1 auto;min-width:0;}
+  .tools-translate-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0;}
+  #signPreviewImg{max-width:280px;max-height:280px;border-radius:8px;border:1.5px solid var(--line-dark);margin-bottom:10px;display:block;}
+  #signTranslateResult{
+    font-family:'JetBrains Mono', monospace;font-size:13px;white-space:pre-wrap;
+    background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:10px;min-height:1em;
+  }
+  #journalResult{
+    font-size:14.5px;line-height:1.7;white-space:pre-wrap;
+    background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:14px;min-height:1em;
+  }
 
   .ai-modal-overlay{
     position:fixed;inset:0;background:rgba(10,15,15,0.72);
@@ -1196,6 +1221,7 @@
     <button type="button" class="tab-btn" data-tab="ideas" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" stroke-linecap="round"/><path d="M12 3a6 6 0 0 0-3.2 11.1c.6.4 1 1 1.1 1.7l.1.7h4l.1-.7c.1-.7.5-1.3 1.1-1.7A6 6 0 0 0 12 3Z" stroke-linejoin="round"/></svg></span><span class="tab-label">רעיונות</span></button>
     <button type="button" class="tab-btn" data-tab="budget" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M12 3v18M8 7.5h6.5a2.5 2.5 0 0 1 0 5H9.5a2.5 2.5 0 0 0 0 5H17" stroke-linecap="round"/></svg></span><span class="tab-label">תקציב ומסמכים</span></button>
     <button type="button" class="tab-btn" data-tab="packing" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M8 8V6a4 4 0 0 1 8 0v2M6 8h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke-linecap="round"/></svg></span><span class="tab-label">אריזה והתכוננות לטיסה</span></button>
+    <button type="button" class="tab-btn" data-tab="tools" id="toolsTabBtn" role="tab" aria-selected="false" style="display:none;"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M11 4 3 12l3 1 2-2 2 1-1 3 2 1 2-4 5-2c1-.5 2-2 1-3s-2.5-1-3.5-.5l-2 5-3-1-1-3Z" stroke-linejoin="round"/></svg></span><span class="tab-label">כלים לחו"ל</span></button>
   </nav>
 
   <div class="readonly-banner" id="readonlyBanner">👁️ את/ה צופה בטיול הזה - אין אפשרות לערוך.</div>
@@ -1389,6 +1415,28 @@
         <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
       </button>
     </div>
+  </div>
+
+  <div class="section-card tab-panel" id="toolsSection" data-panel="tools">
+    <div class="section-header">
+      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M11 4 3 12l3 1 2-2 2 1-1 3 2 1 2-4 5-2c1-.5 2-2 1-3s-2.5-1-3.5-.5l-2 5-3-1-1-3Z" stroke-linejoin="round"/></svg></span> כלים לחו"ל</div>
+    </div>
+    <p class="section-hint">מצלמים שלט או תפריט ביעד וה-AI קורא ומתרגם אותו לעברית.</p>
+    <div class="tools-translate-row">
+      <input type="file" accept="image/*" capture="environment" id="signPhotoInput">
+      <button class="ai-btn" id="translateSignBtn" type="button">🤖 תרגם תמונה</button>
+    </div>
+    <img id="signPreviewImg" style="display:none;">
+    <div id="signTranslateResult"></div>
+
+    <div class="budget-section-divider"></div>
+
+    <div class="section-header">
+      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16l-4-3-3 3-3-3-4 3V4Z" stroke-linejoin="round"/></svg></span> יומן מסע אוטומטי</div>
+      <button class="ai-btn" id="generateJournalBtn" type="button" title="AI יהפוך את הפעילויות שבתכנון לפסקת יומן קצרה בעברית, לפי מה שבאמת רשום בימים">✍️ צור יומן מסע</button>
+      <button class="btn btn-ghost btn-sm" id="exportJournalPdfBtn" type="button" style="display:none;">⬇️ ייצוא כ-PDF</button>
+    </div>
+    <div id="journalResult"></div>
   </div>
 
   <button class="ai-chat-fab" id="aiChatFab" type="button" title="שאל את המדריך (AI)">💬</button>
@@ -1928,7 +1976,7 @@ function newActivity(){
   return {
     id: nextId(), time:'', title:'', category:DEFAULT_CATEGORY, cuisine:'', transport:'', cost:'', link:'', notes:'',
     duration:'', priority:'', hours:'', booking:false, equipment:'', partySize:'', confirmation:'', mapQuery:'',
-    sourceIdeaId:''
+    sourceIdeaId:'', rating:'', aiBudgetDismissedCost:''
   };
 }
 function newDocument(){
@@ -1960,7 +2008,7 @@ function normalizeDocument(d){
 function newAttractionIdea(){
   return {
     id: nextId(), nameEn:'', nameHe:'', duration:'', priority:'', hours:'', price:'', booking:false, equipment:'', notes:'',
-    link:'', cuisine:'', category:DEFAULT_CATEGORY, partySize:'', mapQuery:'', scheduled:false,
+    link:'', cuisine:'', category:DEFAULT_CATEGORY, partySize:'', mapQuery:'', scheduled:false, rating:'',
     createdAt: Date.now(), createdBy: currentUser ? currentUser.uid : ''
   };
 }
@@ -1985,7 +2033,9 @@ function normalizeActivity(a){
     partySize: a.partySize || '',
     confirmation: a.confirmation || '',
     mapQuery: a.mapQuery || '',
-    sourceIdeaId: a.sourceIdeaId || ''
+    sourceIdeaId: a.sourceIdeaId || '',
+    rating: a.rating || '',
+    aiBudgetDismissedCost: a.aiBudgetDismissedCost || ''
   };
 }
 function normalizeDay(d){
@@ -1998,7 +2048,8 @@ function normalizeDay(d){
     activities: Array.isArray(d.activities) && d.activities.length ? d.activities.map(normalizeActivity) : [ newActivity() ],
     hotel: { name: hotel.name || '', link: hotel.link || '', cost: hotel.cost || '', notes: hotel.notes || '' },
     lastEditedBy: d.lastEditedBy || '',
-    lastEditedAt: d.lastEditedAt || 0
+    lastEditedAt: d.lastEditedAt || 0,
+    aiScheduleDismissed: d.aiScheduleDismissed || ''
   };
 }
 function normalizeIdea(a){
@@ -2020,6 +2071,7 @@ function normalizeIdea(a){
     partySize: a.partySize || '',
     mapQuery: a.mapQuery || '',
     scheduled: !!a.scheduled,
+    rating: a.rating || '',
     createdAt: a.createdAt || 0,
     createdBy: a.createdBy || ''
   };
@@ -2162,6 +2214,60 @@ function findTimeConflict(day, time, excludeActId){
   if(!time) return '';
   const hit = day.activities.find(a => a.id !== excludeActId && a.time === time);
   return hit ? (hit.title || 'פעילות ללא שם') : '';
+}
+
+// AI layer on top of findTimeConflict: findTimeConflict only catches exact
+// same-time collisions. This looks at the whole day's schedule and asks the
+// AI whether the *gaps* between consecutive activities are realistic given
+// travel/prep time - e.g. "40 min walk + 15 min wait" between two spots an
+// hour apart. Runs debounced after time edits (not every keystroke, to save
+// quota) and can be dismissed - dismissal is remembered per exact schedule
+// (aiScheduleDismissed hash) so it won't re-nag about the same layout.
+const scheduleCheckTimers = {};
+function scheduleDayCheckDebounced(day){
+  clearTimeout(scheduleCheckTimers[day.id]);
+  scheduleCheckTimers[day.id] = setTimeout(() => {
+    const resultEl = document.getElementById('ai-schedule-' + day.id);
+    if(resultEl) checkDayScheduleWithAI(day, resultEl);
+  }, 4000);
+}
+function scheduleHash(day){
+  return day.activities.filter(a => a.time).map(a => a.time + '|' + a.title).sort().join(',');
+}
+async function checkDayScheduleWithAI(day, resultEl, force){
+  const timed = day.activities.filter(a => a.time && a.title).sort((a,b) => a.time.localeCompare(b.time));
+  if(timed.length < 2 || !aiModel || !aiModelFast){ if(force) resultEl.innerHTML=''; return; }
+  const hash = scheduleHash(day);
+  if(!force && day.aiScheduleDismissed === hash) return;
+  const list = timed.map(a => `${a.time} - ${a.title}${a.duration ? ' (משך: '+a.duration+')' : ''}${(a.mapQuery||a.link) ? ' [מיקום: '+(a.mapQuery||a.link)+']' : ''}`).join('\n');
+  const prompt = `זה לוח הזמנים ליום טיול ב-${day.destination || 'היעד'}:\n${list}\n\nבדוק אם יש זוגות פעילויות רצופות שבהן פרק הזמן בין הסיום המשוער של הראשונה לתחילת השנייה לא מספיק, בהתחשב בזמן הליכה/נסיעה סביר בין המקומות ובזמן המתנה/כניסה. דווח רק על בעיות אמיתיות, לא על כל רווח קטן. השב ב-JSON בלבד: מערך אובייקטים בצורה {"fromTitle":"...","toTitle":"...","suggestedTime":"HH:MM","reason":"הסבר קצר בעברית, לדוגמה: 40 דק' הליכה + 15 דק' המתנה"}. אם אין בעיות, השב מערך ריק [].`;
+  let suggestions;
+  try{ suggestions = await askGeminiJSON(prompt); }
+  catch(e){ console.warn('בדיקת לו"ז עם AI נכשלה:', e); if(force) resultEl.innerHTML=''; return; }
+  if(!Array.isArray(suggestions) || !suggestions.length){ resultEl.innerHTML = ''; return; }
+  renderScheduleSuggestions(day, resultEl, suggestions, hash);
+}
+function renderScheduleSuggestions(day, resultEl, suggestions, hash){
+  resultEl.innerHTML = suggestions.map(s => `
+    <div class="ai-schedule-tip">
+      <span>⏱️ ${escapeAttr(s.fromTitle||'')} ← ${escapeAttr(s.toTitle||'')}: ${escapeAttr(s.reason||'')}</span>
+      ${s.suggestedTime ? `<button class="btn-quick" data-role="apply-suggestion" data-time="${escapeAttr(s.suggestedTime)}" data-title="${escapeAttr(s.toTitle||'')}">דחוף ל-${escapeAttr(s.suggestedTime)}</button>` : ''}
+      <button class="icon-btn" data-role="dismiss-suggestion" title="התעלם">✕</button>
+    </div>
+  `).join('');
+  resultEl.querySelectorAll('[data-role="apply-suggestion"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const act = day.activities.find(a => a.title === btn.dataset.title);
+      if(act){ act.time = btn.dataset.time; touchDay(day); saveState(); render(); }
+    });
+  });
+  resultEl.querySelectorAll('[data-role="dismiss-suggestion"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      day.aiScheduleDismissed = hash;
+      saveState();
+      resultEl.innerHTML = '';
+    });
+  });
 }
 async function refreshMemberNames(){
   const uids = Object.keys(currentMembers);
@@ -2340,7 +2446,7 @@ let activeDayIndex = 0;
 const ACTIVE_TAB_KEY = 'triplan-active-tab-v1';
 
 function setActiveTab(tab){
-  const valid = ['days','ideas','budget','packing'];
+  const valid = ['days','ideas','budget','packing','tools'];
   if(!valid.includes(tab)) tab = 'days';
   document.querySelectorAll('.tab-btn').forEach(b => {
     const isActive = b.dataset.tab === tab;
@@ -2485,15 +2591,18 @@ function updateHeroStats(){
   const progFill = document.getElementById('tripProgressFill');
   if(!cdEl) return;
 
+  const toolsBtn = document.getElementById('toolsTabBtn');
   if(!state.startDate || !state.days.length){
     cdEl.classList.remove('show','cd-live','cd-done');
     if(progTrack) progTrack.style.display = 'none';
+    if(toolsBtn) toolsBtn.style.display = 'none';
     return;
   }
   const start = new Date(state.startDate + 'T00:00:00');
   if(isNaN(start)){
     cdEl.classList.remove('show','cd-live','cd-done');
     if(progTrack) progTrack.style.display = 'none';
+    if(toolsBtn) toolsBtn.style.display = 'none';
     return;
   }
   const today = new Date();
@@ -2502,6 +2611,9 @@ function updateHeroStats(){
   const end = new Date(start); end.setDate(end.getDate() + totalDays - 1);
   const msPerDay = 86400000;
   const diffToStart = Math.round((start - today) / msPerDay);
+  // "כלים לחו"ל" tab only matters once travel is imminent - appears starting
+  // one day before the flight and stays available through the end of the trip.
+  if(toolsBtn) toolsBtn.style.display = (diffToStart <= 1 && today <= end) ? '' : 'none';
 
   cdEl.classList.add('show');
   cdEl.classList.remove('cd-live','cd-done');
@@ -2604,10 +2716,12 @@ function render(){
           <label class="day-currency-row">מטבע ליום זה: <select data-role="day-currency">${dayCurrencyOptionsHTML(day.currency)}</select></label>
         </div>
         <button class="ai-btn ai-day-btn" data-role="ai-plan-day" type="button" title="AI יסדר רעיונות שטרם שובצו ליום הזה לפי מיקום ושעות">🤖 תכנן עם AI</button>
+        <button class="ai-btn ai-day-btn" data-role="ai-check-schedule" type="button" title="AI יבדוק אם יש רווחים לא ריאליים בין פעילויות (זמן הליכה/המתנה)">🤖 בדוק לו"ז</button>
         <button class="icon-btn" data-role="del-day" title="מחק יום">${ICONS.trash}</button>
       </div>
       <div class="activities" data-role="activities"></div>
       <button class="add-activity" data-role="add-activity">${ICONS.plus} הוסף פעילות</button>
+      <div class="ai-schedule-result" id="ai-schedule-${day.id}" data-role="ai-schedule-result"></div>
       <div class="perf"></div>
       <div class="hotel-stub">
         <div class="hotel-label">
@@ -2668,6 +2782,11 @@ function render(){
     card.querySelector('[data-role="ai-plan-day"]').addEventListener('click', () => {
       if(currentRole === 'viewer'){ alert('צופים לא יכולים לערוך את הטיול.'); return; }
       openDayPlanModal(day, index);
+    });
+    card.querySelector('[data-role="ai-check-schedule"]').addEventListener('click', () => {
+      const resultEl = card.querySelector('[data-role="ai-schedule-result"]');
+      resultEl.innerHTML = '⏳ בודק לו"ז...';
+      checkDayScheduleWithAI(day, resultEl, true);
     });
 
     const hn = card.querySelector('[data-role="hotel-name"]');
@@ -2745,6 +2864,7 @@ function buildActivityRow(day, act){
     <div class="details">
       <label class="field-icon">${ICONS.transport}<input data-role="transport" list="${dlId}" placeholder="תחבורה" value="${escapeAttr(act.transport)}"></label>
       <label class="field-icon">${ICONS.cost}<input data-role="cost" type="number" min="0" placeholder="עלות ${currencySymbolFor(dayCurrency(day))}" value="${escapeAttr(act.cost)}"></label>
+      <div class="ai-schedule-result" data-role="budget-tip"></div>
       <label class="field-icon">${ICONS.category}<select data-role="category">
         <option value="sight" ${act.category==='sight'?'selected':''}>${CATEGORY_LABELS.sight}</option>
         <option value="food" ${act.category==='food'?'selected':''}>${CATEGORY_LABELS.food}</option>
@@ -2757,6 +2877,7 @@ function buildActivityRow(day, act){
       <label class="field-icon" data-role="priority-wrap" style="${vis('priority')}">${ICONS.priority}<input data-role="priority" type="number" min="1" max="10" placeholder="עדיפות 1-10" value="${escapeAttr(act.priority)}"></label>
       <label class="field-icon" data-role="partySize-wrap" style="${vis('partySize')}">${ICONS.people}<input data-role="partySize" type="number" min="1" placeholder="מספר סועדים" value="${escapeAttr(act.partySize)}"></label>
       <label class="field-icon" data-role="confirmation-wrap" style="${vis('confirmation')}">${ICONS.booking}<input data-role="confirmation" placeholder="מספר אישור / הזמנה" value="${escapeAttr(act.confirmation)}"></label>
+      <label class="field-icon">${ICONS.priority}<input data-role="rating" type="number" min="1" max="5" step="0.1" placeholder="דירוג בגוגל מפות (1-5)" value="${escapeAttr(act.rating)}"></label>
       <label class="field-icon" data-role="equipment-wrap" style="${vis('equipment')}">${ICONS.equipment}<input data-role="equipment" placeholder="ציוד נדרש (מופרד בפסיקים)" value="${escapeAttr(act.equipment)}"></label>
       <label class="field-icon booking" data-role="booking-wrap" style="${vis('booking')}">${ICONS.booking}<input data-role="booking" type="checkbox" ${act.booking ? 'checked' : ''}><span>הזמנה מראש?</span></label>
       <label class="field-icon notes">${ICONS.notes}<input data-role="notes" placeholder="הערות" value="${escapeAttr(act.notes)}"></label>
@@ -2775,10 +2896,13 @@ function buildActivityRow(day, act){
   };
   checkConflict();
 
-  timeInput.addEventListener('input', e => { act.time = e.target.value; checkConflict(); touchDay(day); saveState(); });
+  timeInput.addEventListener('input', e => { act.time = e.target.value; checkConflict(); touchDay(day); saveState(); scheduleDayCheckDebounced(day); });
   row.querySelector('[data-role="title"]').addEventListener('input', e => { act.title = e.target.value; checkConflict(); touchDay(day); saveState(); });
   row.querySelector('[data-role="transport"]').addEventListener('input', e => { act.transport = e.target.value; touchDay(day); saveState(); });
-  row.querySelector('[data-role="cost"]').addEventListener('input', e => { act.cost = e.target.value; touchDay(day); saveState(); updateStats(); });
+  row.querySelector('[data-role="cost"]').addEventListener('input', e => {
+    act.cost = e.target.value; touchDay(day); saveState(); updateStats();
+    scheduleBudgetCheckDebounced(day, act, row.querySelector('[data-role="budget-tip"]'));
+  });
   row.querySelector('[data-role="category"]').addEventListener('change', e => {
     act.category = e.target.value;
     row.className = 'activity cat-' + act.category;
@@ -2795,6 +2919,7 @@ function buildActivityRow(day, act){
   row.querySelector('[data-role="priority"]').addEventListener('input', e => { act.priority = e.target.value; touchDay(day); saveState(); });
   row.querySelector('[data-role="partySize"]').addEventListener('input', e => { act.partySize = e.target.value; touchDay(day); saveState(); });
   row.querySelector('[data-role="confirmation"]').addEventListener('input', e => { act.confirmation = e.target.value; touchDay(day); saveState(); });
+  row.querySelector('[data-role="rating"]').addEventListener('input', e => { act.rating = e.target.value; touchDay(day); saveState(); });
   row.querySelector('[data-role="booking"]').addEventListener('change', e => { act.booking = e.target.checked; touchDay(day); saveState(); });
   const activityEquipmentInput = row.querySelector('[data-role="equipment"]');
   activityEquipmentInput.addEventListener('input', e => { act.equipment = e.target.value; touchDay(day); saveState(); });
@@ -2992,6 +3117,7 @@ function renderTouringPlan(){
   renderTouringPlanResult();
 }
 
+let tripTotalSpent = 0;
 function updateStats(){
   document.getElementById('daysCount').textContent = state.days.length;
   updateHeroStats();
@@ -3025,6 +3151,7 @@ function updateStats(){
     }
     dayBreakdown.push({ index:dayIdx, destination: day.destination, activities: dayActCost, hotel: dayHotelCost, total: dayActCost + dayHotelCost });
   });
+  tripTotalSpent = total;
   const sym = currencySymbolFor(homeCur);
   document.getElementById('budgetTotal').textContent = Math.round(total).toLocaleString('he-IL');
   document.getElementById('currencySymbolBudget').textContent = sym;
@@ -3094,6 +3221,37 @@ function updateStats(){
       }).join('');
     }
   }
+}
+
+// AI layer on top of the budget cap: when an activity's cost pushes the trip
+// total over state.budget, this asks the AI for a one-line cheaper alternative
+// instead of just turning the number red. Debounced after typing stops, and
+// dismissible per exact cost (so it won't re-nag about the same value).
+const budgetCheckTimers = {};
+function scheduleBudgetCheckDebounced(day, act, resultEl){
+  clearTimeout(budgetCheckTimers[act.id]);
+  budgetCheckTimers[act.id] = setTimeout(() => checkBudgetOverageWithAI(day, act, resultEl), 1200);
+}
+async function checkBudgetOverageWithAI(day, act, resultEl){
+  const cap = Number(state.budget) || 0;
+  if(!cap || tripTotalSpent <= cap || !act.cost || !aiModel || !aiModelFast){ resultEl.innerHTML = ''; return; }
+  const key = String(act.cost);
+  if(act.aiBudgetDismissedCost === key) return;
+  const sym = currencySymbolFor(state.secondaryCurrency || state.currency);
+  const over = Math.round(tripTotalSpent - cap);
+  const prompt = `התקציב הכולל לטיול הוא ${cap}${sym} וכרגע חורגים ממנו ב-${over}${sym}. הפעילות "${act.title || 'פעילות'}" ב${day.destination || 'היעד'} עולה ${act.cost}${sym}. הצע חלופה קונקרטית וזולה יותר לאותה פעילות/סוג פעילות באותו יעד. השב במשפט אחד קצר בעברית, בלי הקדמות.`;
+  let suggestion;
+  try{ suggestion = await askGeminiText(prompt); }
+  catch(e){ console.warn('הצעת AI לתקציב נכשלה:', e); return; }
+  if(act.aiBudgetDismissedCost === key || String(act.cost) !== key) return;
+  resultEl.innerHTML = `
+    <div class="ai-schedule-tip">
+      <span>💸 ${escapeAttr(suggestion)}</span>
+      <button class="icon-btn" data-role="dismiss-budget-tip" title="התעלם">✕</button>
+    </div>`;
+  resultEl.querySelector('[data-role="dismiss-budget-tip"]').addEventListener('click', () => {
+    act.aiBudgetDismissedCost = key; saveState(); resultEl.innerHTML = '';
+  });
 }
 
 /* ---------------- Map (single consolidated map via Leaflet + OpenStreetMap -
@@ -3835,6 +3993,7 @@ function buildIdeaCard(idea, index, notFitting){
       ` : `
       <div class="idea-name-display" data-role="toggle-expand">${displayName ? escapeAttr(displayName) : '<span class="idea-name-empty">רעיון חדש</span>'}</div>
       `}
+      ${!expanded && idea.priority ? `<span class="idea-priority-badge">עדיפות: ${escapeAttr(idea.priority)}</span>` : ''}
       ${notFittingBadge}
       <button class="icon-btn del" data-role="del-idea" title="מחק רעיון">${ICONS.trash}</button>
       <span class="idea-chevron" data-role="toggle-expand" title="${expanded ? 'כווץ' : 'הצג הכל'}">${ICONS.chevron}</span>
@@ -3853,6 +4012,7 @@ function buildIdeaCard(idea, index, notFitting){
       <div class="idea-field" data-role="equipment-wrap" style="${vis('equipment')}"><label>ציוד נדרש</label><input data-role="equipment" placeholder="נעלי הליכה, כובע..." value="${escapeAttr(idea.equipment)}"></div>
       <div class="idea-field"><label>מחיר משפחה (${currencySymbol()})</label><input data-role="price" type="number" min="0" placeholder="${currencySymbol()}" value="${escapeAttr(idea.price)}"></div>
       <div class="idea-field"><label>קישור / כתובת (Google Maps)</label><input data-role="link" placeholder="קישור למפה / אתר" value="${escapeAttr(idea.link)}"></div>
+      <div class="idea-field"><label>דירוג בגוגל מפות (1-5)</label><input data-role="rating" type="number" min="1" max="5" step="0.1" placeholder="1-5" value="${escapeAttr(idea.rating)}"></div>
       <div class="idea-field booking" data-role="booking-wrap" style="${vis('booking')}"><input data-role="booking" type="checkbox" ${idea.booking ? 'checked' : ''}><label>הזמנה מראש?</label></div>
       <div class="idea-field notes"><label>הערות</label><input data-role="notes" placeholder="הערות" value="${escapeAttr(idea.notes)}"></div>
     </div>
@@ -3862,6 +4022,7 @@ function buildIdeaCard(idea, index, notFitting){
       <select data-role="promote-day">${dayOptions}</select>
       <input data-role="promote-time" type="time" title="שעה מסוימת (אופציונלי)">
       <button class="btn-quick" data-role="promote">${ICONS.plus} הוסף לתכנון</button>
+      <button class="ai-btn ai-btn-ghost" data-role="expand-similar" type="button" title="AI יציע רעיונות נוספים מאותו סוג/אזור/טווח מחירים">✨ עוד דברים כאלה</button>
       ${idea.createdBy ? `<span class="idea-assign-label">נוסף ע"י ${escapeAttr(resolveMemberName(idea.createdBy))}${idea.createdAt ? ' · ' + new Date(idea.createdAt).toLocaleDateString('he-IL') : ''}</span>` : ''}
     </div>
     ` : ''}
@@ -3889,6 +4050,7 @@ function buildIdeaCard(idea, index, notFitting){
     card.querySelector('[data-role="hours"]').addEventListener('input', e => { idea.hours = e.target.value; saveState(); });
     card.querySelector('[data-role="price"]').addEventListener('input', e => { idea.price = e.target.value; saveState(); });
     card.querySelector('[data-role="link"]').addEventListener('input', e => { idea.link = e.target.value; saveState(); refreshIdeaMap(card, idea); });
+    card.querySelector('[data-role="rating"]').addEventListener('input', e => { idea.rating = e.target.value; saveState(); });
     card.querySelector('[data-role="cuisine"]').addEventListener('input', e => { idea.cuisine = e.target.value; saveState(); });
     card.querySelector('[data-role="partySize"]').addEventListener('input', e => { idea.partySize = e.target.value; saveState(); });
     card.querySelector('[data-role="category"]').addEventListener('change', e => {
@@ -3922,9 +4084,40 @@ function buildIdeaCard(idea, index, notFitting){
       const time = card.querySelector('[data-role="promote-time"]').value || '';
       if(promoteIdeaToDay(idea, dayIdx, time, { confirmConflict: true })) render();
     });
+    card.querySelector('[data-role="expand-similar"]').addEventListener('click', async e => {
+      const btn = e.target;
+      const original = btn.textContent;
+      btn.disabled = true; btn.textContent = '⏳ מחפש...';
+      try{ if(await suggestSimilarIdeas(idea)){ saveState(); renderAttractions(); } }
+      finally{ btn.disabled = false; btn.textContent = original; }
+    });
   }
 
   return card;
+}
+
+// "עוד דברים כאלה": asks the AI for a few more ideas similar to this one
+// (same type/area/price range) and appends them as new attraction ideas.
+async function suggestSimilarIdeas(idea){
+  if(!aiModel || !aiModelFast){ alert('AI לא זמין לטיול הזה.'); return false; }
+  const destinations = [...new Set(state.days.map(d => d.destination).filter(Boolean))].join(', ');
+  const existingNames = state.attractionIdeas.map(i => i.nameHe || i.nameEn).filter(Boolean).join(', ');
+  const prompt = `יש רעיון לטיול: "${idea.nameHe || idea.nameEn}" (קטגוריה: ${CATEGORY_LABELS[idea.category] || idea.category}, מחיר משוער: ${idea.price || 'לא ידוע'}, אזור/יעדים בטיול: ${destinations || 'לא צוין'}). הצע עד 3 רעיונות דומים (מאותו סוג אטרקציה/אזור/טווח מחירים) שכדאי להוסיף לרשימת האטרקציות של הטיול. אל תציע רעיונות שכבר ברשימה: ${existingNames || 'אין'}. השב ב-JSON בלבד: מערך של עד 3 אובייקטים {"nameHe":"...","nameEn":"...","category":"sight" או "food","duration":"...","price":מספר או ריק,"notes":"משפט קצר"}.`;
+  let list;
+  try{ list = await askGeminiJSON(prompt); }
+  catch(e){ alert('לא הצלחתי להביא הצעות: ' + e.message); return false; }
+  if(!Array.isArray(list) || !list.length){ alert('לא נמצאו הצעות דומות.'); return false; }
+  list.forEach(item => {
+    const newIdea = newAttractionIdea();
+    newIdea.nameHe = item.nameHe || '';
+    newIdea.nameEn = item.nameEn || '';
+    newIdea.category = item.category === 'food' ? 'food' : 'sight';
+    newIdea.duration = item.duration || '';
+    newIdea.price = item.price || '';
+    newIdea.notes = item.notes || '';
+    state.attractionIdeas.push(newIdea);
+  });
+  return true;
 }
 
 // Copies an idea's fields into a real day activity. Shared by the manual
@@ -3956,6 +4149,7 @@ function promoteIdeaToDay(idea, dayIdx, time, opts){
   act.equipment = idea.equipment || '';
   act.partySize = idea.partySize || '';
   act.notes = idea.notes || '';
+  act.rating = idea.rating || '';
   act.sourceIdeaId = idea.id;
   day.activities.push(act);
   idea.scheduled = true;
@@ -4495,6 +4689,88 @@ document.getElementById('aiChatFab').addEventListener('click', () => {
   aiChatOpen = !aiChatOpen;
   if(aiChatOpen) renderAIChatPanel();
   else document.getElementById('aiModalRoot').innerHTML = '';
+});
+
+/* ---------------- Tools tab: photo sign/menu translation (multimodal) ---------------- */
+document.getElementById('signPhotoInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  const img = document.getElementById('signPreviewImg');
+  if(!file){ img.style.display = 'none'; return; }
+  img.src = URL.createObjectURL(file);
+  img.style.display = 'block';
+});
+document.getElementById('translateSignBtn').addEventListener('click', async () => {
+  const fileInput = document.getElementById('signPhotoInput');
+  const resultEl = document.getElementById('signTranslateResult');
+  const file = fileInput.files[0];
+  if(!file){ resultEl.textContent = 'קודם בחרו/צלמו תמונה של שלט או תפריט.'; return; }
+  if(!aiModel){ resultEl.textContent = 'AI לא זמין לטיול הזה.'; return; }
+  const btn = document.getElementById('translateSignBtn');
+  btn.disabled = true; resultEl.textContent = '⏳ קורא ומתרגם...';
+  try{
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const base64 = dataUrl.split(',')[1];
+    const result = await aiModel.generateContent([
+      { inlineData: { data: base64, mimeType: file.type || 'image/jpeg' } },
+      'זו תמונה של שלט או תפריט ביעד טיול. קרא את כל הטקסט בתמונה ותרגם אותו לעברית. אם זה תפריט, סדר לפי פריטים (עם מחיר אם מופיע). השב רק בתרגום, בלי הקדמות ובלי הסברים על התמונה עצמה.'
+    ]);
+    resultEl.textContent = (result.response.text() || '').trim() || 'לא הצלחתי לזהות טקסט בתמונה.';
+  }catch(e){
+    resultEl.textContent = 'שגיאה בתרגום: ' + e.message;
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+// Turns the days actually logged in the itinerary into a short, flowing
+// Hebrew diary paragraph per day - based only on what's really in the plan,
+// not invented. Reuses buildTripSummaryForAI() (already built for the AI
+// chat feature) as the day-by-day source data.
+document.getElementById('generateJournalBtn').addEventListener('click', async () => {
+  const resultEl = document.getElementById('journalResult');
+  const pdfBtn = document.getElementById('exportJournalPdfBtn');
+  if(!aiModel || !aiModelFast){ resultEl.textContent = 'AI לא זמין לטיול הזה.'; return; }
+  const daysWithContent = state.days.filter(d => d.activities.some(a => a.title));
+  if(!daysWithContent.length){ resultEl.textContent = 'אין עדיין פעילויות רשומות בימים כדי לכתוב מהן יומן.'; pdfBtn.style.display = 'none'; return; }
+  const btn = document.getElementById('generateJournalBtn');
+  btn.disabled = true; resultEl.textContent = '⏳ כותב יומן מסע...'; pdfBtn.style.display = 'none';
+  try{
+    const prompt = `הנה תכנון טיול במבנה JSON (שם הטיול, ימים עם פעילויות בפועל):\n${buildTripSummaryForAI()}\n\nכתוב יומן מסע קצר וזורם בעברית, פסקה אחת לכל יום שיש בו פעילויות, בגוף ראשון רבים ("היום התחלנו ב...", "אחר כך הלכנו ל..."). התבסס אך ורק על הפעילויות שבאמת רשומות - אל תמציא פעילויות, מקומות או חוויות שלא מופיעות ב-JSON. דלג על ימים ללא פעילויות. פתח כל פסקה בכותרת קצרה "יום X - תאריך (אם קיים)". אל תוסיף הקדמה או סיכום כללי, רק את הפסקאות עצמן.`;
+    const journalText = await askGeminiText(prompt);
+    resultEl.textContent = journalText;
+    pdfBtn.style.display = journalText.trim() ? '' : 'none';
+  }catch(e){
+    resultEl.textContent = 'שגיאה ביצירת היומן: ' + e.message;
+  }finally{
+    btn.disabled = false;
+  }
+});
+document.getElementById('exportJournalPdfBtn').addEventListener('click', async () => {
+  if(typeof html2pdf === 'undefined'){
+    alert('ספריית ייצוא ה-PDF לא נטענה (בעיית רשת?).');
+    return;
+  }
+  const btn = document.getElementById('exportJournalPdfBtn');
+  btn.disabled = true;
+  try{
+    await html2pdf().set({
+      margin: 14,
+      filename: (state.name || 'טיול') + ' - יומן מסע.pdf',
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).from(document.getElementById('journalResult')).save();
+  }catch(err){
+    console.error('שגיאת ייצוא יומן ל-PDF:', err);
+    alert('ייצוא ה-PDF נכשל.');
+  }finally{
+    btn.disabled = false;
+  }
 });
 
 /* ---------------- Export / Import / Share ---------------- */
