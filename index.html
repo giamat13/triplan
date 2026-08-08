@@ -1520,6 +1520,14 @@ if(FIREBASE_CONFIGURED){
     //   each request and decides for itself whether it's simple enough to answer directly
     //   or should be handed to the stronger model. This also spreads load across two
     //   separate rate-limit pools instead of hammering just one.
+    // Grounding with Google Search: lets the model actually check the web for
+    // current facts (opening hours, prices, news, "is X still open" etc.)
+    // instead of guessing from training data. Free allowance included, no
+    // billing account needed on the Spark (no-cost) plan.
+    // NOTE: Grounding with Google Search (tools: [{googleSearch:{}}]) was tried
+    // here but requires a Blaze (billing-linked) project - on the free Spark
+    // plan it made every single request fail with 429, on both models. Left
+    // out for now so the app keeps working with no billing account required.
     aiModel = getGenerativeModel(ai, { model: 'gemini-3.6-flash' });
     aiModelFast = getGenerativeModel(ai, { model: 'gemini-3.5-flash-lite' });
   }catch(e){ console.warn('Firebase AI Logic לא זמין:', e); }
