@@ -1488,7 +1488,8 @@ if('serviceWorker' in navigator){
 }
 
 let fbApp, fbAuth, db, currentUser = null, appBooted = false;
-let aiModel = null; // Gemini model via Firebase AI Logic, see askGeminiText/askGeminiJSON below
+let aiModel = null; // gemini-3.6-flash - stronger model, see askGeminiText/askGeminiJSON below
+let aiModelFast = null; // gemini-3.5-flash-lite - fast/cheap model, also used to route requests
 if(FIREBASE_CONFIGURED){
   fbApp = initializeApp(firebaseConfig);
   if(APPCHECK_SITE_KEY !== "REPLACE_ME_RECAPTCHA_SITE_KEY"){
@@ -1513,20 +1514,72 @@ if(FIREBASE_CONFIGURED){
   try{ getAnalytics(fbApp); }catch(e){}
   try{
     const ai = getAI(fbApp, { backend: new GoogleAIBackend() });
+    // Two models on separate quota pools:
+    // - aiModel: gemini-3.6-flash - higher quality, used for tasks that need real reasoning.
+    // - aiModelFast: gemini-3.5-flash-lite - fast/cheap, also used as a *router* that reads
+    //   each request and decides for itself whether it's simple enough to answer directly
+    //   or should be handed to the stronger model. This also spreads load across two
+    //   separate rate-limit pools instead of hammering just one.
     aiModel = getGenerativeModel(ai, { model: 'gemini-3.6-flash' });
+    aiModelFast = getGenerativeModel(ai, { model: 'gemini-3.5-flash-lite' });
   }catch(e){ console.warn('Firebase AI Logic לא זמין:', e); }
 }
 
 /* ===================== AI helpers (Firebase AI Logic / Gemini) =====================
-   Two thin wrappers around aiModel.generateContent():
-   - askGeminiText: free-form text back (used by the chat).
-   - askGeminiJSON: asks the model to respond with JSON only, then parses it
-     (used by day planning / packing suggestions / document extraction), with
-     fence-stripping in case the model wraps it in ```json anyway. */
+   askGeminiText first asks the fast/cheap model (aiModelFast) to classify the
+   request as "פשוט" (simple) or "מורכב" (complex) - a one-word answer, so this
+   routing step is itself fast and cheap - then sends the actual prompt to
+   whichever model it picked. The router is explicitly told it may only route
+   between these two models - the project has no quota provisioned for any
+   other Gemini model (e.g. Pro/Ultra tiers), so it must never be asked for.
+   If either the router call or the actual answer call hits a quota/rate-limit
+   error (429), it automatically falls back to the OTHER of the two models
+   instead of failing the feature outright - the two models draw from separate
+   quota pools, so one being exhausted doesn't mean the other is.
+   askGeminiJSON builds on top of askGeminiText and parses the JSON response
+   (used by day planning / packing suggestions / document extraction), with
+   fence-stripping in case the model wraps it in ```json anyway. */
+function isQuotaError(err){
+  const msg = String((err && err.message) || err || '');
+  return /429|quota|rate.?limit|resource.?exhausted|resource has been exhausted/i.test(msg);
+}
+async function pickModelForPrompt(prompt){
+  if(!aiModelFast) return aiModel;
+  try{
+    const routerPrompt = `את/ה נתב (router) של בקשות למודלי AI. יש לך גישה אך ורק לשני המודלים הבאים - אסור לך להציע, לבחור, או להזכיר כל מודל אחר (כמו Gemini Pro, Gemini Ultra, Gemini 3 Pro וכו') כי אין להם מכסה מוקצית בפרויקט הזה:
+1. "פשוט" = gemini-3.5-flash-lite - מהיר וזול, למשימות עובדתיות/קצרות שלא דורשות תכנון או יצירתיות.
+2. "מורכב" = gemini-3.6-flash - חזק יותר, למשימות שדורשות כמה שלבי חשיבה, תכנון, או ניסוח יצירתי.
+החלט לאיזה מהשניים להעביר את המשימה הבאה. השב במילה אחת בלבד, בלי פיסוק וללא הסבר: פשוט או מורכב.
+
+המשימה:
+"""${String(prompt).slice(0, 800)}"""`;
+    const routeResult = await aiModelFast.generateContent(routerPrompt);
+    const verdict = (routeResult.response.text() || '').trim();
+    return verdict.includes('מורכב') ? aiModel : aiModelFast;
+  }catch(e){
+    if(isQuotaError(e)){
+      console.warn('נגמרה המכסה למודל הניתוב (Flash-Lite), מנתב ישירות למודל השני:', e);
+      return aiModel;
+    }
+    console.warn('ניתוב AI נכשל מסיבה אחרת, ממשיך עם המודל המהיר:', e);
+    return aiModelFast;
+  }
+}
 async function askGeminiText(prompt){
-  if(!aiModel) throw new Error('AI לא מוגדר עבור הטיול הזה (בדקו את הגדרות Firebase AI Logic בקונסולה).');
-  const result = await aiModel.generateContent(prompt);
-  return (result.response.text() || '').trim();
+  if(!aiModel || !aiModelFast) throw new Error('AI לא מוגדר עבור הטיול הזה (בדקו את הגדרות Firebase AI Logic בקונסולה).');
+  const model = await pickModelForPrompt(prompt);
+  const otherModel = model === aiModel ? aiModelFast : aiModel;
+  try{
+    const result = await model.generateContent(prompt);
+    return (result.response.text() || '').trim();
+  }catch(err){
+    if(isQuotaError(err) && otherModel){
+      console.warn('נגמרה המכסה למודל שנבחר, עובר אוטומטית למודל השני:', err);
+      const result2 = await otherModel.generateContent(prompt);
+      return (result2.response.text() || '').trim();
+    }
+    throw err;
+  }
 }
 async function askGeminiJSON(prompt){
   const raw = await askGeminiText(prompt + '\n\nהשב אך ורק ב-JSON תקני, בלי טקסט נוסף, בלי ```.');
