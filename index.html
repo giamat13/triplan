@@ -4088,7 +4088,7 @@ function buildIdeaCard(idea, index, notFitting){
       const btn = e.target;
       const original = btn.textContent;
       btn.disabled = true; btn.textContent = '⏳ מחפש...';
-      try{ if(await suggestSimilarIdeas(idea)){ saveState(); renderAttractions(); } }
+      try{ await suggestSimilarIdeas(idea); }
       finally{ btn.disabled = false; btn.textContent = original; }
     });
   }
@@ -4097,7 +4097,9 @@ function buildIdeaCard(idea, index, notFitting){
 }
 
 // "עוד דברים כאלה": asks the AI for a few more ideas similar to this one
-// (same type/area/price range) and appends them as new attraction ideas.
+// (same type/area/price range), shows them in a checklist modal, and only
+// appends the ones the user confirms - same preview-then-apply pattern as
+// openDayPlanModal.
 async function suggestSimilarIdeas(idea){
   if(!aiModel || !aiModelFast){ alert('AI לא זמין לטיול הזה.'); return false; }
   const destinations = [...new Set(state.days.map(d => d.destination).filter(Boolean))].join(', ');
@@ -4107,17 +4109,42 @@ async function suggestSimilarIdeas(idea){
   try{ list = await askGeminiJSON(prompt); }
   catch(e){ alert('לא הצלחתי להביא הצעות: ' + e.message); return false; }
   if(!Array.isArray(list) || !list.length){ alert('לא נמצאו הצעות דומות.'); return false; }
-  list.forEach(item => {
-    const newIdea = newAttractionIdea();
-    newIdea.nameHe = item.nameHe || '';
-    newIdea.nameEn = item.nameEn || '';
-    newIdea.category = item.category === 'food' ? 'food' : 'sight';
-    newIdea.duration = item.duration || '';
-    newIdea.price = item.price || '';
-    newIdea.notes = item.notes || '';
-    state.attractionIdeas.push(newIdea);
+
+  const body = openAIModal({
+    title: `רעיונות דומים ל"${idea.nameHe || idea.nameEn}"`,
+    hint: 'סמנו אילו רעיונות להוסיף לרשימת האטרקציות:',
+    bodyHTML: `
+      <div class="ai-result-list" id="similarIdeasResults">
+        ${list.map((item,idx) => `<label class="ai-result-item">
+          <input type="checkbox" checked data-idx="${idx}">
+          <span><b>${escapeAttr(item.nameHe || item.nameEn || '')}</b>${item.duration ? ` · ${escapeAttr(item.duration)}` : ''}${item.price ? ` · ${escapeAttr(String(item.price))}` : ''}<br><span style="color:var(--muted);font-size:12px;">${escapeAttr(item.notes || '')}</span></span>
+        </label>`).join('')}
+      </div>
+      <div class="ai-modal-actions">
+        <button class="btn-quick" type="button" id="similarIdeasCancel">ביטול</button>
+        <button class="ai-btn" type="button" id="similarIdeasApply">הוסף שנבחרו</button>
+      </div>
+    `
   });
-  return true;
+  document.getElementById('similarIdeasCancel').addEventListener('click', closeAIModal);
+  document.getElementById('similarIdeasApply').addEventListener('click', () => {
+    let added = 0;
+    body.querySelectorAll('#similarIdeasResults input[type="checkbox"]:checked').forEach(cb => {
+      const item = list[Number(cb.dataset.idx)];
+      const newIdea = newAttractionIdea();
+      newIdea.nameHe = item.nameHe || '';
+      newIdea.nameEn = item.nameEn || '';
+      newIdea.category = item.category === 'food' ? 'food' : 'sight';
+      newIdea.duration = item.duration || '';
+      newIdea.price = item.price || '';
+      newIdea.notes = item.notes || '';
+      state.attractionIdeas.push(newIdea);
+      added++;
+    });
+    closeAIModal();
+    if(added){ saveState(); renderAttractions(); showToast(`נוספו ${added} רעיונות 🤖`); }
+  });
+  return false;
 }
 
 // Copies an idea's fields into a real day activity. Shared by the manual
