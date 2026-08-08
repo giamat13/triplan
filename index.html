@@ -826,6 +826,7 @@
   }
   #applyTouringFilterBtn.active{background:var(--stay);color:var(--paper-text);border-color:var(--stay);}
   .idea-card.not-fitting{opacity:0.45;}
+  .idea-card.excluded{opacity:0.55;}
   .idea-not-fitting-badge{
     font-family:'JetBrains Mono', monospace;font-size:10.5px;
     color:var(--rust);border:1px solid var(--rust);border-radius:20px;
@@ -911,6 +912,12 @@
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
   .idea-name-display .idea-name-empty{color:#B7A981;font-weight:400;font-style:italic;}
+  .group-idea-chip{
+    display:inline-flex;align-items:center;gap:4px;
+    font-size:12.5px;color:var(--ink);border:1px solid var(--line-dark);border-radius:20px;
+    padding:3px 4px 3px 10px;margin:2px 4px 2px 0;
+  }
+  .group-idea-chip .icon-btn{width:18px;height:18px;padding:0;}
   .idea-chevron{
     flex:0 0 auto;width:20px;height:20px;display:flex;align-items:center;justify-content:center;
     cursor:pointer;color:var(--muted);transition:transform .15s ease;
@@ -1347,6 +1354,16 @@
     <div class="budget-section-divider"></div>
 
     <div class="section-header">
+      <div class="section-title" id="dayGroupsTitle"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M4 7h7M4 12h7M4 17h7" stroke-linecap="round"/><rect x="14" y="5" width="6" height="14" rx="1.5"/></svg></span> קבוצות ליום</div>
+      <button class="ai-btn ai-btn-ghost" id="autoGroupBtn" type="button" title="מקבץ קודם לפי קרבה גיאוגרפית, ואז AI משפר את הקיבוץ אם יש טעויות">📍🤖 מיין אוטומטית לקבוצות</button>
+      <button class="btn-quick" id="addGroupBtn" type="button">קבוצה חדשה</button>
+    </div>
+    <p class="section-hint">שלב ביניים לפני שיבוץ ליום בלוח הזמנים: קבצו רעיונות שכדאי לעשות באותו יום ביחד - עדיין בלי לקבוע איזה יום בדיוק. אפשר לקבץ ידנית (מכרטיס הרעיון למטה), אוטומטית לפי אזור, או עם AI.</p>
+    <div class="ideas-list" id="dayGroupsBody"></div>
+
+    <div class="budget-section-divider"></div>
+
+    <div class="section-header">
       <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3"/></svg></span> מפה של המסלול</div>
     </div>
     <p class="section-hint">מפה אחת עם כל המיקומים: מה ששובץ לימים ומה שעדיין רק רעיון. מבוסס על מיקום חופשי לפי שם (בלי מפתח API), אז המיקום המדויק הוא הערכה.</p>
@@ -1679,6 +1696,7 @@ function tripContentPayload(data){
     secondaryCurrency: data.secondaryCurrency || '', budget: data.budget || '',
     dayHourOverrides: data.dayHourOverrides || {},
     days: data.days || [], attractionIdeas: data.attractionIdeas || [],
+    dayGroups: data.dayGroups || [],
     documents: data.documents || [],
     archived: !!data.archived
   };
@@ -2009,7 +2027,24 @@ function newAttractionIdea(){
   return {
     id: nextId(), nameEn:'', nameHe:'', duration:'', priority:'', hours:'', price:'', booking:false, equipment:'', notes:'',
     link:'', cuisine:'', category:DEFAULT_CATEGORY, partySize:'', mapQuery:'', scheduled:false, rating:'',
+    lat:null, lng:null, excluded:false,
     createdAt: Date.now(), createdBy: currentUser ? currentUser.uid : ''
+  };
+}
+// A "day group": a set of idea ids the user (or auto-grouping) decided should
+// happen together on the same day, before any specific day is picked yet -
+// the intermediate step between the idea pool and actual day assignment.
+function newDayGroup(){
+  return { id: nextId(), label:'', ideaIds:[], createdAt: Date.now(), createdBy: currentUser ? currentUser.uid : '' };
+}
+function normalizeDayGroup(g){
+  g = g || {};
+  return {
+    id: g.id || nextId(),
+    label: g.label || '',
+    ideaIds: Array.isArray(g.ideaIds) ? g.ideaIds.filter(Boolean) : [],
+    createdAt: g.createdAt || 0,
+    createdBy: g.createdBy || ''
   };
 }
 
@@ -2072,6 +2107,9 @@ function normalizeIdea(a){
     mapQuery: a.mapQuery || '',
     scheduled: !!a.scheduled,
     rating: a.rating || '',
+    lat: typeof a.lat === 'number' ? a.lat : null,
+    lng: typeof a.lng === 'number' ? a.lng : null,
+    excluded: !!a.excluded,
     createdAt: a.createdAt || 0,
     createdBy: a.createdBy || ''
   };
@@ -2111,6 +2149,7 @@ function normalizeState(data){
     // starting value only - the real per-user list is loaded separately, same as packing.
     flightVideos: Array.isArray(data.flightVideos) ? data.flightVideos.map(normalizeFlightVideo) : [],
     attractionIdeas: Array.isArray(data.attractionIdeas) ? data.attractionIdeas.map(normalizeIdea) : [],
+    dayGroups: Array.isArray(data.dayGroups) ? data.dayGroups.map(normalizeDayGroup) : [],
     documents: Array.isArray(data.documents) ? data.documents.map(normalizeDocument) : [],
     archived: !!data.archived
   };
@@ -2981,9 +3020,14 @@ function dayHoursFor(day){
   return (override !== undefined && override !== '') ? Number(override) : DEFAULT_TOURING_HOURS;
 }
 
+// Only attractions ("sight") compete for touring hours here - there's no
+// such thing as "no time to eat", so food ideas never count against the
+// budget and always count as fitting below, regardless of their duration.
 function computeIdeasTouringPlan(){
   const available = state.days.reduce((sum, day) => sum + dayHoursFor(day), 0);
-  const parsed = state.attractionIdeas.map(idea => {
+  const eligible = state.attractionIdeas.filter(idea => !idea.excluded);
+  const foodIdeas = eligible.filter(idea => idea.category === 'food');
+  const parsed = eligible.filter(idea => idea.category !== 'food').map(idea => {
     const h = parseDurationHours(idea.duration);
     return { idea, priority: Number(idea.priority) || 0, hours: h || 0, invalid: h === null };
   });
@@ -3020,6 +3064,7 @@ function computeIdeasTouringPlan(){
     const fits = p.invalid || isShort || !over || cutoffPriority === null || p.priority >= cutoffPriority;
     if(fits) fittingIds.add(p.idea.id);
   });
+  foodIdeas.forEach(idea => fittingIds.add(idea.id));
 
   return { available, used, over, invalidCount: invalidItems.length, invalidItems, shortAlwaysIncludedCount: shortItems.length, cutoffPriority, fittingIds };
 }
@@ -3790,6 +3835,82 @@ function renderAttractions(){
     return;
   }
   ideas.forEach(({idea, index, notFitting}) => body.appendChild(buildIdeaCard(idea, index, notFitting)));
+  renderDayGroups();
+}
+
+// "קבוצות ליום": the intermediate grouping step between the idea pool and a
+// specific day - a group just says "these ideas belong together on the same
+// day", with no day picked yet. Manual grouping happens from each idea
+// card's "הוסיפו לקבוצה" control; autoGroupIdeasByArea/suggestGroupsWithAI
+// below create groups automatically.
+function ideaGroupId(ideaId){
+  const g = state.dayGroups.find(g => g.ideaIds.includes(ideaId));
+  return g ? g.id : '';
+}
+function renderDayGroups(){
+  const body = document.getElementById('dayGroupsBody');
+  if(!body) return;
+  body.innerHTML = '';
+  if(!state.dayGroups.length){
+    body.innerHTML = '<div class="packing-empty">אין עדיין קבוצות. הוסיפו קבוצה חדשה, קבצו רעיון מכרטיס הרעיון למעלה ("הוסיפו לקבוצה"), או מיינו אוטומטית.</div>';
+    return;
+  }
+  state.dayGroups.forEach((group, index) => body.appendChild(buildGroupCard(group, index)));
+}
+function buildGroupCard(group, index){
+  const card = document.createElement('div');
+  card.className = 'idea-card group-card expanded';
+  card.dataset.groupId = group.id;
+  const members = group.ideaIds.map(id => state.attractionIdeas.find(i => i.id === id)).filter(Boolean);
+  const dayOptions = state.days.map((d,i) => `<option value="${i}">${escapeAttr(d.destination ? (i+1)+'. '+d.destination : 'יום '+(i+1))}</option>`).join('');
+  card.innerHTML = `
+    <div class="idea-card-head">
+      <span class="idea-cat-badge">🗂️</span>
+      <span class="idea-num">#${index+1}</span>
+      <div class="idea-names">
+        <input data-role="label" placeholder="שם הקבוצה (למשל: איזור העיר העתיקה)" value="${escapeAttr(group.label)}">
+      </div>
+      <span class="idea-priority-badge">${members.length} רעיונות</span>
+      <button class="icon-btn del" data-role="del-group" title="מחק קבוצה">${ICONS.trash}</button>
+    </div>
+    <div class="idea-fields">
+      ${members.length ? members.map(idea => `
+        <span class="group-idea-chip" data-idea-id="${escapeAttr(idea.id)}">${idea.scheduled ? '✓ ' : ''}${escapeAttr(idea.nameHe || idea.nameEn || 'ללא שם')}<button type="button" class="icon-btn" data-role="remove-idea" data-idea-id="${escapeAttr(idea.id)}" title="הסירו מהקבוצה">✕</button></span>
+      `).join('') : '<span class="idea-name-empty">קבוצה ריקה - הוסיפו רעיונות מלמעלה</span>'}
+    </div>
+    ${state.days.length ? `
+    <div class="idea-assign">
+      <span class="idea-assign-label">שבצו את כל הקבוצה ליום:</span>
+      <select data-role="assign-day">${dayOptions}</select>
+      <button class="btn-quick" data-role="assign-group" type="button">${ICONS.plus} שבץ קבוצה ליום</button>
+    </div>
+    ` : ''}
+  `;
+  card.querySelector('[data-role="label"]').addEventListener('input', e => { group.label = e.target.value; saveState(); });
+  card.querySelector('[data-role="del-group"]').addEventListener('click', () => {
+    const idx = state.dayGroups.indexOf(group);
+    if(idx > -1) state.dayGroups.splice(idx,1);
+    saveState(); renderDayGroups();
+  });
+  card.querySelectorAll('[data-role="remove-idea"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      group.ideaIds = group.ideaIds.filter(id => id !== btn.dataset.ideaId);
+      saveState(); renderDayGroups();
+    });
+  });
+  const assignBtn = card.querySelector('[data-role="assign-group"]');
+  if(assignBtn){
+    assignBtn.addEventListener('click', () => {
+      const dayIdx = Number(card.querySelector('[data-role="assign-day"]').value);
+      const toAssign = members.filter(idea => !idea.scheduled);
+      if(!toAssign.length){ alert('כל הרעיונות בקבוצה הזו כבר משובצים.'); return; }
+      let added = 0;
+      toAssign.forEach(idea => { if(promoteIdeaToDay(idea, dayIdx, '', { confirmConflict:false })) added++; });
+      render();
+      if(added) showToast(`שובצו ${added} רעיונות מהקבוצה ליום ${dayIdx+1} 🗂️`);
+    });
+  }
+  return card;
 }
 
 function updateTouringFilterButton(){
@@ -3975,11 +4096,13 @@ function buildIdeaCard(idea, index, notFitting){
   const card = document.createElement('div');
   const expanded = expandedIdeaIds.has(idea.id);
   card.dataset.ideaId = idea.id;
-  card.className = 'idea-card cat-' + idea.category + ' ' + (expanded ? 'expanded' : 'collapsed') + (notFitting ? ' not-fitting' : '');
+  card.className = 'idea-card cat-' + idea.category + ' ' + (expanded ? 'expanded' : 'collapsed') + (notFitting ? ' not-fitting' : '') + (idea.excluded ? ' excluded' : '');
   const dayOptions = state.days.map((d,i) => `<option value="${i}">${escapeAttr(d.destination ? (i+1)+'. '+d.destination : 'יום '+(i+1))}</option>`).join('');
   const displayName = idea.nameHe || idea.nameEn;
   const vis = f => categoryFieldVisible(IDEA_CATEGORY_FIELDS, idea.category, f) ? '' : 'display:none;';
-  const notFittingBadge = notFitting ? `<span class="idea-not-fitting-badge">⏳ אין זמן לזה</span>` : '';
+  const notFittingBadge = idea.excluded ? `<span class="idea-not-fitting-badge">🚫 לא נלך לשם</span>` : (notFitting ? `<span class="idea-not-fitting-badge">⏳ אין זמן לזה</span>` : '');
+  const ideaGroup = state.dayGroups.find(g => g.ideaIds.includes(idea.id));
+  const ideaGroupLabel = ideaGroup ? (ideaGroup.label || 'קבוצה ללא שם') : '';
 
   card.innerHTML = `
     <div class="idea-card-head">
@@ -4025,6 +4148,21 @@ function buildIdeaCard(idea, index, notFitting){
       <button class="ai-btn ai-btn-ghost" data-role="expand-similar" type="button" title="AI יציע רעיונות נוספים מאותו סוג/אזור/טווח מחירים">✨ עוד דברים כאלה</button>
       ${idea.createdBy ? `<span class="idea-assign-label">נוסף ע"י ${escapeAttr(resolveMemberName(idea.createdBy))}${idea.createdAt ? ' · ' + new Date(idea.createdAt).toLocaleDateString('he-IL') : ''}</span>` : ''}
     </div>
+    <div class="idea-field booking"><input data-role="excluded" type="checkbox" ${idea.excluded ? 'checked' : ''}><label>🚫 לא נלך לשם (יוצא מהחישוב של "מה נספיק" למעלה)</label></div>
+    <div class="idea-assign">
+      <span class="idea-assign-label">קבוצה ליום:</span>
+      ${ideaGroupLabel ? `
+        <span class="idea-priority-badge">🗂️ ${escapeAttr(ideaGroupLabel)}</span>
+        <button class="btn-quick" data-role="leave-group" type="button">הוציאו מהקבוצה</button>
+      ` : `
+        <select data-role="group-select">
+          <option value="">בחרו קבוצה קיימת</option>
+          ${state.dayGroups.map(g => `<option value="${escapeAttr(g.id)}">${escapeAttr(g.label || 'קבוצה ללא שם')}</option>`).join('')}
+          <option value="__new__">+ קבוצה חדשה</option>
+        </select>
+        <button class="btn-quick" data-role="join-group" type="button">${ICONS.plus} הוסיפו לקבוצה</button>
+      `}
+    </div>
     ` : ''}
   `;
 
@@ -4063,6 +4201,7 @@ function buildIdeaCard(idea, index, notFitting){
       saveState();
     });
     card.querySelector('[data-role="booking"]').addEventListener('change', e => { idea.booking = e.target.checked; saveState(); });
+    card.querySelector('[data-role="excluded"]').addEventListener('change', e => { idea.excluded = e.target.checked; saveState(); renderAttractions(); });
     card.querySelector('[data-role="notes"]').addEventListener('input', e => { idea.notes = e.target.value; saveState(); });
 
     const equipmentInput = card.querySelector('[data-role="equipment"]');
@@ -4075,6 +4214,7 @@ function buildIdeaCard(idea, index, notFitting){
     const idx = state.attractionIdeas.indexOf(idea);
     if(idx > -1) state.attractionIdeas.splice(idx,1);
     expandedIdeaIds.delete(idea.id);
+    state.dayGroups.forEach(g => { g.ideaIds = g.ideaIds.filter(id => id !== idea.id); });
     saveState(); renderAttractions();
   });
 
@@ -4090,6 +4230,27 @@ function buildIdeaCard(idea, index, notFitting){
       btn.disabled = true; btn.textContent = '⏳ מחפש...';
       try{ await suggestSimilarIdeas(idea); }
       finally{ btn.disabled = false; btn.textContent = original; }
+    });
+    const leaveGroupBtn = card.querySelector('[data-role="leave-group"]');
+    if(leaveGroupBtn) leaveGroupBtn.addEventListener('click', () => {
+      const g = state.dayGroups.find(g => g.ideaIds.includes(idea.id));
+      if(g) g.ideaIds = g.ideaIds.filter(id => id !== idea.id);
+      saveState(); renderAttractions();
+    });
+    const joinGroupBtn = card.querySelector('[data-role="join-group"]');
+    if(joinGroupBtn) joinGroupBtn.addEventListener('click', () => {
+      const sel = card.querySelector('[data-role="group-select"]');
+      let group;
+      if(sel.value === '__new__'){
+        group = newDayGroup();
+        group.label = `קבוצה ${state.dayGroups.length + 1}`;
+        state.dayGroups.push(group);
+      } else if(sel.value){
+        group = state.dayGroups.find(g => g.id === sel.value);
+      }
+      if(!group) return;
+      if(!group.ideaIds.includes(idea.id)) group.ideaIds.push(idea.id);
+      saveState(); renderAttractions();
     });
   }
 
@@ -4187,13 +4348,213 @@ function promoteIdeaToDay(idea, dayIdx, time, opts){
   return true;
 }
 
+/* ---------------- קבוצות ליום: מיון אוטומטי ---------------- */
+// Shared by both auto-grouping paths below: fills in (and persists on the
+// idea) a lat/lng for ideas that don't have one cached yet, via the same
+// free Nominatim lookup the consolidated map uses. Skips ideas with no name
+// to search for. Returns the ideas that ended up with resolvable coords.
+async function ensureIdeaCoords(ideas){
+  const primaryDestination = state.days.map(d => (d.destination || '').trim()).find(Boolean) || '';
+  const withCoords = [];
+  for(const idea of ideas){
+    if(typeof idea.lat === 'number' && typeof idea.lng === 'number'){ withCoords.push(idea); continue; }
+    const linkCoords = idea.link ? coordsFromGoogleMapsLink(idea.link) : null;
+    if(linkCoords){ idea.lat = linkCoords.lat; idea.lng = linkCoords.lng; withCoords.push(idea); continue; }
+    const searchName = (idea.nameEn || idea.nameHe || '').trim();
+    if(!searchName) continue;
+    const query = idea.mapQuery || (primaryDestination && !searchName.toLowerCase().includes(primaryDestination.toLowerCase()) ? `${searchName}, ${primaryDestination}` : searchName);
+    const coords = await geocodeQuery(query);
+    if(coords){ idea.lat = coords.lat; idea.lng = coords.lng; withCoords.push(idea); }
+  }
+  return withCoords;
+}
+
+function haversineKm(a, b){
+  const R = 6371, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+  const s = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+// Groups items into exactly k geographic clusters (fewer if there aren't
+// enough items) - k is the trip's day count, so the draft clustering already
+// lines up with "one group per day" before AI ever sees it.
+// ponytail: fixed-iteration k-means with deterministic evenly-spaced seeding
+// (no randomness, no convergence proof) - plenty for a handful of points and
+// a handful of days. Upgrade to a proper library if group quality complaints
+// come in.
+function kMeansCluster(items, k){
+  if(items.length <= k) return items.map(item => [item]);
+  const step = items.length / k;
+  let centroids = Array.from({ length:k }, (_, i) => {
+    const item = items[Math.floor(i * step)];
+    return { lat: item.lat, lng: item.lng };
+  });
+  let assignment = items.map(() => -1);
+  for(let iter = 0; iter < 15; iter++){
+    let changed = false;
+    assignment = items.map((item, idx) => {
+      let best = 0, bestDist = Infinity;
+      centroids.forEach((c, ci) => {
+        const d = haversineKm(item, c);
+        if(d < bestDist){ bestDist = d; best = ci; }
+      });
+      if(assignment[idx] !== best) changed = true;
+      return best;
+    });
+    centroids = centroids.map((c, ci) => {
+      const members = items.filter((_, idx) => assignment[idx] === ci);
+      if(!members.length) return c;
+      return {
+        lat: members.reduce((s,m) => s+m.lat, 0) / members.length,
+        lng: members.reduce((s,m) => s+m.lng, 0) / members.length
+      };
+    });
+    if(!changed) break;
+  }
+  const clusters = Array.from({ length:k }, () => []);
+  items.forEach((item, idx) => clusters[assignment[idx]].push(item));
+  return clusters.filter(c => c.length);
+}
+
+const GROUP_TARGET_HOURS = 5;
+// ponytail: flat fallback for ideas with no/unparsable duration, so they
+// still count toward a group's hour budget instead of being free. Tune if
+// it skews groups badly.
+const GROUP_DEFAULT_IDEA_HOURS = 1.5;
+
+// After geographic k-means, some clusters can end up with way more than
+// GROUP_TARGET_HOURS of recommended duration in them while others are
+// nearly empty. This nudges the furthest-from-centroid idea out of any
+// over-budget cluster into whichever *other existing* cluster is nearest
+// AND still has room - it never opens a new cluster, so the group count the
+// caller picked (one per day) stays fixed. If nothing has room the idea
+// just stays put (best effort, not a hard guarantee). Bounded by a fixed
+// number of moves so it can't loop forever on an unsolvable spread.
+// ponytail: greedy single-pass heuristic, not an optimal bin-packing.
+function rebalanceClustersByHours(clusters, hoursOf){
+  const centroidOf = members => ({
+    lat: members.reduce((s,m) => s+m.lat, 0) / members.length,
+    lng: members.reduce((s,m) => s+m.lng, 0) / members.length
+  });
+  let guard = clusters.reduce((n,c) => n+c.length, 0) * 2;
+  while(guard-- > 0){
+    const overIdx = clusters.findIndex(c => c.length > 1 && c.reduce((s,m) => s+hoursOf(m), 0) > GROUP_TARGET_HOURS);
+    if(overIdx === -1) break;
+    const cluster = clusters[overIdx];
+    const centroid = centroidOf(cluster);
+    let farIdx = 0, farDist = -1;
+    cluster.forEach((m,i) => { const d = haversineKm(m, centroid); if(d > farDist){ farDist = d; farIdx = i; } });
+    let bestIdx = -1, bestDist = Infinity;
+    clusters.forEach((c, i) => {
+      if(i === overIdx || !c.length) return;
+      if(c.reduce((s,m) => s+hoursOf(m), 0) + hoursOf(cluster[farIdx]) > GROUP_TARGET_HOURS) return;
+      const d = haversineKm(cluster[farIdx], centroidOf(c));
+      if(d < bestDist){ bestDist = d; bestIdx = i; }
+    });
+    if(bestIdx === -1) break; // no cluster has room - stop, don't grow the group count
+    const [moved] = cluster.splice(farIdx, 1);
+    clusters[bestIdx].push(moved);
+  }
+  return clusters.filter(c => c.length);
+}
+
+// "מיין אוטומטית לקבוצות": geocodes unscheduled/ungrouped ideas that also
+// fit the touring-time calculator above ("מה נספיק") - anything the
+// calculator already dropped for lack of time, or that's marked "לא נלך
+// לשם", never enters a group - and clusters them geographically into
+// exactly one group per day in the trip (the whole point of this
+// intermediate step). It then nudges ideas between those groups so each
+// one's total recommended duration ("זמן מומלץ") lands near
+// GROUP_TARGET_HOURS without changing the group count. If AI is available,
+// it then reviews that draft clustering and fixes mistakes (wrong idea in a
+// group, a swap that reads better geographically or by hours), using the
+// coordinates and hours plus tourism logic (e.g. food near a sight in the
+// same area) - but it's told to keep the same number of groups. If AI isn't
+// available, or it errors, or its answer doesn't parse, the plain
+// distance/hours clustering is used as-is - the area pass never depends on
+// the AI pass succeeding. Either way ends in the same preview-then-apply
+// checklist as the rest of the app's AI features.
+async function autoGroupIdeas(){
+  const { fittingIds } = computeIdeasTouringPlan();
+  const candidates = state.attractionIdeas.filter(i => !i.scheduled && !i.excluded && !ideaGroupId(i.id) && fittingIds.has(i.id));
+  if(!candidates.length){ alert('אין רעיונות פנויים שנכנסים בזמן (לפי המחשבון למעלה) למיון.'); return; }
+  const btn = document.getElementById('autoGroupBtn');
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ מאתר מיקומים...';
+  try{
+    const withCoords = await ensureIdeaCoords(candidates);
+    if(withCoords.length < 2){ alert('לא הצלחתי לאתר מיקומים למספיק רעיונות כדי לקבץ (נסו להוסיף קישור Google Maps או שם באנגלית מדויק יותר).'); return; }
+    const hoursOf = idea => parseDurationHours(idea.duration) || GROUP_DEFAULT_IDEA_HOURS;
+    const targetGroups = Math.max(1, Math.min(state.days.length || 1, withCoords.length));
+    const areaClusters = rebalanceClustersByHours(kMeansCluster(withCoords, targetGroups), hoursOf);
+    let proposals = areaClusters
+      .map((members, i) => ({ label: `קבוצה ${i+1}`, ideaIds: members.map(idea => idea.id) }))
+      .filter(g => g.ideaIds.length);
+
+    if(aiModel && aiModelFast){
+      btn.textContent = '⏳ AI משפר את הקיבוץ...';
+      try{
+        const ideasForPrompt = withCoords.map(i => ({
+          id: i.id, name: i.nameHe || i.nameEn || '(ללא שם)', category: i.category,
+          durationHours: parseDurationHours(i.duration) || null,
+          lat: typeof i.lat === 'number' ? i.lat : null, lng: typeof i.lng === 'number' ? i.lng : null
+        }));
+        const draftClusters = areaClusters.map(members => members.map(idea => idea.id));
+        const prompt = `יש רשימת רעיונות לטיול, כל אחד עם שם, קטגוריה, זמן מומלץ בשעות (durationHours) ולעיתים קואורדינטות (lat/lng): ${JSON.stringify(ideasForPrompt)}. הטיול הזה ${state.days.length} ימים, אז קיבצתי אותם ראשונית אוטומטית לפי מרחק גיאוגרפי בדיוק ל-${draftClusters.length} קבוצות (קבוצה אחת לכל יום - קבוצה = רעיונות שכדאי לעשות באותו יום ביחד, בלי לקבוע יום ספציפי בלוח הזמנים עדיין), כשסך הזמן המומלץ בכל קבוצה שואף להיות בערך ${GROUP_TARGET_HOURS} שעות: ${JSON.stringify(draftClusters)}. תקן את הקיבוץ הזה אם יש טעויות (רעיון בקבוצה הלא נכונה, החלפה שתשפר את הקרבה הגיאוגרפית או את איזון השעות בין הקבוצות) - התבסס על הקואורדינטות, על סך הזמן המומלץ (שאיפה לכ-${GROUP_TARGET_HOURS} שעות לקבוצה) וגם על היגיון תיירותי, אבל השאר בדיוק ${draftClusters.length} קבוצות - אל תוסיף ואל תוריד קבוצות, ואל תשאיר קבוצה ריקה. אל תמציא רעיונות, רק סווג לפי ה-id שסופק. השב ב-JSON בלבד: מערך של אובייקטים {"label":"שם קצר לקבוצה, כמו האזור", "ideaIds":["..."]}`;
+        const aiGroups = await askGeminiJSON(prompt);
+        const validAi = Array.isArray(aiGroups) ? aiGroups
+          .map(g => ({ label: g.label || '', ideaIds: Array.isArray(g.ideaIds) ? g.ideaIds.filter(id => withCoords.some(c => c.id === id)) : [] }))
+          .filter(g => g.ideaIds.length) : [];
+        if(validAi.length) proposals = validAi;
+      }catch(err){
+        console.warn('שיפור הקיבוץ ב-AI נכשל, ממשיכים עם הקיבוץ לפי אזור בלבד:', err);
+      }
+    }
+
+    if(!proposals.length){ alert('הרעיונות הפנויים פזורים מדי כדי לקבץ אוטומטית.'); return; }
+
+    const body = openAIModal({
+      title: 'קיבוץ אוטומטי לקבוצות',
+      hint: 'סמנו אילו קבוצות ליצור:',
+      bodyHTML: `
+        <div class="ai-result-list" id="autoGroupResults">
+          ${proposals.map((g, idx) => `<label class="ai-result-item">
+            <input type="checkbox" checked data-idx="${idx}">
+            <span><b>${escapeAttr(g.label || 'קבוצה')}</b><br><span style="color:var(--muted);font-size:12px;">${g.ideaIds.map(id => escapeAttr((candidates.find(c => c.id===id)||{}).nameHe || (candidates.find(c=>c.id===id)||{}).nameEn || '')).join(', ')}</span></span>
+          </label>`).join('')}
+        </div>
+        <div class="ai-modal-actions">
+          <button class="btn-quick" type="button" id="autoGroupCancel">ביטול</button>
+          <button class="ai-btn" type="button" id="autoGroupApply">צור קבוצות שנבחרו</button>
+        </div>
+      `
+    });
+    document.getElementById('autoGroupCancel').addEventListener('click', closeAIModal);
+    document.getElementById('autoGroupApply').addEventListener('click', () => {
+      let created = 0;
+      body.querySelectorAll('#autoGroupResults input[type="checkbox"]:checked').forEach(cb => {
+        const g = proposals[Number(cb.dataset.idx)];
+        const group = newDayGroup();
+        group.label = g.label || 'קבוצה';
+        group.ideaIds = g.ideaIds;
+        state.dayGroups.push(group);
+        created++;
+      });
+      closeAIModal();
+      if(created){ saveState(); renderAttractions(); showToast(`נוצרו ${created} קבוצות 📍`); }
+    });
+  } finally {
+    btn.disabled = false; btn.textContent = original;
+  }
+}
+
 /* ---------------- AI: בניית מסלול יומי ---------------- */
 // Gathers the day's context (destination, unscheduled ideas, already-scheduled
 // activities) plus optional free-text instructions from the user, asks Gemini
 // to order/schedule ideas for that day, shows the suggestion as a checklist,
 // and on confirm applies it via promoteIdeaToDay() (same path as manual scheduling).
 function openDayPlanModal(day, dayIndex){
-  const unscheduled = state.attractionIdeas.filter(i => !i.scheduled);
+  const unscheduled = state.attractionIdeas.filter(i => !i.scheduled && !i.excluded);
   const bodyHTML = `
     <textarea id="aiDayPlanInstructions" placeholder="הוראות מיוחדות לתכנון (אופציונלי) - למשל: &quot;תכנן לי יום 3 בטוקיו, בוקר רגוע ובלי הליכה ארוכה מדי&quot;"></textarea>
     <div class="ai-modal-actions">
@@ -4292,6 +4653,17 @@ document.getElementById('ideaFilterAuthor').addEventListener('change', e => { id
 document.getElementById('ideaFilterBooking').addEventListener('change', e => { ideaFilterBooking = e.target.value; renderAttractions(); });
 document.getElementById('ideaFilterPriority').addEventListener('change', e => { ideaFilterPriority = e.target.value; renderAttractions(); });
 document.getElementById('applyTouringFilterBtn').addEventListener('click', () => { touringFilterActive = !touringFilterActive; renderAttractions(); });
+document.getElementById('addGroupBtn').addEventListener('click', () => {
+  if(currentRole === 'viewer'){ alert('צופים לא יכולים לערוך את הטיול.'); return; }
+  const group = newDayGroup();
+  group.label = `קבוצה ${state.dayGroups.length + 1}`;
+  state.dayGroups.push(group);
+  saveState(); renderDayGroups();
+});
+document.getElementById('autoGroupBtn').addEventListener('click', () => {
+  if(currentRole === 'viewer'){ alert('צופים לא יכולים לערוך את הטיול.'); return; }
+  autoGroupIdeas();
+});
 
 // "הוסף הכל שנכנס בזמן": auto-schedules every idea the touring-plan math says
 // fits (see computeIdeasTouringPlan) and hasn't been scheduled yet. Higher
@@ -4454,7 +4826,7 @@ function applyRoleRestrictions(){
   document.getElementById('readonlyBanner').style.display = isViewer ? 'block' : 'none';
   // Packing list is excluded here on purpose - it's each member's own private
   // list, so it stays editable regardless of the viewer/editor/owner trip role.
-  [daysEl, document.getElementById('attractionsBody'), document.getElementById('mapGrid'), document.getElementById('documentsBody')].forEach(scope => {
+  [daysEl, document.getElementById('attractionsBody'), document.getElementById('dayGroupsBody'), document.getElementById('mapGrid'), document.getElementById('documentsBody')].forEach(scope => {
     if(!scope) return;
     scope.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = isViewer; });
     scope.querySelectorAll('button').forEach(el => { el.style.display = isViewer ? 'none' : ''; });
@@ -4462,6 +4834,7 @@ function applyRoleRestrictions(){
   [tripNameEl, startDateEl, currencySelectEl, secondaryCurrencySelectEl, budgetCapInputEl].forEach(el => { el.disabled = isViewer; });
   const toggle = id => { const el = document.getElementById(id); if(el) el.style.display = isViewer ? 'none' : ''; };
   toggle('addDay'); toggle('addIdeaBtn'); toggle('addDocumentBtn'); toggle('archiveTripBtn');
+  toggle('addGroupBtn'); toggle('autoGroupBtn');
 }
 
 document.getElementById('addDay').addEventListener('click', async () => {
@@ -4653,7 +5026,7 @@ function buildTripSummaryForAI(){
     hotel: d.hotel.name || null,
     activities: d.activities.filter(a => a.title).map(a => ({ time:a.time||null, title:a.title, cost:a.cost||null, category:a.category }))
   }));
-  const unscheduledIdeas = state.attractionIdeas.filter(i => !i.scheduled).map(i => ({ name: i.nameHe || i.nameEn, category: i.category, priority: i.priority || null }));
+  const unscheduledIdeas = state.attractionIdeas.filter(i => !i.scheduled && !i.excluded).map(i => ({ name: i.nameHe || i.nameEn, category: i.category, priority: i.priority || null }));
   const docs = state.documents.map(d => ({ type:d.type, title:d.title }));
   return JSON.stringify({
     tripName: state.name || null, startDate: state.startDate || null, totalDays: state.days.length,
