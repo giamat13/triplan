@@ -1084,6 +1084,81 @@
       scroll-behavior:auto !important;
     }
   }
+
+  /* ---------- AI features (Firebase AI Logic / Gemini) ---------- */
+  .ai-btn{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:'JetBrains Mono', monospace;font-size:11.5px;font-weight:600;
+    background:linear-gradient(135deg, var(--brass), var(--brass-soft));
+    color:var(--ink-text);border:none;border-radius:8px;
+    padding:6px 11px;cursor:pointer;white-space:nowrap;
+  }
+  .ai-btn:hover{opacity:0.88;}
+  .ai-btn:disabled{opacity:0.55;cursor:wait;}
+  .ai-btn-ghost{
+    background:transparent;border:1.5px solid var(--brass-soft);color:var(--brass-soft);
+  }
+  .ai-day-btn{ flex:0 0 auto; }
+
+  .ai-modal-overlay{
+    position:fixed;inset:0;background:rgba(10,15,15,0.72);
+    display:flex;align-items:center;justify-content:center;z-index:400;padding:16px;
+  }
+  .ai-modal{
+    background:var(--paper);color:var(--ink-text);border-radius:var(--radius);
+    max-width:540px;width:100%;max-height:86vh;overflow:auto;
+    padding:22px;box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    border:1.5px solid var(--line-dark);
+  }
+  .ai-modal h3{margin:0 0 4px;font-family:'Frank Ruhl Libre',serif;color:var(--ink-text);font-size:19px;}
+  .ai-modal p.ai-hint{font-size:12.5px;color:var(--muted);margin:0 0 14px;line-height:1.5;}
+  .ai-modal textarea{
+    width:100%;min-height:130px;border:1.5px solid var(--line);border-radius:10px;
+    padding:10px;font-family:'Assistant',sans-serif;font-size:14px;resize:vertical;
+    background:#fff;color:var(--ink-text);box-sizing:border-box;
+  }
+  .ai-modal-actions{display:flex;gap:8px;margin-top:14px;justify-content:flex-end;flex-wrap:wrap;}
+  .ai-spinner{
+    width:15px;height:15px;border:2px solid rgba(0,0,0,0.15);border-top-color:var(--rust);
+    border-radius:50%;display:inline-block;animation:aiSpin 0.7s linear infinite;vertical-align:middle;
+  }
+  @keyframes aiSpin{to{transform:rotate(360deg);}}
+  .ai-error{color:var(--rust);font-size:12.5px;margin-top:10px;white-space:pre-wrap;}
+  .ai-result-list{margin-top:12px;display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;}
+  .ai-result-item{
+    display:flex;align-items:flex-start;gap:8px;font-size:13px;
+    padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,0.5);
+  }
+  .ai-result-item input[type=checkbox]{margin-top:3px;accent-color:var(--pine);}
+
+  /* Chat FAB + panel ("שאל את המדריך") */
+  .ai-chat-fab{
+    position:fixed;bottom:26px;left:18px;z-index:150;
+    width:52px;height:52px;border-radius:50%;
+    background:var(--rust);color:#fff;border:none;font-size:22px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.4);cursor:pointer;
+  }
+  @media (max-width:720px){ .ai-chat-fab{ bottom:74px; } }
+  .ai-chat-panel{
+    position:fixed;bottom:88px;left:18px;z-index:150;
+    width:350px;max-width:90vw;max-height:62vh;
+    background:var(--paper);color:var(--ink-text);border-radius:var(--radius);
+    border:1.5px solid var(--line-dark);box-shadow:0 20px 50px rgba(0,0,0,0.45);
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+  @media (max-width:720px){ .ai-chat-panel{ bottom:136px; } }
+  .ai-chat-header{
+    background:var(--ink);color:var(--paper);padding:10px 14px;font-family:'JetBrains Mono',monospace;
+    font-size:12.5px;display:flex;justify-content:space-between;align-items:center;flex:0 0 auto;
+  }
+  .ai-chat-header button{background:none;border:none;color:var(--paper);font-size:16px;cursor:pointer;}
+  .ai-chat-messages{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;}
+  .ai-chat-msg{font-size:13.5px;line-height:1.5;padding:8px 10px;border-radius:10px;max-width:88%;white-space:pre-wrap;}
+  .ai-chat-msg.user{align-self:flex-end;background:var(--stay);color:var(--paper);}
+  .ai-chat-msg.bot{align-self:flex-start;background:var(--paper-soft);color:var(--ink-text);}
+  .ai-chat-input-row{display:flex;gap:6px;padding:10px;border-top:1px dashed var(--line);flex:0 0 auto;}
+  .ai-chat-input-row input{flex:1;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13.5px;min-width:0;}
+  .ai-chat-input-row button{flex:0 0 auto;}
 </style>
 </head>
 <body>
@@ -1262,6 +1337,7 @@
     <div class="section-header">
       <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7Z" stroke-linejoin="round"/><path d="M14 3v4h4" stroke-linejoin="round"/><path d="M9.5 12h6M9.5 15.5h6M9.5 8.5h3" stroke-linecap="round"/></svg></span> מסמכים והזמנות</div>
       <button class="btn-quick" id="addDocumentBtn">הוסף מסמך</button>
+      <button class="ai-btn" id="aiImportDocBtn" type="button" title="הדביקו טקסט של אישור הזמנה וה-AI ימלא את השדות">🤖 מלא ממייל/אישור</button>
     </div>
     <p class="section-hint">טיסות, מלונות, השכרות רכב ואישורי הזמנה שכבר סגורים ומשולמים - לא רעיונות לתכנון.</p>
     <div class="ideas-list" id="documentsBody"></div>
@@ -1280,6 +1356,7 @@
     <div class="section-header">
       <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M8 8V6a4 4 0 0 1 8 0v2M6 8h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke-linecap="round"/></svg></span> רשימת אריזה והתכוננות לטיסה</div>
       <button class="btn-quick" id="packingQuickAdd">הוסף פריטים נפוצים</button>
+      <button class="ai-btn" id="aiPackingBtn" type="button" title="הצעת רשימת אריזה לפי היעד, העונה ומשך הטיול">🤖 הצעת AI לפי הטיול</button>
     </div>
     <p class="section-hint">🔒 הרשימה הזו אישית - נשמרת בענן ומוצגת רק לך, גם אם הטיול משותף עם עוד אנשים. אפשר להוסיף גם משימות עם תאריך יעד (ויזה, ביטוח נסיעות, חיסונים, חידוש דרכון, הודעה לבנק) - לא רק פריטים לתיק.</p>
     <div id="packingSuggestionsBanner"></div>
@@ -1314,6 +1391,9 @@
     </div>
   </div>
 
+  <button class="ai-chat-fab" id="aiChatFab" type="button" title="שאל את המדריך (AI)">💬</button>
+  <div id="aiModalRoot"></div>
+
   <div class="toolbar">
     <span class="autosave-note">השינויים נשמרים אוטומטית במכשיר שלך</span>
     <div class="btn-row">
@@ -1346,34 +1426,56 @@
   </div>
 </div>
 
+<script src="./config.js"></script>
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, signInAnonymously, signOut,
   GoogleAuthProvider, signInWithPopup, linkWithPopup,
   EmailAuthProvider, linkWithCredential,
   signInWithEmailAndPassword
-} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
 import {
   initializeFirestore, doc, getDoc, getDocFromServer, setDoc, updateDoc, deleteDoc, deleteField,
   collection, query, where, orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction,
   persistentLocalCache, persistentMultipleTabManager
-} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics.js";
+} from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-analytics.js";
+// Firebase AI Logic - lets the app call Gemini directly from the browser
+// through the Firebase project, with no per-user API key and (on the
+// Gemini Developer API tier) no billing required. See getAI()/model init below.
+import { getAI, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-ai.js";
+// App Check protects the AI Logic (Gemini) API from being called by anyone
+// outside this app - required, or every AI feature above returns a 401
+// "Firebase App Check token is invalid" error. See APPCHECK_SITE_KEY below.
+import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app-check.js";
 
 /* ===== הגדרות Firebase =====
-   הדביקו כאן את הקונפיג מקונסולת Firebase (Project settings > General > Your apps > Web app).
-   ראו את קובץ ההוראות שנשלח בנפרד לשלבי ההגדרה המלאים. */
-const firebaseConfig = {
-  apiKey: "AIzaSyDQLgYhR0IzbeJ6WiFW6Pt-7C1yyTweVOk",
-  authDomain: "triplan-giamat13.firebaseapp.com",
-  projectId: "triplan-giamat13",
-  storageBucket: "triplan-giamat13.firebasestorage.app",
-  messagingSenderId: "213734172132",
-  appId: "1:213734172132:web:7df891d20d3bd4882093f1",
-  measurementId: "G-QRJ04SY23W"
+   הערכים האמיתיים לא נמצאים כאן - הם נטענים מקובץ config.js (ראו <script>
+   בראש ה-HTML), שלא נכלל ב-git (מופיע ב-_gitignore) כדי שהפרויקט יישאר
+   open-source בלי לחשוף את פרטי הפרויקט שלכם. כדי להריץ מקומית: העתיקו את
+   config.example.js לקובץ בשם config.js ומלאו בו את הערכים האמיתיים
+   מקונסולת Firebase (Project settings > General > Your apps > Web app)
+   ואת ה-reCAPTCHA site key. ל-deploy: config.js צריך להיות קיים בתיקייה
+   בזמן ה-deploy (firebase deploy מעלה גם קבצים לא-git), רק לא להיכנס ל-git. */
+const firebaseConfig = window.__FIREBASE_CONFIG__ || {
+  apiKey: "REPLACE_ME", authDomain: "", projectId: "", storageBucket: "",
+  messagingSenderId: "", appId: "", measurementId: ""
 };
 const FIREBASE_CONFIGURED = firebaseConfig.apiKey !== "REPLACE_ME";
+
+/* ===== App Check =====
+   Needed because AI Logic (Gemini) enforces App Check - without this, every
+   AI feature (day planner / packing / doc import / chat) fails with
+   "Firebase App Check token is invalid" (401).
+   The reCAPTCHA v3 SITE key also comes from config.js (never the secret key -
+   that one only ever goes in the Firebase console, never in client code).
+   For LOCAL testing (localhost) only: uncomment the FIREBASE_APPCHECK_DEBUG_TOKEN
+   line below, open the browser console, copy the debug token it prints, and
+   register it in Firebase console > Security > App Check > Apps > Manage debug
+   tokens. Remove/comment that line again before deploying to real users. */
+const APPCHECK_SITE_KEY = window.__APPCHECK_SITE_KEY__ || "REPLACE_ME_RECAPTCHA_SITE_KEY";
+// self.FIREBASE_APPCHECK_DEBUG_TOKEN = true; // dev-only - keep commented out in production
 
 // Offline app shell - see sw.js. Requires being served over https:// (or
 // localhost), and the file needs to be deployed alongside index.html (same
@@ -1386,8 +1488,17 @@ if('serviceWorker' in navigator){
 }
 
 let fbApp, fbAuth, db, currentUser = null, appBooted = false;
+let aiModel = null; // Gemini model via Firebase AI Logic, see askGeminiText/askGeminiJSON below
 if(FIREBASE_CONFIGURED){
   fbApp = initializeApp(firebaseConfig);
+  if(APPCHECK_SITE_KEY !== "REPLACE_ME_RECAPTCHA_SITE_KEY"){
+    try{
+      initializeAppCheck(fbApp, {
+        provider: new ReCaptchaV3Provider(APPCHECK_SITE_KEY),
+        isTokenAutoRefreshEnabled: true
+      });
+    }catch(e){ console.warn('App Check לא אותחל:', e); }
+  }
   fbAuth = getAuth(fbApp);
   // autoDetectLongPolling avoids the WebChannel streaming transport, which
   // ad-blockers / some networks block and which shows up as repeated
@@ -1400,7 +1511,48 @@ if(FIREBASE_CONFIGURED){
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
   });
   try{ getAnalytics(fbApp); }catch(e){}
+  try{
+    const ai = getAI(fbApp, { backend: new GoogleAIBackend() });
+    aiModel = getGenerativeModel(ai, { model: 'gemini-3.6-flash' });
+  }catch(e){ console.warn('Firebase AI Logic לא זמין:', e); }
 }
+
+/* ===================== AI helpers (Firebase AI Logic / Gemini) =====================
+   Two thin wrappers around aiModel.generateContent():
+   - askGeminiText: free-form text back (used by the chat).
+   - askGeminiJSON: asks the model to respond with JSON only, then parses it
+     (used by day planning / packing suggestions / document extraction), with
+     fence-stripping in case the model wraps it in ```json anyway. */
+async function askGeminiText(prompt){
+  if(!aiModel) throw new Error('AI לא מוגדר עבור הטיול הזה (בדקו את הגדרות Firebase AI Logic בקונסולה).');
+  const result = await aiModel.generateContent(prompt);
+  return (result.response.text() || '').trim();
+}
+async function askGeminiJSON(prompt){
+  const raw = await askGeminiText(prompt + '\n\nהשב אך ורק ב-JSON תקני, בלי טקסט נוסף, בלי ```.');
+  const cleaned = raw.replace(/^```json\s*|^```\s*|```$/gm, '').trim();
+  try{ return JSON.parse(cleaned); }
+  catch(e){ throw new Error('התשובה מה-AI לא הייתה JSON תקין: ' + cleaned.slice(0,200)); }
+}
+
+/* ---- Generic small modal used by the day-planner / packing / doc-import features ---- */
+function openAIModal({ title, hint, bodyHTML, onMount }){
+  const root = document.getElementById('aiModalRoot');
+  root.innerHTML = `
+    <div class="ai-modal-overlay" id="aiModalOverlay">
+      <div class="ai-modal" role="dialog" aria-modal="true">
+        <h3>${title}</h3>
+        ${hint ? `<p class="ai-hint">${hint}</p>` : ''}
+        <div id="aiModalBody">${bodyHTML || ''}</div>
+      </div>
+    </div>
+  `;
+  const overlay = document.getElementById('aiModalOverlay');
+  overlay.addEventListener('click', e => { if(e.target === overlay) closeAIModal(); });
+  if(onMount) onMount(document.getElementById('aiModalBody'));
+  return document.getElementById('aiModalBody');
+}
+function closeAIModal(){ document.getElementById('aiModalRoot').innerHTML = ''; }
 
 function generateCode(){
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1870,9 +2022,7 @@ function repairOrphanedScheduledIdeas(state){
     if(name && titles.has(name)) return; // legacy activity still represents it, by title
     idea.scheduled = false;
     fixed++;
-    console.log(`[map-debug] repaired orphaned idea "${name || idea.id}" - was stuck as "scheduled" with no matching activity anywhere, now back in the pool and visible on the map.`);
   });
-  if(fixed) console.log(`[map-debug] repairOrphanedScheduledIdeas: fixed ${fixed} orphaned idea(s).`);
   return fixed;
 }
 
@@ -2392,6 +2542,7 @@ function render(){
           <div class="day-dest-row"><span class="day-dest-icon" data-role="dest-emoji">${destIconSVG}</span><input class="day-dest" data-role="destination" placeholder="לאן הולכים היום?" value="${escapeAttr(day.destination)}"></div>
           <label class="day-currency-row">מטבע ליום זה: <select data-role="day-currency">${dayCurrencyOptionsHTML(day.currency)}</select></label>
         </div>
+        <button class="ai-btn ai-day-btn" data-role="ai-plan-day" type="button" title="AI יסדר רעיונות שטרם שובצו ליום הזה לפי מיקום ושעות">🤖 תכנן עם AI</button>
         <button class="icon-btn" data-role="del-day" title="מחק יום">${ICONS.trash}</button>
       </div>
       <div class="activities" data-role="activities"></div>
@@ -2453,6 +2604,10 @@ function render(){
       actsEl.appendChild(buildActivityRow(day, act));
       touchDay(day); saveState();
     });
+    card.querySelector('[data-role="ai-plan-day"]').addEventListener('click', () => {
+      if(currentRole === 'viewer'){ alert('צופים לא יכולים לערוך את הטיול.'); return; }
+      openDayPlanModal(day, index);
+    });
 
     const hn = card.querySelector('[data-role="hotel-name"]');
     const hl = card.querySelector('[data-role="hotel-link"]');
@@ -2511,7 +2666,6 @@ function unscheduleSourceIdea(act){
   }
   if(idea && idea.scheduled){
     idea.scheduled = false;
-    console.log(`[map-debug] "${act.title}" was deleted - moved its idea back to the unscheduled pool, so it'll show on the map again.`);
   }
 }
 
@@ -2898,7 +3052,6 @@ try{
   // forever. Drop those so anything that failed before gets retried now.
   let purged = 0;
   Object.keys(geocodeCache).forEach(k => { if(geocodeCache[k] === null){ delete geocodeCache[k]; purged++; } });
-  if(purged) console.log(`[map-debug] purged ${purged} old "not found" entries from the geocode cache - they'll be retried.`);
 }catch(e){ geocodeCache = {}; }
 function saveGeocodeCache(){ try{ localStorage.setItem(GEOCODE_CACHE_KEY, JSON.stringify(geocodeCache)); }catch(e){} }
 
@@ -2907,7 +3060,6 @@ async function geocodeQuery(query){
   const key = (query || '').trim().toLowerCase();
   if(!key) return null;
   if(Object.prototype.hasOwnProperty.call(geocodeCache, key)){
-    console.log(`[map-debug] geocode cache hit for "${query}":`, geocodeCache[key]);
     return geocodeCache[key];
   }
   const wait = Math.max(0, lastGeocodeCallAt + 1100 - Date.now());
@@ -2915,10 +3067,8 @@ async function geocodeQuery(query){
   lastGeocodeCallAt = Date.now();
   try{
     const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`);
-    if(!res.ok) console.warn(`[map-debug] geocode HTTP ${res.status} for "${query}"`);
     const data = await res.json();
     const result = (data && data[0]) ? { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) } : null;
-    console.log(`[map-debug] geocode result for "${query}":`, result, data && data.length ? `(${data.length} raw matches)` : '(0 matches)');
     // Only cache successes. A failed lookup isn't necessarily permanent (rate
     // limiting, a flaky response, a query that will change) - caching it as
     // "not found" forever meant it could never resolve again even after a
@@ -2926,7 +3076,6 @@ async function geocodeQuery(query){
     if(result){ geocodeCache[key] = result; saveGeocodeCache(); }
     return result;
   }catch(err){
-    console.error(`[map-debug] geocode FAILED (network/JS error) for "${query}":`, err);
     return null;
   }
 }
@@ -2985,7 +3134,6 @@ async function renderMapSection(){
   const mapEl = document.getElementById('mapSingle');
   if(!statusEl || !mapEl) return;
   const myToken = ++mapRenderToken;
-  console.group(`[map-debug] renderMapSection run #${myToken} starting`);
 
   // Same query text this map and each idea's own little Google-embed map both
   // search for - but they hit different geocoders (this map uses the free
@@ -3023,12 +3171,6 @@ async function renderMapSection(){
   const skippedNoName = state.attractionIdeas.filter(idea => !idea.scheduled && !(idea.nameHe || idea.nameEn || '').trim());
   const allSpots = [...scheduledSpots, ...ideaSpots];
 
-  console.log(`[map-debug] state.attractionIdeas total: ${state.attractionIdeas.length}`);
-  console.log(`[map-debug] unscheduled ideas: ${state.attractionIdeas.filter(i=>!i.scheduled).length}, of which skipped for missing name: ${skippedNoName.length}`);
-  console.log(`[map-debug] scheduledSpots (from day activities): ${scheduledSpots.length}`, scheduledSpots.map(s=>s.label));
-  console.log(`[map-debug] ideaSpots (unscheduled ideas with a name): ${ideaSpots.length}`, ideaSpots.map(s=>s.label));
-  console.log(`[map-debug] allSpots total going into geocoding: ${allSpots.length}`);
-  console.groupEnd();
 
   if(!allSpots.length){
     mapEl.style.display = 'none';
@@ -3057,7 +3199,6 @@ async function renderMapSection(){
     let coords = (s.link && coordsFromGoogleMapsLink(s.link)) || (s.mapQuery && coordsFromGoogleMapsLink(s.mapQuery)) || null;
     if(!coords) coords = await geocodeQuery(s.query);
     if(myToken !== mapRenderToken){
-      console.warn(`[map-debug] run #${myToken} ABORTED mid-loop (a newer run #${mapRenderToken} started) - discarding partial results, keeping previous complete map as-is.`);
       return; // a newer render started meanwhile - abandon this one, previous complete layer stays on screen
     }
     if(!coords){ unresolved.push(s); continue; }
@@ -3086,7 +3227,6 @@ async function renderMapSection(){
     });
   }
   if(myToken !== mapRenderToken){
-    console.warn(`[map-debug] run #${myToken} ABORTED right after the loop (a newer run #${mapRenderToken} started) - discarding, keeping previous complete map as-is.`);
     return;
   }
 
@@ -3099,8 +3239,6 @@ async function renderMapSection(){
   if(bounds.length) map.fitBounds(bounds, { padding:[30,30], maxZoom:15 });
   setTimeout(() => map.invalidateSize(), 50);
 
-  console.log(`[map-debug] run #${myToken} COMPLETE: ${bounds.length}/${allSpots.length} placed on map, ${unresolved.length} unresolved.`);
-  if(unresolved.length) console.log('[map-debug] unresolved spots (geocoder found nothing):', unresolved.map(s => ({ label:s.label, query:s.query })));
   window.__mapDebugLast = { total: allSpots.length, placed: bounds.length, unresolved: unresolved.map(s => ({ label:s.label, query:s.query })), allSpots: allSpots.map(s=>({label:s.label, query:s.query, kind:s.kind})) };
 
   let statusHtml = `<div class="map-status">נמצאו ${bounds.length} מתוך ${allSpots.length} מקומות על המפה.</div>`;
@@ -3767,6 +3905,95 @@ function promoteIdeaToDay(idea, dayIdx, time, opts){
   return true;
 }
 
+/* ---------------- AI: בניית מסלול יומי ---------------- */
+// Gathers the day's context (destination, unscheduled ideas, already-scheduled
+// activities) plus optional free-text instructions from the user, asks Gemini
+// to order/schedule ideas for that day, shows the suggestion as a checklist,
+// and on confirm applies it via promoteIdeaToDay() (same path as manual scheduling).
+function openDayPlanModal(day, dayIndex){
+  const unscheduled = state.attractionIdeas.filter(i => !i.scheduled);
+  const bodyHTML = `
+    <textarea id="aiDayPlanInstructions" placeholder="הוראות מיוחדות לתכנון (אופציונלי) - למשל: &quot;תכנן לי יום 3 בטוקיו, בוקר רגוע ובלי הליכה ארוכה מדי&quot;"></textarea>
+    <div class="ai-modal-actions">
+      <button class="btn-quick" type="button" id="aiDayPlanCancel">ביטול</button>
+      <button class="ai-btn" type="button" id="aiDayPlanGo">🤖 תכנן</button>
+    </div>
+    <div id="aiDayPlanStatus"></div>
+  `;
+  const body = openAIModal({
+    title: `תכנון יום ${dayIndex+1} עם AI`,
+    hint: unscheduled.length
+      ? `יש ${unscheduled.length} רעיונות שטרם שובצו לאף יום. ה-AI יבחר מהם ויציע סדר ושעות ליום הזה.`
+      : 'אין כרגע רעיונות פנויים (שטרם שובצו) ברשימת "רעיונות" - אפשר עדיין לבקש מה-AI הצעות כלליות לפי היעד.',
+    bodyHTML
+  });
+  document.getElementById('aiDayPlanCancel').addEventListener('click', closeAIModal);
+  document.getElementById('aiDayPlanGo').addEventListener('click', async () => {
+    const goBtn = document.getElementById('aiDayPlanGo');
+    const statusEl = document.getElementById('aiDayPlanStatus');
+    const instructions = document.getElementById('aiDayPlanInstructions').value.trim();
+    goBtn.disabled = true;
+    statusEl.innerHTML = '<span class="ai-spinner"></span> חושב על מסלול...';
+    try{
+      const ideasForPrompt = unscheduled.map(i => ({
+        id: i.id, name: i.nameHe || i.nameEn || '(ללא שם)', category: i.category,
+        durationHours: parseDurationHours(i.duration) || null, priority: i.priority || null,
+        notes: i.notes || ''
+      }));
+      const existingActs = day.activities.filter(a => a.title).map(a => ({ time: a.time || '', title: a.title }));
+      const prompt = `את/ה עוזר תכנון טיולים. יעד היום: "${day.destination || '(לא הוגדר)'}" (יום ${dayIndex+1} בטיול בשם "${state.name || ''}").
+פעילויות שכבר קבועות ביום הזה: ${JSON.stringify(existingActs)}
+רעיונות פנויים לשיבוץ (מאגר, לא כולם חייבים להיכנס): ${JSON.stringify(ideasForPrompt)}
+הוראות מיוחדות מהמשתמש: ${instructions || '(אין)'}
+בחר תת-קבוצה סבירה מהרעיונות הפנויים ליום הזה (אל תמציא רעיונות חדשים, רק בחר לפי ה-id שסופק), סדר אותם לפי קרבה גיאוגרפית סבירה והיגיון (למשל אוכל בשעות ארוחה), ותן לכל אחד שעת התחלה משוערת (HH:MM) שלא מתנגשת עם הפעילויות הקבועות שכבר יש. החזר מערך JSON בפורמט הבא בדיוק:
+[{"ideaId":"...", "time":"09:00", "reason":"משפט קצר בעברית למה זה מתאים בשעה הזו"}]`;
+      const plan = await askGeminiJSON(prompt);
+      if(!Array.isArray(plan) || !plan.length){
+        statusEl.innerHTML = '<div class="ai-error">ה-AI לא הציע שום פעילות. נסו להוסיף עוד רעיונות ברשימת "רעיונות" או לנסח הוראות אחרות.</div>';
+        goBtn.disabled = false;
+        return;
+      }
+      const validItems = plan.filter(p => unscheduled.some(i => i.id === p.ideaId));
+      if(!validItems.length){
+        statusEl.innerHTML = '<div class="ai-error">התשובה מה-AI לא התאימה לרעיונות הקיימים. נסו שוב.</div>';
+        goBtn.disabled = false;
+        return;
+      }
+      body.innerHTML = `
+        <p class="ai-hint">סמנו מה לשבץ ליום ${dayIndex+1}:</p>
+        <div class="ai-result-list" id="aiDayPlanResults">
+          ${validItems.map((p,idx) => {
+            const idea = unscheduled.find(i => i.id === p.ideaId);
+            return `<label class="ai-result-item">
+              <input type="checkbox" checked data-idx="${idx}">
+              <span><b>${escapeAttr(p.time || '')}</b> — ${escapeAttr(idea.nameHe || idea.nameEn)}<br><span style="color:var(--muted);font-size:12px;">${escapeAttr(p.reason || '')}</span></span>
+            </label>`;
+          }).join('')}
+        </div>
+        <div class="ai-modal-actions">
+          <button class="btn-quick" type="button" id="aiDayPlanCancel2">ביטול</button>
+          <button class="ai-btn" type="button" id="aiDayPlanApply">שבץ ליום</button>
+        </div>
+      `;
+      document.getElementById('aiDayPlanCancel2').addEventListener('click', closeAIModal);
+      document.getElementById('aiDayPlanApply').addEventListener('click', () => {
+        let added = 0;
+        body.querySelectorAll('#aiDayPlanResults input[type="checkbox"]:checked').forEach(cb => {
+          const p = validItems[Number(cb.dataset.idx)];
+          const idea = unscheduled.find(i => i.id === p.ideaId);
+          if(idea && promoteIdeaToDay(idea, dayIndex, p.time || '', { confirmConflict:false })) added++;
+        });
+        closeAIModal();
+        render();
+        if(added) showToast(`שובצו ${added} פעילויות ליום ${dayIndex+1} 🤖`);
+      });
+    }catch(err){
+      statusEl.innerHTML = `<div class="ai-error">שגיאה: ${escapeAttr(err.message || String(err))}</div>`;
+      goBtn.disabled = false;
+    }
+  });
+}
+
 document.getElementById('addIdeaBtn').addEventListener('click', async () => {
   if(currentRole === 'viewer' || !activeTripId) return;
   const idea = newAttractionIdea();
@@ -3973,6 +4200,61 @@ document.getElementById('addDocumentBtn').addEventListener('click', async () => 
   await appendTripItem('documents', newDoc);
 });
 
+/* ---------------- AI: חילוץ מידע ממסמך (הדבקת טקסט אישור/מייל) ---------------- */
+document.getElementById('aiImportDocBtn').addEventListener('click', () => {
+  if(currentRole === 'viewer' || !activeTripId){ if(currentRole==='viewer') alert('צופים לא יכולים לערוך את הטיול.'); return; }
+  const bodyHTML = `
+    <textarea id="aiDocText" placeholder="הדביקו כאן טקסט של אישור טיסה, מלון, השכרת רכב וכו'..."></textarea>
+    <div class="ai-modal-actions">
+      <button class="btn-quick" type="button" id="aiDocCancel">ביטול</button>
+      <button class="ai-btn" type="button" id="aiDocGo">🤖 חלץ פרטים</button>
+    </div>
+    <div id="aiDocStatus"></div>
+  `;
+  openAIModal({
+    title: 'מילוי מסמך אוטומטי מטקסט',
+    hint: 'הדביקו את הטקסט המלא של המייל/אישור ההזמנה - ה-AI יזהה את הסוג (טיסה/מלון/רכב) וימלא את השדות הרלוונטיים. אפשר לערוך הכל לפני השמירה.',
+    bodyHTML
+  });
+  document.getElementById('aiDocCancel').addEventListener('click', closeAIModal);
+  document.getElementById('aiDocGo').addEventListener('click', async () => {
+    const goBtn = document.getElementById('aiDocGo');
+    const statusEl = document.getElementById('aiDocStatus');
+    const text = document.getElementById('aiDocText').value.trim();
+    if(!text){ statusEl.innerHTML = '<div class="ai-error">הדביקו קודם טקסט לחילוץ.</div>'; return; }
+    goBtn.disabled = true;
+    statusEl.innerHTML = '<span class="ai-spinner"></span> קורא את המסמך...';
+    try{
+      const dayOptionsForPrompt = state.days.map((d,i) => `${d.id}=יום ${i+1}${d.destination?' ('+d.destination+')':''}`).join(', ');
+      const prompt = `חלץ פרטי הזמנה מהטקסט הבא (מייל אישור/כרטיס/וואצ'ר). קבע type כאחד מ: "flight", "hotel", "car", "general".
+ימי הטיול הקיימים (לצורך שיוך אפשרי, אופציונלי): ${dayOptionsForPrompt || '(אין ימים עדיין)'}
+טקסט:
+"""
+${text}
+"""
+החזר אובייקט JSON יחיד בדיוק בפורמט הזה (השאר שדה כמחרוזת ריקה "" אם לא נמצא מידע רלוונטי):
+{"type":"flight|hotel|car|general","title":"","dayId":"","flightNumber":"","depTime":"","arrTime":"","gate":"","address":"","checkIn":"","checkOut":"","company":"","pickupInfo":"","returnInfo":"","confirmationNumber":"","link":"","notes":""}
+depTime/arrTime בפורמט HH:MM, checkIn/checkOut בפורמט YYYY-MM-DD. dayId - רק אם ברור באיזה יום מדובר מתוך הרשימה שסופקה, אחרת השאירו ריק.`;
+      const extracted = await askGeminiJSON(prompt);
+      const newDoc = normalizeDocument(Object.assign(newDocument(), extracted, {
+        id: nextId(), createdAt: Date.now(), createdBy: currentUser?.uid || '',
+        attachmentName:'', attachmentText:''
+      }));
+      if(!newDoc.title) newDoc.title = { flight:'טיסה', hotel:'מלון', car:'השכרת רכב', general:'מסמך' }[newDoc.type] || 'מסמך חדש';
+      state.documents.push(newDoc);
+      expandedDocIds.add(newDoc.id);
+      closeAIModal();
+      renderDocuments();
+      saveState();
+      await appendTripItem('documents', newDoc);
+      showToast('המסמך מולא אוטומטית - כדאי לבדוק את השדות 🤖');
+    }catch(err){
+      statusEl.innerHTML = `<div class="ai-error">שגיאה: ${escapeAttr(err.message || String(err))}</div>`;
+      goBtn.disabled = false;
+    }
+  });
+});
+
 document.getElementById('packingAddBtn').addEventListener('click', addPackingItem);
 document.getElementById('packingNewItem').addEventListener('keydown', e => {
   if(e.key === 'Enter'){ e.preventDefault(); addPackingItem(); }
@@ -3999,6 +4281,159 @@ document.getElementById('packingQuickAdd').addEventListener('click', () => {
     }
   });
   savePackingList(); renderPacking();
+});
+
+/* ---------------- AI: רשימת אריזה מותאמת ---------------- */
+document.getElementById('aiPackingBtn').addEventListener('click', () => {
+  const destinations = [...new Set(state.days.map(d => d.destination).filter(Boolean))];
+  const bodyHTML = `
+    <textarea id="aiPackingInstructions" placeholder="פרטים נוספים (אופציונלי) - למשל: &quot;טיול טיולים עם הרבה הליכה&quot;, &quot;נוסעים עם תינוק&quot;, &quot;עסקים בעיקר&quot;"></textarea>
+    <div class="ai-modal-actions">
+      <button class="btn-quick" type="button" id="aiPackingCancel">ביטול</button>
+      <button class="ai-btn" type="button" id="aiPackingGo">🤖 הצע רשימה</button>
+    </div>
+    <div id="aiPackingStatus"></div>
+  `;
+  const body = openAIModal({
+    title: 'רשימת אריזה מותאמת עם AI',
+    hint: `לפי: ${destinations.length ? destinations.join(', ') : '(יעד לא הוגדר עדיין)'} · ${state.days.length} ימים · תאריך יציאה: ${state.startDate || '(לא הוגדר)'}`,
+    bodyHTML
+  });
+  document.getElementById('aiPackingCancel').addEventListener('click', closeAIModal);
+  document.getElementById('aiPackingGo').addEventListener('click', async () => {
+    const goBtn = document.getElementById('aiPackingGo');
+    const statusEl = document.getElementById('aiPackingStatus');
+    const instructions = document.getElementById('aiPackingInstructions').value.trim();
+    goBtn.disabled = true;
+    statusEl.innerHTML = '<span class="ai-spinner"></span> מכין הצעת אריזה...';
+    try{
+      const prompt = `הכינו רשימת אריזה מותאמת אישית לטיול הבא:
+יעדים: ${destinations.length ? destinations.join(', ') : 'לא צויין'}
+תאריך יציאה: ${state.startDate || 'לא צויין'}
+משך הטיול: ${state.days.length} ימים
+פרטים נוספים מהמשתמש: ${instructions || '(אין)'}
+התחשבו בעונה/מזג אוויר הצפוי ביעד בתאריך הזה, במשך הטיול, ובכל פרט נוסף שצויין. אל תכללו פריטים גנריים מדי שכבר ברור מאליהם (כמו "בגדים") - היו ספציפיים (למשל "מעיל גשם קל", "מתאם חשמל ליפן", "כדורי הרגעה לטיסה ארוכה"). כללו גם עד 5 משימות עם תאריך יעד לפני הטיול (למשל ויזה, ביטוח נסיעות, חיסונים) אם רלוונטי ליעד. החזירו מערך JSON בפורמט הבא בדיוק, בין 10 ל-25 פריטים:
+[{"text":"שם הפריט/משימה", "dueDaysBefore": null}]
+כאשר dueDaysBefore הוא מספר ימים לפני תאריך היציאה (למשימות עם דדליין) או null (לפריט רגיל לתיק).`;
+      const items = await askGeminiJSON(prompt);
+      if(!Array.isArray(items) || !items.length){
+        statusEl.innerHTML = '<div class="ai-error">ה-AI לא החזיר הצעות. נסו שוב.</div>';
+        goBtn.disabled = false;
+        return;
+      }
+      const existing = new Set(state.packing.map(p => p.text.trim().toLowerCase()));
+      body.innerHTML = `
+        <p class="ai-hint">סמנו מה להוסיף לרשימת האריזה שלכם:</p>
+        <div class="ai-result-list" id="aiPackingResults">
+          ${items.map((it,idx) => {
+            const isDup = existing.has(String(it.text||'').trim().toLowerCase());
+            return `<label class="ai-result-item">
+              <input type="checkbox" ${isDup ? '' : 'checked'} data-idx="${idx}">
+              <span>${escapeAttr(it.text || '')}${it.dueDaysBefore ? ` <span style="color:var(--muted);font-size:12px;">(${escapeAttr(String(it.dueDaysBefore))} ימים לפני)</span>` : ''}${isDup ? ' <span style="color:var(--muted);font-size:11px;">(כבר ברשימה)</span>' : ''}</span>
+            </label>`;
+          }).join('')}
+        </div>
+        <div class="ai-modal-actions">
+          <button class="btn-quick" type="button" id="aiPackingCancel2">ביטול</button>
+          <button class="ai-btn" type="button" id="aiPackingApply">הוסף לרשימה</button>
+        </div>
+      `;
+      document.getElementById('aiPackingCancel2').addEventListener('click', closeAIModal);
+      document.getElementById('aiPackingApply').addEventListener('click', () => {
+        let added = 0;
+        body.querySelectorAll('#aiPackingResults input[type="checkbox"]:checked').forEach(cb => {
+          const it = items[Number(cb.dataset.idx)];
+          const key = String(it.text||'').trim().toLowerCase();
+          if(!key || existing.has(key)) return;
+          state.packing.push({ id: nextId(), text: it.text.trim(), checked:false, dueDaysBefore: it.dueDaysBefore || '' });
+          existing.add(key);
+          added++;
+        });
+        savePackingList(); renderPacking();
+        closeAIModal();
+        if(added) showToast(`נוספו ${added} פריטים לרשימת האריזה 🤖`);
+      });
+    }catch(err){
+      statusEl.innerHTML = `<div class="ai-error">שגיאה: ${escapeAttr(err.message || String(err))}</div>`;
+      goBtn.disabled = false;
+    }
+  });
+});
+
+/* ---------------- AI: צ'אט "שאל את המדריך" ---------------- */
+// Builds a compact snapshot of the current trip (days/activities, unscheduled
+// ideas, budget, documents) to give the chat model context about this specific
+// trip. Kept intentionally short (titles/times/costs, not every field) so the
+// prompt stays small.
+function buildTripSummaryForAI(){
+  const days = state.days.map((d,i) => ({
+    day: i+1, date: dateForDayIndex(i) || null, destination: d.destination || null,
+    hotel: d.hotel.name || null,
+    activities: d.activities.filter(a => a.title).map(a => ({ time:a.time||null, title:a.title, cost:a.cost||null, category:a.category }))
+  }));
+  const unscheduledIdeas = state.attractionIdeas.filter(i => !i.scheduled).map(i => ({ name: i.nameHe || i.nameEn, category: i.category, priority: i.priority || null }));
+  const docs = state.documents.map(d => ({ type:d.type, title:d.title }));
+  return JSON.stringify({
+    tripName: state.name || null, startDate: state.startDate || null, totalDays: state.days.length,
+    currency: state.currency, budgetCap: state.budget || null,
+    days, unscheduledIdeas, documents: docs
+  });
+}
+let aiChatOpen = false;
+let aiChatHistory = []; // [{role:'user'|'model', text}]
+function renderAIChatPanel(){
+  const root = document.getElementById('aiModalRoot');
+  root.innerHTML = `
+    <div class="ai-chat-panel">
+      <div class="ai-chat-header">
+        <span>💬 שאל את המדריך</span>
+        <button id="aiChatCloseBtn" type="button" title="סגור">✕</button>
+      </div>
+      <div class="ai-chat-messages" id="aiChatMessages">
+        ${aiChatHistory.length ? aiChatHistory.map(m => `<div class="ai-chat-msg ${m.role==='user'?'user':'bot'}">${escapeAttr(m.text)}</div>`).join('') : '<div class="ai-chat-msg bot">שלום! אפשר לשאול אותי כל דבר על הטיול הזה - למשל "כמה עוד נשאר לי בתקציב?" או "יש לי יום פנוי?"</div>'}
+      </div>
+      <div class="ai-chat-input-row">
+        <input type="text" id="aiChatInput" placeholder="שאלו אותי משהו על הטיול...">
+        <button class="ai-btn" id="aiChatSendBtn" type="button">שלח</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('aiChatCloseBtn').addEventListener('click', closeAIChat);
+  const msgsEl = document.getElementById('aiChatMessages');
+  msgsEl.scrollTop = msgsEl.scrollHeight;
+  const input = document.getElementById('aiChatInput');
+  const send = async () => {
+    const q = input.value.trim();
+    if(!q) return;
+    aiChatHistory.push({ role:'user', text:q });
+    input.value = '';
+    renderAIChatPanel();
+    const msgsEl2 = document.getElementById('aiChatMessages');
+    msgsEl2.insertAdjacentHTML('beforeend', '<div class="ai-chat-msg bot" id="aiChatThinking"><span class="ai-spinner"></span></div>');
+    msgsEl2.scrollTop = msgsEl2.scrollHeight;
+    try{
+      const historyText = aiChatHistory.slice(0,-1).slice(-6).map(m => `${m.role==='user'?'משתמש':'מדריך'}: ${m.text}`).join('\n');
+      const prompt = `את/ה "המדריך" - עוזר AI ידידותי בתוך אפליקציית תכנון טיולים בשם Triplan, שעונה בעברית על שאלות על טיול ספציפי לפי הנתונים הבאים (JSON):
+${buildTripSummaryForAI()}
+${historyText ? `\nהיסטוריית שיחה קודמת:\n${historyText}\n` : ''}
+שאלת המשתמש הנוכחית: "${q}"
+ענה תשובה קצרה, ידידותית ומועילה בעברית, מבוססת רק על הנתונים שסופקו. אם משהו לא ידוע מהנתונים, אמור זאת בפשטות במקום להמציא.`;
+      const answer = await askGeminiText(prompt);
+      aiChatHistory.push({ role:'model', text:answer });
+    }catch(err){
+      aiChatHistory.push({ role:'model', text:'שגיאה: ' + (err.message || String(err)) });
+    }
+    renderAIChatPanel();
+  };
+  document.getElementById('aiChatSendBtn').addEventListener('click', send);
+  input.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); send(); } });
+  input.focus();
+}
+function closeAIChat(){ aiChatOpen = false; document.getElementById('aiModalRoot').innerHTML = ''; }
+document.getElementById('aiChatFab').addEventListener('click', () => {
+  aiChatOpen = !aiChatOpen;
+  if(aiChatOpen) renderAIChatPanel();
+  else document.getElementById('aiModalRoot').innerHTML = '';
 });
 
 /* ---------------- Export / Import / Share ---------------- */
