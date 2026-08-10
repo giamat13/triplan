@@ -2811,6 +2811,7 @@ function debugTargetMeActive(){
 const DEBUG_CODES_HELP = [
   { code:'DEBUG1BEFORE', desc:'פותח את טאב "כלים לחו"ל" לשעה הקרובה, גם אם עדיין לא הגיע יום לפני הטיסה' },
   { code:'DEBUGTARGETME', desc:'לשעה הקרובה, כלי "קו האפס האמיתי" יכוון למיקום ה-check-in האחרון שלך במקום לקו האמיתי - לבדיקת החישוב/המצפן בלי לנסוע לגריניץ\'' },
+  { code:'DEBUGEXIT', desc:'יוצא מיד מכל מצבי הדיבאג הפעילים (DEBUG1BEFORE ו-DEBUGTARGETME), בלי לחכות שיפוגו לבד' },
   { code:'DEBUGHELP', desc:'מציג את הרשימה הזו' }
 ];
 
@@ -5329,6 +5330,18 @@ async function runDebugCode(upperCode){
     }catch(e){
       alert('שגיאה בהפעלת מצב הדיבאג: ' + e.message);
     }
+    return true;
+  }
+  // Hidden debug hook: turns off every active debug mode immediately, instead
+  // of waiting for each one's own 1-hour expiry to pass.
+  if(upperCode === 'DEBUGEXIT'){
+    localStorage.removeItem(DEBUG_TOOLS_KEY);
+    updateHeroStats();
+    if(activeTripId){
+      try{ await fbSetMeridianDebugTargetMe(activeTripId, 0); }
+      catch(e){ alert('שגיאה בכיבוי מצב הדיבאג של "קו האפס האמיתי": ' + e.message); }
+    }
+    showToast('כל מצבי הדיבאג כובו');
     return true;
   }
   // Hidden debug hook: lists all the hidden debug codes above (each with its
