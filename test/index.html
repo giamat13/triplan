@@ -4226,10 +4226,14 @@ function renderMeridianTool(){
     let targetLat = MARKED_MERIDIAN.lat, targetLng = TRUE_MERIDIAN_LNG;
     if(debugMode){
       const withTime = meridianChecks.filter(c => typeof c.lat === 'number' && typeof c.lng === 'number');
-      const latest = withTime.reduce((m,c) => {
+      const pickLatest = list => list.reduce((m,c) => {
         const t = c.updatedAt?.toMillis?.() || 0;
         return (!m || t >= m._t) ? Object.assign({_t:t}, c) : m;
       }, null);
+      // מעדיפים check-in של חבר טיול אחר (זה מה שרוצים לבדוק מולו); רק אם
+      // באמת אין אף אחד אחר, נופלים חזרה לבדיקה עצמית מול ה-check-in שלך
+      // (ואז מרחק/כיוון קרובים ל-0 בכוונה).
+      const latest = pickLatest(withTime.filter(c => c.uid !== currentUser.uid)) || pickLatest(withTime);
       if(latest){ targetLat = latest.lat; targetLng = latest.lng; }
     }
     const distToTrue = haversineMeters(avg.lat, avg.lng, targetLat, targetLng);
