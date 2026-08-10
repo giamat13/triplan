@@ -3988,7 +3988,15 @@ function startMeridianListener(){
   meridianListenerStarted = true;
   meridianUnsub = fbListenMeridianChecks(activeTripId, list => {
     meridianChecks = list;
-    myMeridianCheckedIn = list.some(c => c.uid === currentUser?.uid);
+    const stillCheckedIn = list.some(c => c.uid === currentUser?.uid);
+    // אם המסמך שלי נעלם בין רגע לרגע בעוד שהלב הפועם עדיין חושב שהוא פעיל -
+    // מישהו אחר הסיר את המיקום שלי מרחוק (לא אני, אחרת myMeridianLastCoords
+    // כבר היה מתאפס באותו רגע ב-requestMyMeridianLocation/clearMyMeridianCheckin).
+    // במקרה כזה עוצרים את הלב הפועם המקומי, אחרת הוא פשוט יחזיר את המחיקה תוך 5 שניות.
+    if(!stillCheckedIn && myMeridianCheckedIn && myMeridianLastCoords){
+      myMeridianLastCoords = null;
+    }
+    myMeridianCheckedIn = stillCheckedIn;
     renderMeridianTool();
   });
   // מחדש את התצוגה כל 2 שניות - כדי שתפוגת ה-10 שניות של check-in "לא מחובר"
@@ -4001,6 +4009,8 @@ function startMeridianListener(){
   // updatedAt משמש כאות "אני עדיין כאן" ולא רק "אישרתי פעם אחת בעבר".
   // מי שסוגר/סוגרת את הטאב פשוט מפסיק/ה לשלוח לב פועם, וה-check-in שלו/ה
   // יוצא מהחישוב המשותף תוך 10 שניות, ללא צורך בכפתור "עזיבה" ידני.
+  // אם מישהו אחר הסיר את המיקום שלי במפורש, myMeridianLastCoords מתאפס
+  // (למעלה) כדי שהלב הפועם לא ייצור אותו מחדש - עד שאלחץ שוב "אשר מיקום".
   clearInterval(meridianHeartbeatInterval);
   meridianHeartbeatInterval = setInterval(() => {
     if(myMeridianCheckedIn && myMeridianLastCoords && currentUser && activeTripId){
