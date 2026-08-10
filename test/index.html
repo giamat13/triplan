@@ -1927,6 +1927,11 @@ function fbListenMeridianChecks(tripId, callback){
 async function fbSetMeridianDebugTargetMe(tripId, until){
   await updateDoc(doc(db,'trips',tripId), { meridianDebugTargetMeUntil: until });
 }
+// שומר check-in נפרד למכשיר הזה (ראו meridianDebugDeviceChecks) - כך אותו
+// חשבון על 2 מכשירים לא דורס את עצמו כמו ב-meridianChecks (שם המפתח הוא uid).
+async function fbSubmitMeridianDebugDeviceCheck(tripId, deviceId, lat, lng){
+  await updateDoc(doc(db,'trips',tripId), { ['meridianDebugDeviceChecks.'+deviceId]: { lat, lng, updatedAt: Date.now() } });
+}
 
 async function fbJoinByCode(code){
   const cleanCode = code.trim().toUpperCase();
@@ -2334,6 +2339,17 @@ let memberNames = {}; // uid -> display name, refreshed per trip in switchToTrip
 // מתעדכן דרך switchToTrip/applyRemoteTrip, לא דרך normalizeState (כדי שלא
 // ידלוף לייצוא JSON/PDF של הטיול, בדיוק כמו meridianChecks).
 let meridianDebugTargetMeUntil = 0;
+// check-ins אמיתיים נשמרים לפי uid - אז אותו חשבון משני מכשירים (למשל
+// לבדוק DEBUGTARGETME לבד עם טלפון+מחשב) דורס את עצמו ותמיד יוצא 0. שדה
+// זה שומר check-in נפרד לכל מכשיר (מזוהה ב-DEVICE_ID_KEY, לא בuid) על
+// מסמך הטיול עצמו - כמו meridianDebugTargetMeUntil - כדי לאפשר בדיקה כזו.
+let meridianDebugDeviceChecks = {};
+const DEVICE_ID_KEY = 'triplan-device-id';
+function getDeviceId(){
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if(!id){ id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)); localStorage.setItem(DEVICE_ID_KEY, id); }
+  return id;
+}
 let myDisplayName = '';
 
 function resolveMemberName(uid){
@@ -2504,6 +2520,7 @@ async function switchToTrip(id){
   currentCodes = trip.codes || {};
   currentMembers = trip.members || {};
   meridianDebugTargetMeUntil = trip.meridianDebugTargetMeUntil || 0;
+  meridianDebugDeviceChecks = trip.meridianDebugDeviceChecks || {};
   showSyncError(false);
   await refreshMemberNames();
   render();
@@ -2541,6 +2558,7 @@ async function applyRemoteTrip(trip){
   currentCodes = trip.codes || {};
   currentMembers = trip.members || {};
   meridianDebugTargetMeUntil = trip.meridianDebugTargetMeUntil || 0;
+  meridianDebugDeviceChecks = trip.meridianDebugDeviceChecks || {};
   await refreshMemberNames();
   render();
   renderTripSelect();
@@ -4016,6 +4034,7 @@ function startMeridianListener(){
   meridianHeartbeatInterval = setInterval(() => {
     if(myMeridianCheckedIn && myMeridianLastCoords && currentUser && activeTripId){
       fbSubmitMeridianCheck(activeTripId, currentUser.uid, myMeridianLastCoords.lat, myMeridianLastCoords.lng).catch(()=>{});
+      if(debugTargetMeActive()) fbSubmitMeridianDebugDeviceCheck(activeTripId, getDeviceId(), myMeridianLastCoords.lat, myMeridianLastCoords.lng).catch(()=>{});
     }
   }, 5000);
 }
@@ -4072,6 +4091,7 @@ function requestMyMeridianLocation(){
   navigator.geolocation.getCurrentPosition(async pos => {
     try{
       await fbSubmitMeridianCheck(activeTripId, currentUser.uid, pos.coords.latitude, pos.coords.longitude);
+      if(debugTargetMeActive()) await fbSubmitMeridianDebugDeviceCheck(activeTripId, getDeviceId(), pos.coords.latitude, pos.coords.longitude).catch(()=>{});
       myMeridianLastCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
     }catch(e){
       alert('שגיאה בשמירת המיקום: ' + e.message);
@@ -4231,11 +4251,25 @@ function renderMeridianTool(){
         const t = c.updatedAt?.toMillis?.() || 0;
         return (!m || t >= m._t) ? Object.assign({_t:t}, c) : m;
       }, null);
-      // מעדיפים check-in של חבר טיול אחר (זה מה שרוצים לבדוק מולו); רק אם
-      // באמת אין אף אחד אחר, נופלים חזרה לבדיקה עצמית מול ה-check-in שלך
-      // (ואז מרחק/כיוון קרובים ל-0 בכוונה).
-      const latest = pickLatest(withTime.filter(c => c.uid !== currentUser.uid)) || pickLatest(withTime);
-      if(latest){ targetLat = latest.lat; targetLng = latest.lng; }
+      // סדר עדיפות ליעד הדיבאג:
+      // 1. check-in של חבר טיול אחר (uid שונה) - זה מה שבאמת רוצים לבדוק מולו.
+      // 2. אין חבר אחר, אבל אותו חשבון בדק-אין ממכשיר אחר (למשל טלפון+מחשב
+      //    עם אותו login) - ה-check-in הרגיל נשמר לפי uid ודורס את עצמו בין
+      //    מכשירים, לכן משתמשים ב-meridianDebugDeviceChecks (נשמר לפי מזהה
+      //    מכשיר, לא uid) כדי למצוא מכשיר אחר של אותו חשבון.
+      // 3. אחרת (מכשיר יחיד לגמרי) - נופלים חזרה לבדיקה עצמית מול ה-check-in
+      //    שלך (ואז מרחק/כיוון קרובים ל-0 בכוונה).
+      const otherMember = pickLatest(withTime.filter(c => c.uid !== currentUser.uid));
+      let target = otherMember;
+      if(!target){
+        const myDeviceId = getDeviceId();
+        const otherDeviceEntries = Object.entries(meridianDebugDeviceChecks || {})
+          .filter(([deviceId, c]) => deviceId !== myDeviceId && typeof c?.lat === 'number' && typeof c?.lng === 'number')
+          .map(([, c]) => c);
+        target = otherDeviceEntries.reduce((m,c) => (!m || (c.updatedAt||0) >= (m.updatedAt||0)) ? c : m, null);
+      }
+      if(!target) target = pickLatest(withTime);
+      if(target){ targetLat = target.lat; targetLng = target.lng; }
     }
     const distToTrue = haversineMeters(avg.lat, avg.lng, targetLat, targetLng);
     const bearing = bearingDegrees(avg.lat, avg.lng, targetLat, targetLng);
