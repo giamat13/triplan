@@ -4217,7 +4217,11 @@ function renderMeridianTool(){
     const debugMode = debugTargetMeActive();
     // מצב דיבאג TARGETME: היעד הוא ה-check-in האחרון שהתקבל (לפי updatedAt),
     // במקום קו האורך 0° האמיתי - כדי לבדוק שהחישוב/המצפן עצמם עובדים נכון.
-    let targetLat = avg.lat, targetLng = TRUE_MERIDIAN_LNG;
+    // באג שתוקן: הקוד הקודם הציב כאן avg.lat (קו הרוחב של המשתמש עצמו!)
+    // במקום קו הרוחב של הקו המסומן בגריניץ' - מה שגרם למרחק/כיוון להתאפס
+    // (0 ס"מ, כיוון 0) בכל פעם שקו האורך כמעט 0, כי חושב מרחק על אותו
+    // קו רוחב במקום מרחק אמיתי לנקודה בגריניץ'.
+    let targetLat = MARKED_MERIDIAN.lat, targetLng = TRUE_MERIDIAN_LNG;
     if(debugMode){
       const withTime = meridianChecks.filter(c => typeof c.lat === 'number' && typeof c.lng === 'number');
       const latest = withTime.reduce((m,c) => {
