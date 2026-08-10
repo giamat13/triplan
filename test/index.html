@@ -4223,11 +4223,7 @@ function renderMeridianTool(){
     // קו רוחב במקום מרחק אמיתי לנקודה בגריניץ'.
     let targetLat = MARKED_MERIDIAN.lat, targetLng = TRUE_MERIDIAN_LNG;
     if(debugMode){
-      // מוציאים את ה-check-in של עצמנו: אחרת, כשבודקים לבד (אין עוד חבר
-      // טיול מאושר), "היעד" וה"כאן" הם אותה נקודה בדיוק - מרחק/כיוון תמיד
-      // מתאפסים (0 ס"מ, כיוון 0°) בלי קשר לחישוב עצמו. אם אין check-in של
-      // מישהו אחר, נופלים חזרה לקו האמיתי כדי שהתצוגה תישאר משמעותית.
-      const withTime = meridianChecks.filter(c => typeof c.lat === 'number' && typeof c.lng === 'number' && c.uid !== currentUser.uid);
+      const withTime = meridianChecks.filter(c => typeof c.lat === 'number' && typeof c.lng === 'number');
       const latest = withTime.reduce((m,c) => {
         const t = c.updatedAt?.toMillis?.() || 0;
         return (!m || t >= m._t) ? Object.assign({_t:t}, c) : m;
