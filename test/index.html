@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700;900&family=Assistant:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geolib@3.3.4/dist/geolib.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -2731,6 +2732,14 @@ const TRUE_MERIDIAN_LNG = 0.0; // אורך גיאוגרפי מדויק
 const NEAR_MERIDIAN_RADIUS_M = 500;
 
 function haversineMeters(lat1, lng1, lat2, lng2){
+  // geolib.getDistance מדויק ובדוק; אם ה-CDN לא נטען מסיבה כלשהי, נופלים חזרה לחישוב הידני.
+  if(window.geolib && typeof window.geolib.getDistance === 'function'){
+    return window.geolib.getDistance(
+      { latitude: lat1, longitude: lng1 },
+      { latitude: lat2, longitude: lng2 },
+      0.01 // דיוק בחישוב (מטרים) - ברירת המחדל של הספרייה מעגלת למטר שלם
+    );
+  }
   const R = 6371000;
   const toRad = d => d * Math.PI / 180;
   const dLat = toRad(lat2 - lat1);
@@ -2740,6 +2749,12 @@ function haversineMeters(lat1, lng1, lat2, lng2){
 }
 // כיוון (0-360, 0=צפון) מנקודה 1 לנקודה 2
 function bearingDegrees(lat1, lng1, lat2, lng2){
+  if(window.geolib && typeof window.geolib.getGreatCircleBearing === 'function'){
+    return window.geolib.getGreatCircleBearing(
+      { latitude: lat1, longitude: lng1 },
+      { latitude: lat2, longitude: lng2 }
+    );
+  }
   const toRad = d => d * Math.PI / 180;
   const toDeg = r => r * 180 / Math.PI;
   const y = Math.sin(toRad(lng2-lng1)) * Math.cos(toRad(lat2));
@@ -4020,7 +4035,8 @@ function maybeAttachCompass(){
   const errEl = document.getElementById('meridianCompassError');
   if(errEl) errEl.textContent = '';
   if(typeof DeviceOrientationEvent === 'undefined'){
-    showCompassError('לא זוהה חיישן מצפן במכשיר הזה.');
+    showCompassError('לא זוהה חיישן מצפן במכשיר הזה - מוצג כאילו הטלפון פונה צפונה.');
+    useNorthFallback();
     return;
   }
   const attach = () => {
@@ -4028,18 +4044,27 @@ function maybeAttachCompass(){
     window.addEventListener('deviceorientation', onCompassEvent, true);
     compassListenerAttached = true;
     // גם כשה-API קיים, לא כל דפדפן/מכשיר בפועל שולח אירועים (למשל מחשב
-    // שולחני בלי חיישן) - אם לא הגיע אף אירוע תוך זמן סביר, זו שגיאה.
+    // שולחני בלי חיישן) - אם לא הגיע אף אירוע תוך זמן סביר, נופלים לברירת מחדל.
     clearTimeout(compassSignalTimeout);
     compassSignalTimeout = setTimeout(() => {
-      if(lastCompassHeading === null) showCompassError('לא זוהה מצפן פעיל במכשיר - ייתכן שאין חיישן כיוון, או שהדפדפן חוסם גישה אליו.');
+      if(lastCompassHeading === null){
+        showCompassError('לא זוהה מצפן פעיל במכשיר - מוצג כאילו הטלפון פונה צפונה.');
+        useNorthFallback();
+      }
     }, 2500);
   };
   // iOS Safari דורש בקשת הרשאה מפורשת בתגובה למגע משתמש
   if(typeof DeviceOrientationEvent.requestPermission === 'function'){
     DeviceOrientationEvent.requestPermission().then(state => {
       if(state === 'granted') attach();
-      else showCompassError('הגישה למצפן נחסמה - יש לאשר הרשאת כיוון מכשיר בהגדרות הדפדפן.');
-    }).catch(() => showCompassError('לא ניתן היה לבקש הרשאת מצפן במכשיר הזה.'));
+      else{
+        showCompassError('הגישה למצפן נחסמה - מוצג כאילו הטלפון פונה צפונה.');
+        useNorthFallback();
+      }
+    }).catch(() => {
+      showCompassError('לא ניתן היה לבקש הרשאת מצפן במכשיר הזה - מוצג כאילו הטלפון פונה צפונה.');
+      useNorthFallback();
+    });
   } else {
     attach();
   }
@@ -4049,22 +4074,64 @@ function showCompassError(message){
   if(errEl) errEl.textContent = '⚠️ ' + message;
   else alert('⚠️ ' + message);
 }
+// בהיעדר חיישן זמין: מניחים שהטלפון פונה צפונה (heading = 0) כדי שהחץ עדיין
+// יראה משהו שימושי (כיוון היעד ביחס לצפון) במקום להישאר ריק/תקוע.
+function useNorthFallback(){
+  lastCompassHeading = 0;
+  displayedNeedleRotation = null; // מאפס כדי שהקפיצה הראשונה לא "תסתובב" מ-0 הישן
+  updateCompassNeedle();
+}
+// כיוון המכשיר יחסית למסך (portrait/landscape) - נדרש כדי לפצות על סיבוב
+// המסך באנדרואיד, אחרת החץ "משתגע" כשמסובבים את הטלפון לרוחב.
+function currentScreenAngle(){
+  if(screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
+  if(typeof window.orientation === 'number') return window.orientation;
+  return 0;
+}
 function onCompassEvent(e){
   let heading = null;
-  if(typeof e.webkitCompassHeading === 'number') heading = e.webkitCompassHeading; // iOS
-  else if(typeof e.alpha === 'number') heading = 360 - e.alpha; // אנדרואיד/כללי, קירוב
+  if(typeof e.webkitCompassHeading === 'number'){
+    heading = e.webkitCompassHeading; // iOS - כבר צפון אמיתי, לא צריך פיצוי מסך
+  } else if(typeof e.alpha === 'number'){
+    // אנדרואיד: alpha הוא סיבוב המכשיר עצמו, לא כיוון המסך על הגוף -
+    // צריך להוסיף את זווית סיבוב המסך כדי לקבל כיוון תקין כשהטלפון לרוחב/לאורך.
+    heading = (360 - e.alpha + currentScreenAngle()) % 360;
+  }
   if(heading === null) return;
   clearTimeout(compassSignalTimeout);
   const errEl = document.getElementById('meridianCompassError');
   if(errEl) errEl.textContent = '';
-  lastCompassHeading = heading;
+  // החיישן הגולמי רועש ומדלג כמה מעלות בין קריאה לקריאה - זה מה שגרם
+  // ל"התנדנדות". מחליקים (low-pass filter) כדי לקבל תנועה יציבה, תוך
+  // טיפול נכון במעבר 359°->0° (לא לעבור "דרך" 180 מעלות).
+  if(lastCompassHeading === null){
+    lastCompassHeading = heading;
+  } else {
+    let delta = heading - lastCompassHeading;
+    delta = ((delta + 180) % 360 + 360) % 360 - 180; // ההפרש הקצר ביותר, בין -180 ל-180
+    lastCompassHeading = (lastCompassHeading + delta * 0.25 + 360) % 360; // 0.25 = קצב החלקה
+  }
   updateCompassNeedle();
 }
+// זווית הסיבוב שהוצגה בפועל בפעם הקודמת - עוקבים אחריה (ולא קוראים
+// style.transform בחזרה) כדי שסיבוב ה-CSS תמיד ימשיך באותו כיוון ולא
+// "יקפוץ" לאחור כשעוברים את גבול ה-360/0 מעלות.
+let displayedNeedleRotation = null;
 function updateCompassNeedle(){
   const needle = document.getElementById('meridianCompassNeedle');
-  if(!needle || lastCompassHeading === null || !window.__meridianTargetBearing && window.__meridianTargetBearing !== 0) return;
-  const rotation = (window.__meridianTargetBearing - lastCompassHeading + 360) % 360;
-  needle.style.transform = `rotate(${rotation}deg)`;
+  if(!needle || lastCompassHeading === null) return;
+  if(window.__meridianTargetBearing === undefined || window.__meridianTargetBearing === null) return;
+  const targetRotation = ((window.__meridianTargetBearing - lastCompassHeading) % 360 + 360) % 360;
+  if(displayedNeedleRotation === null){
+    displayedNeedleRotation = targetRotation;
+  } else {
+    // ממשיכים מהזווית המוצגת האחרונה בכיוון הקצר ביותר, גם אם זה אומר לחצות
+    // את 0/360 (למשל 358° -> 362° ולא 358° -> -2°), כדי שהחץ לא "יקפוץ".
+    let delta = targetRotation - (displayedNeedleRotation % 360);
+    delta = ((delta + 180) % 360 + 360) % 360 - 180;
+    displayedNeedleRotation += delta;
+  }
+  needle.style.transform = `rotate(${displayedNeedleRotation}deg)`;
 }
 
 function renderMeridianTool(){
@@ -4124,7 +4191,10 @@ function renderMeridianTool(){
       </div>`;
     const compassBtn = document.getElementById('meridianCompassBtn');
     if(compassBtn) compassBtn.addEventListener('click', maybeAttachCompass);
-    updateCompassNeedle();
+    // אם עדיין לא הופעל חיישן בפועל (או שהוא נכשל קודם), מציגים את החץ
+    // מיד לפי הנחת "צפון" במקום להשאיר אותו לא מסונכרן/דומם עד לחיצה.
+    if(lastCompassHeading === null) useNorthFallback();
+    else updateCompassNeedle();
   }
 
   membersArea.innerHTML = meridianChecks.length
