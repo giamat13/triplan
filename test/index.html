@@ -1175,6 +1175,20 @@
     background:#fff;color:var(--ink-text);box-sizing:border-box;
   }
   .ai-modal-actions{display:flex;gap:8px;margin-top:14px;justify-content:flex-end;flex-wrap:wrap;}
+  .debug-help-list{display:flex;flex-direction:column;gap:10px;}
+  .debug-help-row{
+    display:flex;align-items:center;gap:12px;
+    border:1.5px solid var(--line);border-radius:10px;
+    padding:10px 12px;background:var(--paper);
+  }
+  .debug-help-row-main{flex:1;min-width:0;}
+  .debug-help-code{
+    display:inline-block;font-family:'JetBrains Mono', monospace;font-size:12.5px;
+    background:var(--ink-text);color:var(--paper);border-radius:6px;
+    padding:2px 7px;margin-bottom:5px;letter-spacing:0.3px;
+  }
+  .debug-help-desc{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5;}
+  .debug-help-run{flex-shrink:0;white-space:nowrap;}
   .ai-spinner{
     width:15px;height:15px;border:2px solid rgba(0,0,0,0.15);border-top-color:var(--rust);
     border-radius:50%;display:inline-block;animation:aiSpin 0.7s linear infinite;vertical-align:middle;
@@ -5118,21 +5132,20 @@ document.getElementById('sharingPanelToggle').addEventListener('click', () => {
   if(show) renderSharingPanel();
 });
 
-document.getElementById('joinCodeBtn').addEventListener('click', async () => {
-  const input = document.getElementById('joinCodeInput');
-  const code = input.value.trim();
-  if(!code) return;
-  const upperCode = code.toUpperCase();
+// Runs a hidden debug code's effect, regardless of where it was triggered from
+// (the join-code box, or a "הפעל" button inside the DEBUGHELP window). Returns
+// true if the string was a recognized debug code (caller can stop further
+// "join by code" handling), false otherwise.
+async function runDebugCode(upperCode){
   // Hidden debug hook: typing DEBUG1BEFORE as a "join code" isn't a real trip
   // code - it forces the "כלים לחו"ל" tab open for an hour so the tab itself
   // (and the meridian tool inside it, when a Greenwich-area attraction is
   // also present) can be tested without waiting for the day before a flight.
   if(upperCode === 'DEBUG1BEFORE'){
-    input.value = '';
     localStorage.setItem(DEBUG_TOOLS_KEY, String(Date.now() + 3600000));
     updateHeroStats();
     showToast('מצב דיבאג: טאב "כלים לחו"ל" פתוח לשעה הקרובה');
-    return;
+    return true;
   }
   // Hidden debug hook: for the next hour, the meridian tool targets whoever's
   // last GPS check-in instead of the true 0° line - so distance should come
@@ -5140,21 +5153,72 @@ document.getElementById('joinCodeBtn').addEventListener('click', async () => {
   // Greenwich. Written onto the trip doc itself (not localStorage) so it's
   // live and shared with every trip member, not just whoever typed the code.
   if(upperCode === 'DEBUGTARGETME'){
-    input.value = '';
-    if(!activeTripId){ alert('אין טיול פעיל.'); return; }
+    if(!activeTripId){ alert('אין טיול פעיל.'); return true; }
     try{
       await fbSetMeridianDebugTargetMe(activeTripId, Date.now() + 3600000);
       showToast('מצב דיבאג: הכלי "קו האפס האמיתי" מכוון עכשיו למיקום ה-check-in האחרון (משותף לכל חברי הטיול, לשעה הקרובה)');
     }catch(e){
       alert('שגיאה בהפעלת מצב הדיבאג: ' + e.message);
     }
-    return;
+    return true;
   }
-  // Hidden debug hook: lists all the hidden debug codes above, so they don't
-  // have to be remembered or hunted for in the source.
+  // Hidden debug hook: lists all the hidden debug codes above (each with its
+  // own "הפעל" button), so they don't have to be remembered or typed by hand.
   if(upperCode === 'DEBUGHELP'){
+    openDebugHelpModal();
+    return true;
+  }
+  return false;
+}
+
+// Custom DEBUGHELP window: shows every hidden debug code with a description
+// and a "הפעל" button that runs it directly, instead of having to close the
+// window and retype the code into the join-code box.
+function openDebugHelpModal(){
+  const rowsHTML = DEBUG_CODES_HELP.map((d, i) => `
+    <div class="debug-help-row">
+      <div class="debug-help-row-main">
+        <code class="debug-help-code">${d.code}</code>
+        <p class="debug-help-desc">${d.desc}</p>
+      </div>
+      <button class="btn-quick btn-sm debug-help-run" type="button" data-idx="${i}" ${d.code === 'DEBUGHELP' ? 'disabled title="כבר כאן"' : ''}>▶️ הפעל</button>
+    </div>
+  `).join('');
+  const bodyHTML = `
+    <div class="debug-help-list">${rowsHTML}</div>
+    <div class="ai-modal-actions">
+      <button class="btn-quick" type="button" id="debugHelpClose">סגירה</button>
+    </div>
+  `;
+  const body = openAIModal({
+    title: '🐞 DEBUGHELP - קודי דיבאג',
+    hint: 'לחיצה על "הפעל" מריצה את הקוד מיד, בלי לסגור את החלון ולהקליד אותו בתיבת קוד ההצטרפות.',
+    bodyHTML
+  });
+  body.querySelectorAll('.debug-help-run').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const d = DEBUG_CODES_HELP[Number(btn.dataset.idx)];
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = '...';
+      try{
+        await runDebugCode(d.code);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    });
+  });
+  document.getElementById('debugHelpClose').addEventListener('click', closeAIModal);
+}
+
+document.getElementById('joinCodeBtn').addEventListener('click', async () => {
+  const input = document.getElementById('joinCodeInput');
+  const code = input.value.trim();
+  if(!code) return;
+  const upperCode = code.toUpperCase();
+  if(await runDebugCode(upperCode)){
     input.value = '';
-    alert('קודי דיבאג זמינים:\n\n' + DEBUG_CODES_HELP.map(d => d.code + ' - ' + d.desc).join('\n\n'));
     return;
   }
   const roleLabels = { owner:'בעלים', editor:'עורך', viewer:'צופה' };
