@@ -95,14 +95,19 @@ service cloud.firestore {
 
       // "קו האפס האמיתי" tool: each trip member's GPS check-in, one doc per
       // uid, so the client can average live positions from everyone at the
-      // Greenwich meridian. Only the member themselves may write their own
-      // check-in; any trip member may read the set to compute the average.
+      // Greenwich meridian. Only the member themselves may create/update
+      // their own check-in (including the periodic "heartbeat" refresh of
+      // updatedAt). Any trip member may read the set to compute the average,
+      // and any trip member may delete any check-in - this lets someone
+      // remove another member's stale/incorrect location from the shared
+      // average (e.g. via the "✕" button next to a name), not just their own.
       match /meridianChecks/{uid} {
         function isMember(){
           return request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.members;
         }
         allow read: if isSignedIn() && isMember();
-        allow write: if isSignedIn() && request.auth.uid == uid && isMember();
+        allow create, update: if isSignedIn() && request.auth.uid == uid && isMember();
+        allow delete: if isSignedIn() && isMember();
       }
     }
 
