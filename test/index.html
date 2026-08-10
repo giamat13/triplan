@@ -1138,13 +1138,15 @@
   .meridian-compass-needle{
     width:34px;height:34px;
     transform:rotate(0deg);transition:transform .2s ease;
-    transform-origin:12px 12px;
+    transform-origin:50% 50%; /* מרכז התיבה המוצגת בפועל, לא קואורדינטת ה-viewBox הפנימית */
     overflow:visible;
   }
   .meridian-compass-needle .needle-north{fill:var(--rust);}
   .meridian-compass-needle .needle-south{fill:var(--muted);}
   .meridian-compass-pivot{
-    position:absolute;width:6px;height:6px;border-radius:50%;
+    position:absolute;top:50%;left:50%;
+    width:6px;height:6px;border-radius:50%;
+    transform:translate(-50%,-50%);
     background:var(--brass);box-shadow:0 0 0 2px var(--ink);
     z-index:1;
   }
@@ -3989,8 +3991,16 @@ function stopMeridianListener(){
 // דוחה מיקומים שחורגים משמעותית מהממוצע (מישהו שפתח את האפליקציה בבית, לא
 // בגריניץ') - חוזר עד שנשארת קבוצה עקבית, כדי שאדם אחד שונה מאוד לא יזיז
 // את הממוצע של כל השאר.
+const MERIDIAN_CHECKIN_MAX_AGE_MS = 30 * 60 * 1000; // check-in ישן מזה נחשב לא רלוונטי יותר
 function averageMeridianChecks(checks){
-  let group = checks.filter(c => typeof c.lat === 'number' && typeof c.lng === 'number');
+  const now = Date.now();
+  let group = checks.filter(c => {
+    if(typeof c.lat !== 'number' || typeof c.lng !== 'number') return false;
+    const t = c.updatedAt?.toMillis?.();
+    // מיקום ללא חותמת זמן תקינה (עדיין בדרך מהשרת) נשמר; מיקום ישן מדי נפסל
+    // כדי שמישהו שכבר לא נמצא (ולא לחץ "הסר") לא ימשיך למשוך את הממוצע.
+    return !t || (now - t) <= MERIDIAN_CHECKIN_MAX_AGE_MS;
+  });
   if(!group.length) return null;
   const OUTLIER_M = 300; // מרחק ממוצע הקבוצה שנחשב "שונה מהותית"
   for(let i = 0; i < 5 && group.length > 1; i++){
@@ -4144,6 +4154,7 @@ function renderMeridianTool(){
     ? `<div class="meridian-checkin-row">
          <span>✅ המיקום שלך נשלח ומשותף עם חברי הטיול</span>
          <button class="btn btn-ghost btn-sm" id="meridianRecheckBtn" type="button">בדוק שוב</button>
+         <button class="btn btn-ghost btn-sm" id="meridianLeaveBtn" type="button">הסר את המיקום שלי</button>
        </div>`
     : `<button class="ai-btn" id="meridianCheckinBtn" type="button">📍 אשר את המיקום שלי</button>`;
 
@@ -4151,6 +4162,12 @@ function renderMeridianTool(){
   if(cbtn) cbtn.addEventListener('click', requestMyMeridianLocation);
   const rbtn = document.getElementById('meridianRecheckBtn');
   if(rbtn) rbtn.addEventListener('click', requestMyMeridianLocation);
+  const lbtn = document.getElementById('meridianLeaveBtn');
+  if(lbtn) lbtn.addEventListener('click', async () => {
+    lbtn.disabled = true;
+    try{ await clearMyMeridianCheckin(); }
+    catch(e){ alert('שגיאה בהסרת המיקום: ' + e.message); lbtn.disabled = false; }
+  });
 
   const avg = averageMeridianChecks(meridianChecks);
   if(!avg){
