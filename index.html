@@ -4033,12 +4033,11 @@ function stopMeridianListener(){
 
 // דוחה מיקומים שחורגים משמעותית מהממוצע (מישהו שפתח את האפליקציה בבית, לא
 // בגריניץ') - חוזר עד שנשארת קבוצה עקבית, כדי שאדם אחד שונה מאוד לא יזיז
-// את הממוצע של כל השאר.
-// דוחה מיקומים שחורגים משמעותית מהממוצע (מישהו שפתח את האפליקציה בבית, לא
-// בגריניץ') - חוזר עד שנשארת קבוצה עקבית, כדי שאדם אחד שונה מאוד לא יזיז
 // את הממוצע של כל השאר. גם מסנן מי ש"לא מחובר" יותר מ-10 שניות (ראו הלב
 // הפועם ב-startMeridianListener) - כך מי שסגר/ה את האפליקציה או עזב/ה יוצא
-// מהחישוב המשותף כמעט מיד, בלי צורך בפעולה ידנית.
+// מהחישוב המשותף כמעט מיד, בלי צורך בפעולה ידנית. כשנשאר משתמש/ת אחד/ת
+// בלבד, אין "ממוצע" מול מה להשוות - usedCount==1 מסמן זאת, כדי שהתצוגה
+// תציג זאת בבירור (ראו renderMeridianTool) במקום לרמז על הסכמה קבוצתית.
 const MERIDIAN_CHECKIN_MAX_AGE_MS = 10 * 1000; // check-in ללא "לב פועם" טרי מזה נחשב "לא מחובר" ויוצא מהחישוב
 function averageMeridianChecks(checks){
   const now = Date.now();
@@ -4235,7 +4234,9 @@ function renderMeridianTool(){
       ${debugMode ? '<div class="meridian-debug-banner">🐞 מצב דיבאג פעיל: היעד הוא ה-check-in האחרון, לא קו האפס האמיתי (משותף לכל חברי הטיול, לשעה)</div>' : ''}
       <div class="meridian-result-card">
         <div class="meridian-result-headline">${debugMode ? 'היעד (דיבאג)' : 'קו האפס האמיתי'} נמצא <b>${formatMeridianDistance(distToTrue)}</b> ${dirLabel} מכאן (כיוון ${Math.round(bearing)}°)</div>
-        <div class="section-hint">מבוסס על ${avg.usedCount} מיקומים${avg.excludedCount ? ` (${avg.excludedCount} נפסלו כחריגים)` : ''}</div>
+        <div class="section-hint">${avg.usedCount === 1
+          ? 'מבוסס על המיקום שלך בלבד - עדיין אין עוד חברי טיול מאושרים'
+          : `מבוסס על ${avg.usedCount} מיקומים${avg.excludedCount ? ` (${avg.excludedCount} נפסלו כחריגים)` : ''}`}</div>
         <div class="meridian-compass" id="meridianCompassWrap">
           <div class="meridian-compass-dial">
             <div class="meridian-compass-pivot"></div>
