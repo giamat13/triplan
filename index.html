@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700;900&family=Assistant:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geolib@3.3.4/dist/geolib.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -1122,6 +1123,58 @@
   }
   .ai-schedule-tip span{flex:1 1 auto;min-width:0;}
   .tools-translate-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0;}
+  .meridian-checkin-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13.5px;margin:8px 0;}
+  .meridian-result-card{
+    background:var(--paper);color:var(--ink-text);border-radius:12px;
+    border:1.5px solid var(--brass-soft);padding:14px 16px;margin:10px 0;
+  }
+  .meridian-result-headline{font-weight:700;font-size:14.5px;margin-bottom:4px;}
+  .meridian-compass{display:flex;align-items:center;gap:14px;margin-top:10px;}
+  .meridian-compass-dial{
+    width:64px;height:64px;border-radius:50%;
+    border:2px solid var(--line-dark);background:var(--ink);
+    display:flex;align-items:center;justify-content:center;position:relative;flex:0 0 auto;
+  }
+  .meridian-compass-needle{
+    width:34px;height:34px;
+    transform:rotate(0deg);transition:transform .2s ease;
+    transform-origin:50% 50%; /* מרכז התיבה המוצגת בפועל, לא קואורדינטת ה-viewBox הפנימית */
+    overflow:visible;
+  }
+  .meridian-compass-needle .needle-north{fill:var(--rust);}
+  .meridian-compass-needle .needle-south{fill:var(--muted);}
+  .meridian-compass-pivot{
+    position:absolute;top:50%;left:50%;
+    width:6px;height:6px;border-radius:50%;
+    transform:translate(-50%,-50%);
+    background:var(--brass);box-shadow:0 0 0 2px var(--ink);
+    z-index:1;
+  }
+  .meridian-compass-error{
+    color:var(--rust);font-size:12.5px;margin-top:8px;
+    flex-basis:100%;
+  }
+  .meridian-members-list{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;}
+  .meridian-member-chip{
+    display:inline-flex;align-items:center;gap:5px;
+    background:var(--paper-soft);color:var(--ink-text);
+    border:1px solid var(--line);border-radius:12px;
+    padding:3px 6px 3px 10px;font-size:12px;
+  }
+  .meridian-member-remove{
+    display:flex;align-items:center;justify-content:center;
+    width:16px;height:16px;border-radius:50%;
+    background:transparent;color:var(--muted);border:none;
+    cursor:pointer;font-size:11px;line-height:1;padding:0;
+    transition:background .15s, color .15s;
+  }
+  .meridian-member-remove:hover:not(:disabled){background:var(--rust);color:var(--paper);}
+  .meridian-member-remove:disabled{opacity:0.4;cursor:default;}
+  .meridian-debug-banner{
+    font-family:'JetBrains Mono', monospace;font-size:11.5px;
+    background:var(--rust);color:var(--paper);
+    border-radius:8px;padding:8px 12px;margin:10px 0;
+  }
   #signPreviewImg{max-width:280px;max-height:280px;border-radius:8px;border:1.5px solid var(--line-dark);margin-bottom:10px;display:block;}
   #signTranslateResult{
     font-family:'JetBrains Mono', monospace;font-size:13px;white-space:pre-wrap;
@@ -1150,6 +1203,20 @@
     background:#fff;color:var(--ink-text);box-sizing:border-box;
   }
   .ai-modal-actions{display:flex;gap:8px;margin-top:14px;justify-content:flex-end;flex-wrap:wrap;}
+  .debug-help-list{display:flex;flex-direction:column;gap:10px;}
+  .debug-help-row{
+    display:flex;align-items:center;gap:12px;
+    border:1.5px solid var(--line);border-radius:10px;
+    padding:10px 12px;background:var(--paper);
+  }
+  .debug-help-row-main{flex:1;min-width:0;}
+  .debug-help-code{
+    display:inline-block;font-family:'JetBrains Mono', monospace;font-size:12.5px;
+    background:var(--ink-text);color:var(--paper);border-radius:6px;
+    padding:2px 7px;margin-bottom:5px;letter-spacing:0.3px;
+  }
+  .debug-help-desc{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5;}
+  .debug-help-run{flex-shrink:0;white-space:nowrap;}
   .ai-spinner{
     width:15px;height:15px;border:2px solid rgba(0,0,0,0.15);border-top-color:var(--rust);
     border-radius:50%;display:inline-block;animation:aiSpin 0.7s linear infinite;vertical-align:middle;
@@ -1445,6 +1512,24 @@
     </div>
     <img id="signPreviewImg" style="display:none;">
     <div id="signTranslateResult"></div>
+
+    <div class="budget-section-divider"></div>
+
+    <div class="section-card" id="meridianToolSection" style="display:none;">
+      <div class="section-header">
+        <div class="section-title"><span class="line-icon">🧭</span> קו האפס האמיתי</div>
+      </div>
+      <p class="section-hint">
+        הקו המסומן ברצפה באבצרבטוריה המלכותית בגריניץ' הוא לא בדיוק קו האורך 0° המודרני (WGS84) -
+        יש הפרש קבוע של כ-100 מטר מזרחה. הקו האמיתי חוצה שביל הליכה ציבורי בפארק, ממש בצמוד לפח
+        אשפה פשוט - מדריכים ומתנדבים במצפה הכוכבים נוהגים להתבדח עם תיירים ולספר שהיום קו האפס
+        האמיתי מסומן על ידי פח הזבל הירוק של הפארק שנמצא בדיוק על התוואי. כל חברי הטיול שמאשרים
+        כאן את המיקום שלהם עוזרים לחשב את הכיוון והמרחק המדויקים אליו.
+      </p>
+      <div id="meridianCheckinArea"></div>
+      <div id="meridianResultArea"></div>
+      <div id="meridianMembersArea"></div>
+    </div>
 
     <div class="budget-section-divider"></div>
 
@@ -1817,6 +1902,35 @@ async function fbLogActivity(tripId, type, text){
 function fbListenActivity(tripId, callback){
   const q = query(collection(db,'trips',tripId,'activityLog'), orderBy('createdAt','desc'), limit(15));
   return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id:d.id, ...d.data() }))), err => console.error('שגיאת יומן פעילות:', err));
+}
+
+// "קו האפס האמיתי": מיקום GPS שכל חבר טיול מאשר, אחד למכשיר (docId=uid),
+// כדי שהאפליקציה תוכל למצע אותם בזמן אמת. נדרשים כללי Firestore חדשים:
+//   match /trips/{tripId}/meridianChecks/{uid} {
+//     allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.members;
+//     allow write: if request.auth != null && request.auth.uid == uid
+//       && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.members;
+//   }
+async function fbSubmitMeridianCheck(tripId, uid, lat, lng){
+  await setDoc(doc(db,'trips',tripId,'meridianChecks',uid), { lat, lng, updatedAt: serverTimestamp() });
+}
+async function fbClearMeridianCheck(tripId, uid){
+  await deleteDoc(doc(db,'trips',tripId,'meridianChecks',uid)).catch(()=>{});
+}
+function fbListenMeridianChecks(tripId, callback){
+  return onSnapshot(collection(db,'trips',tripId,'meridianChecks'), snap => {
+    callback(snap.docs.map(d => ({ uid:d.id, ...d.data() })));
+  }, err => console.error('שגיאת בדיקת קו האפס:', err));
+}
+// מפעיל/מכבה את מצב הדיבאג "TARGETME" על מסמך הטיול עצמו, כך שכל חברי
+// הטיול (שכבר מאזינים חי לטיול דרך startTripListener) יראו אותו יחד.
+async function fbSetMeridianDebugTargetMe(tripId, until){
+  await updateDoc(doc(db,'trips',tripId), { meridianDebugTargetMeUntil: until });
+}
+// שומר check-in נפרד למכשיר הזה (ראו meridianDebugDeviceChecks) - כך אותו
+// חשבון על 2 מכשירים לא דורס את עצמו כמו ב-meridianChecks (שם המפתח הוא uid).
+async function fbSubmitMeridianDebugDeviceCheck(tripId, deviceId, lat, lng){
+  await updateDoc(doc(db,'trips',tripId), { ['meridianDebugDeviceChecks.'+deviceId]: { lat, lng, updatedAt: Date.now() } });
 }
 
 async function fbJoinByCode(code){
@@ -2220,6 +2334,22 @@ let currentRole = 'owner';
 let currentCodes = {};
 let currentMembers = {};
 let memberNames = {}; // uid -> display name, refreshed per trip in switchToTrip
+// "מצב דיבאג TARGETME" ("קו האפס האמיתי" -> ה-check-in האחרון) הוא שדה על
+// מסמך הטיול עצמו כדי שיהיה חי ומשותף לכל חברי הטיול, כמו members/codes -
+// מתעדכן דרך switchToTrip/applyRemoteTrip, לא דרך normalizeState (כדי שלא
+// ידלוף לייצוא JSON/PDF של הטיול, בדיוק כמו meridianChecks).
+let meridianDebugTargetMeUntil = 0;
+// check-ins אמיתיים נשמרים לפי uid - אז אותו חשבון משני מכשירים (למשל
+// לבדוק DEBUGTARGETME לבד עם טלפון+מחשב) דורס את עצמו ותמיד יוצא 0. שדה
+// זה שומר check-in נפרד לכל מכשיר (מזוהה ב-DEVICE_ID_KEY, לא בuid) על
+// מסמך הטיול עצמו - כמו meridianDebugTargetMeUntil - כדי לאפשר בדיקה כזו.
+let meridianDebugDeviceChecks = {};
+const DEVICE_ID_KEY = 'triplan-device-id';
+function getDeviceId(){
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if(!id){ id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)); localStorage.setItem(DEVICE_ID_KEY, id); }
+  return id;
+}
 let myDisplayName = '';
 
 function resolveMemberName(uid){
@@ -2389,6 +2519,8 @@ async function switchToTrip(id){
   currentRole = (trip.members && trip.members[currentUser.uid]) || 'viewer';
   currentCodes = trip.codes || {};
   currentMembers = trip.members || {};
+  meridianDebugTargetMeUntil = trip.meridianDebugTargetMeUntil || 0;
+  meridianDebugDeviceChecks = trip.meridianDebugDeviceChecks || {};
   showSyncError(false);
   await refreshMemberNames();
   render();
@@ -2400,6 +2532,7 @@ async function switchToTrip(id){
   startSuggestionsListener(id);
   startActivityListener(id);
   startTripListener(id);
+  stopMeridianListener(); // tool re-opens its own listener on-demand for the new trip, see updateMeridianToolVisibility()
   ensureNotificationPermission();
 }
 
@@ -2424,11 +2557,14 @@ async function applyRemoteTrip(trip){
   currentRole = (trip.members && trip.members[currentUser.uid]) || 'viewer';
   currentCodes = trip.codes || {};
   currentMembers = trip.members || {};
+  meridianDebugTargetMeUntil = trip.meridianDebugTargetMeUntil || 0;
+  meridianDebugDeviceChecks = trip.meridianDebugDeviceChecks || {};
   await refreshMemberNames();
   render();
   renderTripSelect();
   renderSharingPanel();
   renderSuggestRecipients();
+  renderMeridianTool();
 }
 document.addEventListener('focusout', () => {
   setTimeout(() => { if(pendingRemoteTrip && !isEditingSomething()) applyRemoteTrip(pendingRemoteTrip); }, 0);
@@ -2614,6 +2750,105 @@ function destinationIconSVG(name, fallbackKey){
   return ICONS[key] || '';
 }
 
+/* ==================================================================
+   "קו האפס האמיתי" - כלי איסטר-אג למי שמתכנן לבקר בקו האפס בגריניץ'.
+   הקו המסומן בקרקע בגריניץ' (הפריזמה ההיסטורית) הוא לא בדיוק קו האורך
+   0° המודרני (WGS84) - יש הפרש קבוע וידוע של כ-102 מטר מזרחה. הכלי:
+   1) מזהה אם יש רעיון/אטרקציה במרחק עד 500 מ' מהקו המסומן (לפי lat/lng
+      השמור על הרעיון - לא לפי שם), ואם כן פותח טאב חדש עם הכלי.
+   2) בתוך הכלי, כל חברי הטיול המחוברים יכולים "לאשר מיקום" (GPS), וכל
+      המיקומים מסונכרנים בזמן אמת דרך Firestore; מחשבים ממוצע (תוך פסילת
+      חריגים) ומציגים מרחק+כיוון לקו האמיתי, עם מצפן אם יש חיישן בטלפון.
+   ================================================================== */
+
+// קואורדינטות הקו המסומן בפועל בחצר האבצרבטוריה המלכותית בגריניץ'
+const MARKED_MERIDIAN = { lat: 51.4779, lng: -0.0015 };
+// מיקום קו האורך 0° האמיתי לפי WGS84 - כ-102 מ' מזרחה מהקו המסומן
+const TRUE_MERIDIAN_LNG = 0.0; // אורך גיאוגרפי מדויק
+const NEAR_MERIDIAN_RADIUS_M = 500;
+
+function haversineMeters(lat1, lng1, lat2, lng2){
+  // geolib.getDistance מדויק ובדוק; אם ה-CDN לא נטען מסיבה כלשהי, נופלים חזרה לחישוב הידני.
+  if(window.geolib && typeof window.geolib.getDistance === 'function'){
+    return window.geolib.getDistance(
+      { latitude: lat1, longitude: lng1 },
+      { latitude: lat2, longitude: lng2 },
+      0.01 // דיוק בחישוב (מטרים) - ברירת המחדל של הספרייה מעגלת למטר שלם
+    );
+  }
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+// כיוון (0-360, 0=צפון) מנקודה 1 לנקודה 2
+function bearingDegrees(lat1, lng1, lat2, lng2){
+  if(window.geolib && typeof window.geolib.getGreatCircleBearing === 'function'){
+    return window.geolib.getGreatCircleBearing(
+      { latitude: lat1, longitude: lng1 },
+      { latitude: lat2, longitude: lng2 }
+    );
+  }
+  const toRad = d => d * Math.PI / 180;
+  const toDeg = r => r * 180 / Math.PI;
+  const y = Math.sin(toRad(lng2-lng1)) * Math.cos(toRad(lat2));
+  const x = Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) - Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lng2-lng1));
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+// האם יש ברשימת הרעיונות (משובצים או לא) אטרקציה עם lat/lng שמור במרחק
+// עד NEAR_MERIDIAN_RADIUS_M מהקו המסומן בגריניץ'
+function hasGreenwichMeridianAttraction(){
+  return state.attractionIdeas.some(idea => {
+    if(typeof idea.lat !== 'number' || typeof idea.lng !== 'number') return false;
+    return haversineMeters(idea.lat, idea.lng, MARKED_MERIDIAN.lat, MARKED_MERIDIAN.lng) <= NEAR_MERIDIAN_RADIUS_M;
+  });
+}
+
+const DEBUG_TOOLS_KEY = 'triplan-debug-tools-until';
+function debugToolsOverrideActive(){
+  const until = Number(localStorage.getItem(DEBUG_TOOLS_KEY) || 0);
+  if(until && Date.now() < until) return true;
+  if(until) localStorage.removeItem(DEBUG_TOOLS_KEY);
+  return false;
+}
+
+// מצב דיבאג נוסף: במקום שהמצפן/החישוב יכוונו לקו האפס האמיתי, הם יכוונו
+// למיקום ה-check-in האחרון שהתקבל מכל חבר בטיול - כך אפשר לבדוק שהחישוב
+// והמצפן עובדים נכון (המרחק אמור לצאת ~0) בלי לצאת פיזית לגריניץ'. משותף
+// לכל חברי הטיול: התאריך שממנו הוא פג נשמר על מסמך הטיול (ולא ב-localStorage
+// מקומי), כך שברגע שחבר אחד מפעיל אותו כולם רואים את זה חי.
+function debugTargetMeActive(){
+  return !!meridianDebugTargetMeUntil && Date.now() < meridianDebugTargetMeUntil;
+}
+
+// רשימת כל קודי הדיבאג הנסתרים, במקום אחד - כדי ש-DEBUGHELP יוכל להציג
+// אותם בלי שכל קוד יצטרך "לדעת" גם על הקודים האחרים.
+const DEBUG_CODES_HELP = [
+  { code:'DEBUG1BEFORE', desc:'פותח את טאב "כלים לחו"ל" לשעה הקרובה, גם אם עדיין לא הגיע יום לפני הטיסה' },
+  { code:'DEBUGTARGETME', desc:'לשעה הקרובה, כלי "קו האפס האמיתי" יכוון למיקום ה-check-in האחרון שלך במקום לקו האמיתי - לבדיקת החישוב/המצפן בלי לנסוע לגריניץ\'' },
+  { code:'DEBUGEXIT', desc:'יוצא מיד מכל מצבי הדיבאג הפעילים (DEBUG1BEFORE ו-DEBUGTARGETME), בלי לחכות שיפוגו לבד' },
+  { code:'DEBUGHELP', desc:'מציג את הרשימה הזו' }
+];
+
+// הכלי עצמו (בתוך טאב "כלים לחו"ל") מוצג רק אם זוהתה אטרקציה ליד קו האפס -
+// לא תלוי בכך שהמשתמש נמצא שם פיזית עכשיו, ולא משנה אם היא כבר שובצה ליום.
+let meridianAttractionAlertShown = false;
+function updateMeridianToolVisibility(){
+  const section = document.getElementById('meridianToolSection');
+  if(!section) return;
+  const show = hasGreenwichMeridianAttraction();
+  section.style.display = show ? '' : 'none';
+  if(show && !meridianListenerStarted) startMeridianListener();
+  if(show && !meridianAttractionAlertShown){
+    meridianAttractionAlertShown = true;
+    showToast('🧭 זוהתה אטרקציה ליד קו האפס בגריניץ\' - קו האורך המסומן שם לא מדויק, יש כלי חדש בטאב "כלים לחו"ל" שעוזר למצוא את הקו האמיתי');
+  }
+  if(!show) meridianAttractionAlertShown = false;
+}
+
 function updateHeroStats(){
   const destSet = new Set(state.days.map(d => (d.destination || '').trim()).filter(Boolean));
   const destCountEl = document.getElementById('destCount');
@@ -2634,14 +2869,16 @@ function updateHeroStats(){
   if(!state.startDate || !state.days.length){
     cdEl.classList.remove('show','cd-live','cd-done');
     if(progTrack) progTrack.style.display = 'none';
-    if(toolsBtn) toolsBtn.style.display = 'none';
+    if(toolsBtn) toolsBtn.style.display = debugToolsOverrideActive() ? '' : 'none';
+    updateMeridianToolVisibility();
     return;
   }
   const start = new Date(state.startDate + 'T00:00:00');
   if(isNaN(start)){
     cdEl.classList.remove('show','cd-live','cd-done');
     if(progTrack) progTrack.style.display = 'none';
-    if(toolsBtn) toolsBtn.style.display = 'none';
+    if(toolsBtn) toolsBtn.style.display = debugToolsOverrideActive() ? '' : 'none';
+    updateMeridianToolVisibility();
     return;
   }
   const today = new Date();
@@ -2652,7 +2889,9 @@ function updateHeroStats(){
   const diffToStart = Math.round((start - today) / msPerDay);
   // "כלים לחו"ל" tab only matters once travel is imminent - appears starting
   // one day before the flight and stays available through the end of the trip.
-  if(toolsBtn) toolsBtn.style.display = (diffToStart <= 1 && today <= end) ? '' : 'none';
+  // The DEBUG1BEFORE join-code also forces it open for an hour, for testing.
+  if(toolsBtn) toolsBtn.style.display = (diffToStart <= 1 && today <= end) || debugToolsOverrideActive() ? '' : 'none';
+  updateMeridianToolVisibility();
 
   cdEl.classList.add('show');
   cdEl.classList.remove('cd-live','cd-done');
@@ -3751,6 +3990,350 @@ function startActivityListener(tripId){
   });
 }
 
+/* ---------------- כלי "קו האפס האמיתי" ---------------- */
+let meridianUnsub = null;
+let meridianTickInterval = null;
+let meridianHeartbeatInterval = null;
+let meridianListenerStarted = false;
+let meridianChecks = []; // [{uid, lat, lng, updatedAt}]
+let myMeridianCheckedIn = false;
+let myMeridianLastCoords = null; // {lat,lng} - נשמר כדי שהלב הפועם ישלח את אותו מיקום, לא יבקש מיקום GPS חדש כל כמה שניות
+let compassListenerAttached = false;
+let lastCompassHeading = null;
+let compassSignalTimeout = null;
+
+function startMeridianListener(){
+  if(!activeTripId) return;
+  meridianListenerStarted = true;
+  meridianUnsub = fbListenMeridianChecks(activeTripId, list => {
+    meridianChecks = list;
+    const stillCheckedIn = list.some(c => c.uid === currentUser?.uid);
+    // אם המסמך שלי נעלם בין רגע לרגע בעוד שהלב הפועם עדיין חושב שהוא פעיל -
+    // מישהו אחר הסיר את המיקום שלי מרחוק (לא אני, אחרת myMeridianLastCoords
+    // כבר היה מתאפס באותו רגע ב-requestMyMeridianLocation/clearMyMeridianCheckin).
+    // במקרה כזה עוצרים את הלב הפועם המקומי, אחרת הוא פשוט יחזיר את המחיקה תוך 5 שניות.
+    if(!stillCheckedIn && myMeridianCheckedIn && myMeridianLastCoords){
+      myMeridianLastCoords = null;
+    }
+    myMeridianCheckedIn = stillCheckedIn;
+    renderMeridianTool();
+  });
+  // מחדש את התצוגה כל 2 שניות - כדי שתפוגת ה-10 שניות של check-in "לא מחובר"
+  // (ראו MERIDIAN_CHECKIN_MAX_AGE_MS) תשתקף כמעט מיד בתוצאה ובמצפן,
+  // וגם כדי שה"מצב דיבאג" יעלם אוטומטית כשהשעה חולפת.
+  clearInterval(meridianTickInterval);
+  meridianTickInterval = setInterval(renderMeridianTool, 2000);
+  // "לב פועם": כל עוד המשתמש מחובר לכלי הזה ויש לו check-in פעיל, מרעננים את
+  // חותמת הזמן של המסמך שלו כל 5 שניות (בלי לבקש מיקום GPS חדש) - כך
+  // updatedAt משמש כאות "אני עדיין כאן" ולא רק "אישרתי פעם אחת בעבר".
+  // מי שסוגר/סוגרת את הטאב פשוט מפסיק/ה לשלוח לב פועם, וה-check-in שלו/ה
+  // יוצא מהחישוב המשותף תוך 10 שניות, ללא צורך בכפתור "עזיבה" ידני.
+  // אם מישהו אחר הסיר את המיקום שלי במפורש, myMeridianLastCoords מתאפס
+  // (למעלה) כדי שהלב הפועם לא ייצור אותו מחדש - עד שאלחץ שוב "אשר מיקום".
+  clearInterval(meridianHeartbeatInterval);
+  meridianHeartbeatInterval = setInterval(() => {
+    if(myMeridianCheckedIn && myMeridianLastCoords && currentUser && activeTripId){
+      fbSubmitMeridianCheck(activeTripId, currentUser.uid, myMeridianLastCoords.lat, myMeridianLastCoords.lng).catch(()=>{});
+      if(debugTargetMeActive()) fbSubmitMeridianDebugDeviceCheck(activeTripId, getDeviceId(), myMeridianLastCoords.lat, myMeridianLastCoords.lng).catch(()=>{});
+    }
+  }, 5000);
+}
+function stopMeridianListener(){
+  if(meridianUnsub) meridianUnsub();
+  meridianUnsub = null;
+  meridianListenerStarted = false;
+  meridianChecks = [];
+  myMeridianCheckedIn = false;
+  myMeridianLastCoords = null;
+  clearInterval(meridianTickInterval);
+  meridianTickInterval = null;
+  clearInterval(meridianHeartbeatInterval);
+  meridianHeartbeatInterval = null;
+}
+
+// דוחה מיקומים שחורגים משמעותית מהממוצע (מישהו שפתח את האפליקציה בבית, לא
+// בגריניץ') - חוזר עד שנשארת קבוצה עקבית, כדי שאדם אחד שונה מאוד לא יזיז
+// את הממוצע של כל השאר. גם מסנן מי ש"לא מחובר" יותר מ-10 שניות (ראו הלב
+// הפועם ב-startMeridianListener) - כך מי שסגר/ה את האפליקציה או עזב/ה יוצא
+// מהחישוב המשותף כמעט מיד, בלי צורך בפעולה ידנית. כשנשאר משתמש/ת אחד/ת
+// בלבד, אין "ממוצע" מול מה להשוות - usedCount==1 מסמן זאת, כדי שהתצוגה
+// תציג זאת בבירור (ראו renderMeridianTool) במקום לרמז על הסכמה קבוצתית.
+const MERIDIAN_CHECKIN_MAX_AGE_MS = 10 * 1000; // check-in ללא "לב פועם" טרי מזה נחשב "לא מחובר" ויוצא מהחישוב
+function averageMeridianChecks(checks){
+  const now = Date.now();
+  let group = checks.filter(c => {
+    if(typeof c.lat !== 'number' || typeof c.lng !== 'number') return false;
+    const t = c.updatedAt?.toMillis?.();
+    // מיקום ללא חותמת זמן תקינה (עדיין בדרך מהשרת) נשמר; מיקום ישן מדי נפסל
+    // כדי שמישהו שכבר לא נמצא (ולא לחץ "הסר") לא ימשיך למשוך את הממוצע.
+    return !t || (now - t) <= MERIDIAN_CHECKIN_MAX_AGE_MS;
+  });
+  if(!group.length) return null;
+  const OUTLIER_M = 300; // מרחק ממוצע הקבוצה שנחשב "שונה מהותית"
+  for(let i = 0; i < 5 && group.length > 1; i++){
+    const avgLat = group.reduce((s,c) => s + c.lat, 0) / group.length;
+    const avgLng = group.reduce((s,c) => s + c.lng, 0) / group.length;
+    const withDist = group.map(c => ({ c, d: haversineMeters(c.lat, c.lng, avgLat, avgLng) }));
+    const maxEntry = withDist.reduce((m,e) => e.d > m.d ? e : m, withDist[0]);
+    if(maxEntry.d <= OUTLIER_M) break;
+    group = group.filter(c => c !== maxEntry.c);
+  }
+  const avgLat = group.reduce((s,c) => s + c.lat, 0) / group.length;
+  const avgLng = group.reduce((s,c) => s + c.lng, 0) / group.length;
+  const excluded = checks.length - group.length;
+  return { lat: avgLat, lng: avgLng, usedCount: group.length, excludedCount: excluded };
+}
+
+function requestMyMeridianLocation(){
+  if(!navigator.geolocation){ alert('הדפדפן הזה לא תומך באיתור מיקום.'); return; }
+  const btn = document.getElementById('meridianCheckinBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'מאתר מיקום…'; }
+  navigator.geolocation.getCurrentPosition(async pos => {
+    try{
+      await fbSubmitMeridianCheck(activeTripId, currentUser.uid, pos.coords.latitude, pos.coords.longitude);
+      if(debugTargetMeActive()) await fbSubmitMeridianDebugDeviceCheck(activeTripId, getDeviceId(), pos.coords.latitude, pos.coords.longitude).catch(()=>{});
+      myMeridianLastCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    }catch(e){
+      alert('שגיאה בשמירת המיקום: ' + e.message);
+    }finally{
+      if(btn){ btn.disabled = false; }
+      renderMeridianTool();
+    }
+  }, err => {
+    if(btn){ btn.disabled = false; }
+    alert('לא ניתן היה לאתר מיקום: ' + err.message);
+    renderMeridianTool();
+  }, { enableHighAccuracy:true, timeout:15000, maximumAge:0 });
+}
+
+async function clearMyMeridianCheckin(){
+  await fbClearMeridianCheck(activeTripId, currentUser.uid);
+}
+
+function maybeAttachCompass(){
+  const errEl = document.getElementById('meridianCompassError');
+  if(errEl) errEl.textContent = '';
+  if(typeof DeviceOrientationEvent === 'undefined'){
+    showCompassError('לא זוהה חיישן מצפן במכשיר הזה - מוצג כאילו הטלפון פונה צפונה.');
+    useNorthFallback();
+    return;
+  }
+  const attach = () => {
+    window.addEventListener('deviceorientationabsolute', onCompassEvent, true);
+    window.addEventListener('deviceorientation', onCompassEvent, true);
+    compassListenerAttached = true;
+    // גם כשה-API קיים, לא כל דפדפן/מכשיר בפועל שולח אירועים (למשל מחשב
+    // שולחני בלי חיישן) - אם לא הגיע אף אירוע תוך זמן סביר, נופלים לברירת מחדל.
+    clearTimeout(compassSignalTimeout);
+    compassSignalTimeout = setTimeout(() => {
+      if(lastCompassHeading === null){
+        showCompassError('לא זוהה מצפן פעיל במכשיר - מוצג כאילו הטלפון פונה צפונה.');
+        useNorthFallback();
+      }
+    }, 2500);
+  };
+  // iOS Safari דורש בקשת הרשאה מפורשת בתגובה למגע משתמש
+  if(typeof DeviceOrientationEvent.requestPermission === 'function'){
+    DeviceOrientationEvent.requestPermission().then(state => {
+      if(state === 'granted') attach();
+      else{
+        showCompassError('הגישה למצפן נחסמה - מוצג כאילו הטלפון פונה צפונה.');
+        useNorthFallback();
+      }
+    }).catch(() => {
+      showCompassError('לא ניתן היה לבקש הרשאת מצפן במכשיר הזה - מוצג כאילו הטלפון פונה צפונה.');
+      useNorthFallback();
+    });
+  } else {
+    attach();
+  }
+}
+function showCompassError(message){
+  const errEl = document.getElementById('meridianCompassError');
+  if(errEl) errEl.textContent = '⚠️ ' + message;
+  else alert('⚠️ ' + message);
+}
+// בהיעדר חיישן זמין: מניחים שהטלפון פונה צפונה (heading = 0) כדי שהחץ עדיין
+// יראה משהו שימושי (כיוון היעד ביחס לצפון) במקום להישאר ריק/תקוע.
+function useNorthFallback(){
+  lastCompassHeading = 0;
+  displayedNeedleRotation = null; // מאפס כדי שהקפיצה הראשונה לא "תסתובב" מ-0 הישן
+  updateCompassNeedle();
+}
+// כיוון המכשיר יחסית למסך (portrait/landscape) - נדרש כדי לפצות על סיבוב
+// המסך באנדרואיד, אחרת החץ "משתגע" כשמסובבים את הטלפון לרוחב.
+function currentScreenAngle(){
+  if(screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
+  if(typeof window.orientation === 'number') return window.orientation;
+  return 0;
+}
+function onCompassEvent(e){
+  let heading = null;
+  if(typeof e.webkitCompassHeading === 'number'){
+    heading = e.webkitCompassHeading; // iOS - כבר צפון אמיתי, לא צריך פיצוי מסך
+  } else if(typeof e.alpha === 'number'){
+    // אנדרואיד: alpha הוא סיבוב המכשיר עצמו, לא כיוון המסך על הגוף -
+    // צריך להוסיף את זווית סיבוב המסך כדי לקבל כיוון תקין כשהטלפון לרוחב/לאורך.
+    heading = (360 - e.alpha + currentScreenAngle()) % 360;
+  }
+  if(heading === null) return;
+  clearTimeout(compassSignalTimeout);
+  const errEl = document.getElementById('meridianCompassError');
+  if(errEl) errEl.textContent = '';
+  // החיישן הגולמי רועש ומדלג כמה מעלות בין קריאה לקריאה - זה מה שגרם
+  // ל"התנדנדות". מחליקים (low-pass filter) כדי לקבל תנועה יציבה, תוך
+  // טיפול נכון במעבר 359°->0° (לא לעבור "דרך" 180 מעלות).
+  if(lastCompassHeading === null){
+    lastCompassHeading = heading;
+  } else {
+    let delta = heading - lastCompassHeading;
+    delta = ((delta + 180) % 360 + 360) % 360 - 180; // ההפרש הקצר ביותר, בין -180 ל-180
+    lastCompassHeading = (lastCompassHeading + delta * 0.25 + 360) % 360; // 0.25 = קצב החלקה
+  }
+  updateCompassNeedle();
+}
+// זווית הסיבוב שהוצגה בפועל בפעם הקודמת - עוקבים אחריה (ולא קוראים
+// style.transform בחזרה) כדי שסיבוב ה-CSS תמיד ימשיך באותו כיוון ולא
+// "יקפוץ" לאחור כשעוברים את גבול ה-360/0 מעלות.
+let displayedNeedleRotation = null;
+function updateCompassNeedle(){
+  const needle = document.getElementById('meridianCompassNeedle');
+  if(!needle || lastCompassHeading === null) return;
+  if(window.__meridianTargetBearing === undefined || window.__meridianTargetBearing === null) return;
+  const targetRotation = ((window.__meridianTargetBearing - lastCompassHeading) % 360 + 360) % 360;
+  if(displayedNeedleRotation === null){
+    displayedNeedleRotation = targetRotation;
+  } else {
+    // ממשיכים מהזווית המוצגת האחרונה בכיוון הקצר ביותר, גם אם זה אומר לחצות
+    // את 0/360 (למשל 358° -> 362° ולא 358° -> -2°), כדי שהחץ לא "יקפוץ".
+    let delta = targetRotation - (displayedNeedleRotation % 360);
+    delta = ((delta + 180) % 360 + 360) % 360 - 180;
+    displayedNeedleRotation += delta;
+  }
+  needle.style.transform = `rotate(${displayedNeedleRotation}deg)`;
+}
+
+function renderMeridianTool(){
+  const checkinArea = document.getElementById('meridianCheckinArea');
+  const resultArea = document.getElementById('meridianResultArea');
+  const membersArea = document.getElementById('meridianMembersArea');
+  if(!checkinArea || !resultArea || !membersArea) return;
+
+  checkinArea.innerHTML = myMeridianCheckedIn
+    ? `<div class="meridian-checkin-row">
+         <span>✅ המיקום שלך נשלח ומשותף עם חברי הטיול</span>
+         <button class="btn btn-ghost btn-sm" id="meridianRecheckBtn" type="button">בדוק שוב</button>
+       </div>`
+    : `<button class="ai-btn" id="meridianCheckinBtn" type="button">📍 אשר את המיקום שלי</button>`;
+
+  const cbtn = document.getElementById('meridianCheckinBtn');
+  if(cbtn) cbtn.addEventListener('click', requestMyMeridianLocation);
+  const rbtn = document.getElementById('meridianRecheckBtn');
+  if(rbtn) rbtn.addEventListener('click', requestMyMeridianLocation);
+
+  const avg = averageMeridianChecks(meridianChecks);
+  if(!avg){
+    resultArea.innerHTML = '<p class="section-hint">עדיין אין מיקומים מאושרים מחברי הטיול.</p>';
+  } else {
+    const debugMode = debugTargetMeActive();
+    // מצב דיבאג TARGETME: היעד הוא ה-check-in האחרון שהתקבל מכל חבר בטיול
+    // (כולל עצמך אם בודקים לבד - ואז היעד וה"כאן" הם אותה נקודה, במתכוון),
+    // במקום קו האורך 0° האמיתי - כדי לבדוק שהחישוב/המצפן עצמם עובדים נכון
+    // בלי לצאת פיזית לגריניץ'.
+    // באג שתוקן: הקוד הקודם הציב כאן avg.lat (קו הרוחב של המשתמש עצמו!)
+    // במקום קו הרוחב של הקו המסומן בגריניץ' - מה שגרם למרחק/כיוון להתאפס
+    // (0 ס"מ, כיוון 0) בכל פעם שקו האורך כמעט 0, כי חושב מרחק על אותו
+    // קו רוחב במקום מרחק אמיתי לנקודה בגריניץ'.
+    let targetLat = MARKED_MERIDIAN.lat, targetLng = TRUE_MERIDIAN_LNG;
+    if(debugMode){
+      const withTime = meridianChecks.filter(c => typeof c.lat === 'number' && typeof c.lng === 'number');
+      const pickLatest = list => list.reduce((m,c) => {
+        const t = c.updatedAt?.toMillis?.() || 0;
+        return (!m || t >= m._t) ? Object.assign({_t:t}, c) : m;
+      }, null);
+      // סדר עדיפות ליעד הדיבאג:
+      // 1. check-in של חבר טיול אחר (uid שונה) - זה מה שבאמת רוצים לבדוק מולו.
+      // 2. אין חבר אחר, אבל אותו חשבון בדק-אין ממכשיר אחר (למשל טלפון+מחשב
+      //    עם אותו login) - ה-check-in הרגיל נשמר לפי uid ודורס את עצמו בין
+      //    מכשירים, לכן משתמשים ב-meridianDebugDeviceChecks (נשמר לפי מזהה
+      //    מכשיר, לא uid) כדי למצוא מכשיר אחר של אותו חשבון.
+      // 3. אחרת (מכשיר יחיד לגמרי) - נופלים חזרה לבדיקה עצמית מול ה-check-in
+      //    שלך (ואז מרחק/כיוון קרובים ל-0 בכוונה).
+      const otherMember = pickLatest(withTime.filter(c => c.uid !== currentUser.uid));
+      let target = otherMember;
+      if(!target){
+        const myDeviceId = getDeviceId();
+        const otherDeviceEntries = Object.entries(meridianDebugDeviceChecks || {})
+          .filter(([deviceId, c]) => deviceId !== myDeviceId && typeof c?.lat === 'number' && typeof c?.lng === 'number')
+          .map(([, c]) => c);
+        target = otherDeviceEntries.reduce((m,c) => (!m || (c.updatedAt||0) >= (m.updatedAt||0)) ? c : m, null);
+      }
+      if(!target) target = pickLatest(withTime);
+      if(target){ targetLat = target.lat; targetLng = target.lng; }
+    }
+    const distToTrue = haversineMeters(avg.lat, avg.lng, targetLat, targetLng);
+    const bearing = bearingDegrees(avg.lat, avg.lng, targetLat, targetLng);
+    window.__meridianTargetBearing = bearing;
+    const dirLabel = compassDirectionLabel(bearing);
+    resultArea.innerHTML = `
+      ${debugMode ? '<div class="meridian-debug-banner">🐞 מצב דיבאג פעיל: היעד הוא ה-check-in האחרון שהתקבל (משותף לכל חברי הטיול, לשעה) - כשבודקים לבד היעד הוא ה-check-in שלך עצמך, לכן מרחק/כיוון קרובים ל-0</div>' : ''}
+      <div class="meridian-result-card">
+        <div class="meridian-result-headline">${debugMode ? 'היעד (דיבאג)' : 'קו האפס האמיתי'} נמצא <b>${formatMeridianDistance(distToTrue)}</b> ${dirLabel} מכאן (כיוון ${Math.round(bearing)}°)</div>
+        <div class="section-hint">${avg.usedCount === 1
+          ? 'מבוסס על המיקום שלך בלבד - עדיין אין עוד חברי טיול מאושרים'
+          : `מבוסס על ${avg.usedCount} מיקומים${avg.excludedCount ? ` (${avg.excludedCount} נפסלו כחריגים)` : ''}`}</div>
+        <div class="meridian-compass" id="meridianCompassWrap">
+          <div class="meridian-compass-dial">
+            <div class="meridian-compass-pivot"></div>
+            <svg class="meridian-compass-needle" id="meridianCompassNeedle" viewBox="0 0 24 24">
+              <path class="needle-north" d="M12 1.5 L15 12 L12 12 Z"/>
+              <path class="needle-south" d="M12 22.5 L9 12 L12 12 Z"/>
+            </svg>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="meridianCompassBtn" type="button">📡 הפעל מצפן</button>
+        </div>
+        <div class="meridian-compass-error" id="meridianCompassError"></div>
+      </div>`;
+    const compassBtn = document.getElementById('meridianCompassBtn');
+    if(compassBtn) compassBtn.addEventListener('click', maybeAttachCompass);
+    // אם עדיין לא הופעל חיישן בפועל (או שהוא נכשל קודם), מציגים את החץ
+    // מיד לפי הנחת "צפון" במקום להשאיר אותו לא מסונכרן/דומם עד לחיצה.
+    if(lastCompassHeading === null) useNorthFallback();
+    else updateCompassNeedle();
+  }
+
+  membersArea.innerHTML = meridianChecks.length
+    ? '<div class="section-hint meridian-members-list">אישרו מיקום: ' +
+      meridianChecks.map(c => `
+        <span class="meridian-member-chip">
+          ${escapeAttr(resolveMemberName(c.uid))}
+          <button type="button" class="meridian-member-remove" data-uid="${escapeAttr(c.uid)}" title="הסר את המיקום של ${escapeAttr(resolveMemberName(c.uid))}">✕</button>
+        </span>`).join('') +
+      '</div>'
+    : '';
+  membersArea.querySelectorAll('.meridian-member-remove').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const uid = btn.dataset.uid;
+      const name = resolveMemberName(uid);
+      if(!confirm(`להסיר את המיקום של ${name} מהחישוב המשותף?`)) return;
+      btn.disabled = true;
+      try{ await fbClearMeridianCheck(activeTripId, uid); }
+      catch(e){ alert('שגיאה בהסרת המיקום: ' + e.message); btn.disabled = false; }
+    });
+  });
+}
+function compassDirectionLabel(bearing){
+  const dirs = ['צפונה','צפון-מזרחה','מזרחה','דרום-מזרחה','דרומה','דרום-מערבה','מערבה','צפון-מערבה'];
+  return dirs[Math.round(bearing / 45) % 8];
+}
+// בוחר יחידה קריאה לפי סדר הגודל - ק"מ למרחקים גדולים, מטר לרוב המקרים,
+// ס"מ כשמדובר בהפרש זעיר (למשל אחרי שכל הקבוצה כבר עומדת כמעט בדיוק על הקו)
+function formatMeridianDistance(meters){
+  if(meters >= 1000) return (meters / 1000).toLocaleString('he-IL', { maximumFractionDigits: 2 }) + ' ק"מ';
+  if(meters < 1) return Math.round(meters * 100) + ' ס"מ';
+  return Math.round(meters) + ' מטר';
+}
+
 function renderPackingSuggestions(){
   const banner = document.getElementById('packingSuggestionsBanner');
   if(!banner) return;
@@ -4753,10 +5336,107 @@ document.getElementById('sharingPanelToggle').addEventListener('click', () => {
   if(show) renderSharingPanel();
 });
 
+// Runs a hidden debug code's effect, regardless of where it was triggered from
+// (the join-code box, or a "הפעל" button inside the DEBUGHELP window). Returns
+// true if the string was a recognized debug code (caller can stop further
+// "join by code" handling), false otherwise.
+async function runDebugCode(upperCode){
+  // Hidden debug hook: typing DEBUG1BEFORE as a "join code" isn't a real trip
+  // code - it forces the "כלים לחו"ל" tab open for an hour so the tab itself
+  // (and the meridian tool inside it, when a Greenwich-area attraction is
+  // also present) can be tested without waiting for the day before a flight.
+  if(upperCode === 'DEBUG1BEFORE'){
+    localStorage.setItem(DEBUG_TOOLS_KEY, String(Date.now() + 3600000));
+    updateHeroStats();
+    showToast('מצב דיבאג: טאב "כלים לחו"ל" פתוח לשעה הקרובה');
+    return true;
+  }
+  // Hidden debug hook: for the next hour, the meridian tool targets whoever's
+  // last GPS check-in instead of the true 0° line - so distance should come
+  // out ~0 and the compass can be sanity-checked without traveling to
+  // Greenwich. Written onto the trip doc itself (not localStorage) so it's
+  // live and shared with every trip member, not just whoever typed the code.
+  if(upperCode === 'DEBUGTARGETME'){
+    if(!activeTripId){ alert('אין טיול פעיל.'); return true; }
+    try{
+      await fbSetMeridianDebugTargetMe(activeTripId, Date.now() + 3600000);
+      showToast('מצב דיבאג: הכלי "קו האפס האמיתי" מכוון עכשיו למיקום ה-check-in האחרון (משותף לכל חברי הטיול, לשעה הקרובה)');
+    }catch(e){
+      alert('שגיאה בהפעלת מצב הדיבאג: ' + e.message);
+    }
+    return true;
+  }
+  // Hidden debug hook: turns off every active debug mode immediately, instead
+  // of waiting for each one's own 1-hour expiry to pass.
+  if(upperCode === 'DEBUGEXIT'){
+    localStorage.removeItem(DEBUG_TOOLS_KEY);
+    updateHeroStats();
+    if(activeTripId){
+      try{ await fbSetMeridianDebugTargetMe(activeTripId, 0); }
+      catch(e){ alert('שגיאה בכיבוי מצב הדיבאג של "קו האפס האמיתי": ' + e.message); }
+    }
+    showToast('כל מצבי הדיבאג כובו');
+    return true;
+  }
+  // Hidden debug hook: lists all the hidden debug codes above (each with its
+  // own "הפעל" button), so they don't have to be remembered or typed by hand.
+  if(upperCode === 'DEBUGHELP'){
+    openDebugHelpModal();
+    return true;
+  }
+  return false;
+}
+
+// Custom DEBUGHELP window: shows every hidden debug code with a description
+// and a "הפעל" button that runs it directly, instead of having to close the
+// window and retype the code into the join-code box.
+function openDebugHelpModal(){
+  const rowsHTML = DEBUG_CODES_HELP.map((d, i) => `
+    <div class="debug-help-row">
+      <div class="debug-help-row-main">
+        <code class="debug-help-code">${d.code}</code>
+        <p class="debug-help-desc">${d.desc}</p>
+      </div>
+      <button class="btn-quick btn-sm debug-help-run" type="button" data-idx="${i}" ${d.code === 'DEBUGHELP' ? 'disabled title="כבר כאן"' : ''}>▶️ הפעל</button>
+    </div>
+  `).join('');
+  const bodyHTML = `
+    <div class="debug-help-list">${rowsHTML}</div>
+    <div class="ai-modal-actions">
+      <button class="btn-quick" type="button" id="debugHelpClose">סגירה</button>
+    </div>
+  `;
+  const body = openAIModal({
+    title: '🐞 DEBUGHELP - קודי דיבאג',
+    hint: 'לחיצה על "הפעל" מריצה את הקוד מיד, בלי לסגור את החלון ולהקליד אותו בתיבת קוד ההצטרפות.',
+    bodyHTML
+  });
+  body.querySelectorAll('.debug-help-run').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const d = DEBUG_CODES_HELP[Number(btn.dataset.idx)];
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = '...';
+      try{
+        await runDebugCode(d.code);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    });
+  });
+  document.getElementById('debugHelpClose').addEventListener('click', closeAIModal);
+}
+
 document.getElementById('joinCodeBtn').addEventListener('click', async () => {
   const input = document.getElementById('joinCodeInput');
   const code = input.value.trim();
   if(!code) return;
+  const upperCode = code.toUpperCase();
+  if(await runDebugCode(upperCode)){
+    input.value = '';
+    return;
+  }
   const roleLabels = { owner:'בעלים', editor:'עורך', viewer:'צופה' };
   try{
     const { tripId, role } = await fbJoinByCode(code);
