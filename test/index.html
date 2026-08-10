@@ -4223,10 +4223,10 @@ function renderMeridianTool(){
     // (0 ס"מ, כיוון 0) בכל פעם שקו האורך כמעט 0, כי חושב מרחק על אותו
     // קו רוחב במקום מרחק אמיתי לנקודה בגריניץ'.
     let targetLat = MARKED_MERIDIAN.lat, targetLng = TRUE_MERIDIAN_LNG;
-    // בבדיקה לבד (בלי check-in של אף חבר טיול נוסף) אין עם מה להשוות במצב
-    // דיבאג - "0 ס"מ, כיוון 0°" נראה כמו באג אבל זו בעצם השוואה של הנקודה
-    // לעצמה. מציגים הודעת שגיאה ברורה במקום מספר מטעה.
-    let debugNoOtherCheckin = false;
+    // "מצב סולו": כשאין check-in של אף חבר טיול נוסף, אין עם מה להשוות
+    // במצב דיבאג - מדלגים על ניסיון ההשוואה לחבר אחר ומציגים במקום זאת
+    // כיוון לקו האפס האמיתי (ה-"מיקום שלי" בלבד, בלי ממוצע קבוצתי).
+    let debugSoloMode = false;
     if(debugMode){
       const withTime = meridianChecks.filter(c => typeof c.lat === 'number' && typeof c.lng === 'number' && c.uid !== currentUser.uid);
       const latest = withTime.reduce((m,c) => {
@@ -4234,21 +4234,17 @@ function renderMeridianTool(){
         return (!m || t >= m._t) ? Object.assign({_t:t}, c) : m;
       }, null);
       if(latest){ targetLat = latest.lat; targetLng = latest.lng; }
-      else debugNoOtherCheckin = true;
+      else debugSoloMode = true;
     }
-    if(debugNoOtherCheckin){
-      resultArea.innerHTML = `
-        <div class="meridian-debug-banner">🐞 מצב דיבאג פעיל</div>
-        <div class="meridian-result-card">
-          <div class="meridian-result-headline">⚠️ שגיאה: אין עדיין check-in ממישהו אחר לבדוק מולו. בקשו מחבר טיול נוסף לאשר מיקום.</div>
-        </div>`;
-    } else {
     const distToTrue = haversineMeters(avg.lat, avg.lng, targetLat, targetLng);
     const bearing = bearingDegrees(avg.lat, avg.lng, targetLat, targetLng);
     window.__meridianTargetBearing = bearing;
     const dirLabel = compassDirectionLabel(bearing);
+    const debugBannerText = debugSoloMode
+      ? '🐞 מצב דיבאג (סולו) פעיל: אין עוד חבר טיול מאושר להשוואה, מוצג כיוון לקו האפס האמיתי לפי המיקום שלך בלבד'
+      : '🐞 מצב דיבאג פעיל: היעד הוא ה-check-in האחרון של חבר טיול אחר, לא קו האפס האמיתי (משותף לכל חברי הטיול, לשעה)';
     resultArea.innerHTML = `
-      ${debugMode ? '<div class="meridian-debug-banner">🐞 מצב דיבאג פעיל: היעד הוא ה-check-in האחרון של חבר טיול אחר, לא קו האפס האמיתי (משותף לכל חברי הטיול, לשעה)</div>' : ''}
+      ${debugMode ? `<div class="meridian-debug-banner">${debugBannerText}</div>` : ''}
       <div class="meridian-result-card">
         <div class="meridian-result-headline">${debugMode ? 'היעד (דיבאג)' : 'קו האפס האמיתי'} נמצא <b>${formatMeridianDistance(distToTrue)}</b> ${dirLabel} מכאן (כיוון ${Math.round(bearing)}°)</div>
         <div class="section-hint">${avg.usedCount === 1
@@ -4272,7 +4268,6 @@ function renderMeridianTool(){
     // מיד לפי הנחת "צפון" במקום להשאיר אותו לא מסונכרן/דומם עד לחיצה.
     if(lastCompassHeading === null) useNorthFallback();
     else updateCompassNeedle();
-    }
   }
 
   membersArea.innerHTML = meridianChecks.length
