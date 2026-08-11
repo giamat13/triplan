@@ -2523,12 +2523,19 @@ async function switchToTrip(id){
   meridianDebugDeviceChecks = trip.meridianDebugDeviceChecks || {};
   showSyncError(false);
   await refreshMemberNames();
+  // Load the private packing list BEFORE the first render() of this trip, so
+  // the packing tab is only ever painted once with the correct data. Doing
+  // this after render() (as before) meant state.packing briefly held the
+  // trip doc's stale/legacy `packing` field, got rendered, and then got
+  // silently overwritten once the private load resolved - visible as items
+  // flashing and disappearing, and capable of wiping out any packing edit
+  // (e.g. from the AI suggestion flow) made during that window.
+  await loadPrivatePackingList(id);
   render();
   renderTripSelect();
   renderSharingPanel();
   renderSuggestRecipients();
   if(repairedCount) saveState();
-  await loadPrivatePackingList(id);
   startSuggestionsListener(id);
   startActivityListener(id);
   startTripListener(id);
