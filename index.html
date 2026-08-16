@@ -660,6 +660,13 @@
     font-size:14.5px;
   }
   .hotel-field input::placeholder,.hotel-field textarea::placeholder{color:#7FA294;}
+  .hotel-field-checkbox{border-bottom:1.5px solid transparent;justify-content:flex-end;}
+  .hotel-checkbox-row{
+    display:flex;align-items:center;gap:8px;
+    font-family:'Assistant', sans-serif;font-size:14.5px;
+    color:var(--paper-text);cursor:pointer;
+  }
+  .hotel-checkbox-row input[type="checkbox"]{width:16px;height:16px;accent-color:var(--brass);cursor:pointer;}
 
   /* ---------- Footer bar ---------- */
   .day-actions{display:flex;justify-content:flex-start;}
@@ -2102,7 +2109,7 @@ let uid = 1;
 function nextId(){ return 'id' + (uid++) + '-' + Date.now().toString(36); }
 
 function newDay(){
-  return { id: nextId(), destination:'', currency:'', activities:[ newActivity() ], hotel:{ name:'', link:'', cost:'', notes:'' }, lastEditedBy:'', lastEditedAt:0 };
+  return { id: nextId(), destination:'', currency:'', activities:[ newActivity() ], hotel:{ name:'', link:'', cost:'', notes:'', breakfast:false, checkIn:'', checkOut:'' }, lastEditedBy:'', lastEditedAt:0 };
 }
 function newActivity(){
   return {
@@ -2195,7 +2202,7 @@ function normalizeDay(d){
     destination: d.destination || '',
     currency: CURRENCY_SYMBOLS.hasOwnProperty(d.currency) ? d.currency : '',
     activities: Array.isArray(d.activities) && d.activities.length ? d.activities.map(normalizeActivity) : [ newActivity() ],
-    hotel: { name: hotel.name || '', link: hotel.link || '', cost: hotel.cost || '', notes: hotel.notes || '' },
+    hotel: { name: hotel.name || '', link: hotel.link || '', cost: hotel.cost || '', notes: hotel.notes || '', breakfast: !!hotel.breakfast, checkIn: hotel.checkIn || '', checkOut: hotel.checkOut || '' },
     lastEditedBy: d.lastEditedBy || '',
     lastEditedAt: d.lastEditedAt || 0,
     aiScheduleDismissed: d.aiScheduleDismissed || ''
@@ -2738,6 +2745,94 @@ function dateForDayIndex(index){
   return d.toISOString().slice(0,10);
 }
 
+/* ---------------- Hotel stay dates ---------------- */
+// Two hotel rows count as "the same stay" only when every field but the dates
+// matches - covers both a manual duplicate entry and the "החל מאתמול" copy button.
+function hotelContentEqual(a, b){
+  if(!(a.name||'').trim()) return false;
+  return (a.name||'').trim() === (b.name||'').trim() &&
+    (a.link||'').trim() === (b.link||'').trim() &&
+    String(a.cost||'').trim() === String(b.cost||'').trim() &&
+    (a.notes||'').trim() === (b.notes||'').trim() &&
+    !!a.breakfast === !!b.breakfast;
+}
+// Grows the run of consecutive days sharing this day's hotel content and
+// stamps them all with a check-in/check-out spanning the whole run, so a
+// duplicated hotel entry (typed twice or copied from yesterday) gets dates
+// without the user ever touching the date fields.
+function recalcHotelStayForDay(index){
+  const day = state.days[index];
+  if(!day) return;
+  if(!day.hotel.name.trim()){
+    day.hotel.checkIn = ''; day.hotel.checkOut = '';
+    return;
+  }
+  let lo = index, hi = index;
+  while(lo > 0 && hotelContentEqual(state.days[lo].hotel, state.days[lo-1].hotel)) lo--;
+  while(hi < state.days.length-1 && hotelContentEqual(state.days[hi].hotel, state.days[hi+1].hotel)) hi++;
+  const checkIn = dateForDayIndex(lo);
+  const checkOut = dateForDayIndex(hi+1);
+  if(!checkIn || !checkOut) return; // no trip start date yet - nothing to stamp
+  for(let i=lo;i<=hi;i++){
+    state.days[i].hotel.checkIn = checkIn;
+    state.days[i].hotel.checkOut = checkOut;
+  }
+}
+function syncHotelDatesAround(index){
+  const start = Math.max(0, index-1);
+  const end = Math.min(state.days.length-1, index+1);
+  for(let i=start;i<=end;i++) recalcHotelStayForDay(i);
+}
+// Picking check-in/check-out explicitly on one day's hotel fills that same
+// hotel (name/link/cost/notes/breakfast) into every day whose date falls
+// inside the range.
+function applyHotelDateRange(index){
+  const day = state.days[index];
+  const { checkIn, checkOut } = day.hotel;
+  if(!checkIn || !checkOut) return;
+  if(checkOut <= checkIn){
+    alert('תאריך ה-check-out חייב להיות אחרי תאריך ה-check-in');
+    return;
+  }
+  const source = { name: day.hotel.name, link: day.hotel.link, cost: day.hotel.cost, notes: day.hotel.notes, breakfast: day.hotel.breakfast };
+  state.days.forEach((d, i) => {
+    const iso = dateForDayIndex(i);
+    if(iso && iso >= checkIn && iso < checkOut){
+      d.hotel.name = source.name;
+      d.hotel.link = source.link;
+      d.hotel.cost = source.cost;
+      d.hotel.notes = source.notes;
+      d.hotel.breakfast = source.breakfast;
+      d.hotel.checkIn = checkIn;
+      d.hotel.checkOut = checkOut;
+      touchDay(d);
+    }
+  });
+}
+// Pushes current state into the hotel inputs of every rendered day card
+// without a full re-render, so edits on one day show up on others while the
+// user keeps typing (the focused input is left untouched).
+function refreshAllHotelUI(){
+  const active = document.activeElement;
+  const cards = daysEl.children;
+  state.days.forEach((day, i) => {
+    const card = cards[i];
+    if(!card) return;
+    const setVal = (role, val) => {
+      const el = card.querySelector(`[data-role="${role}"]`);
+      if(el && el !== active) el.value = val;
+    };
+    setVal('hotel-name', day.hotel.name);
+    setVal('hotel-link', day.hotel.link);
+    setVal('hotel-cost', day.hotel.cost);
+    setVal('hotel-notes', day.hotel.notes);
+    setVal('hotel-checkin', day.hotel.checkIn);
+    setVal('hotel-checkout', day.hotel.checkOut);
+    const hb = card.querySelector('[data-role="hotel-breakfast"]');
+    if(hb && hb !== active) hb.checked = !!day.hotel.breakfast;
+  });
+}
+
 /* ---------------- Hero stats: countdown, progress, destination flavor ---------------- */
 const DEST_ICON_RULES = [
   [/טיסה|flight|נמל תעופה|airport/i, 'plane'],
@@ -3026,6 +3121,17 @@ function render(){
             <label>עלות ללילה</label>
             <input data-role="hotel-cost" type="number" min="0" placeholder="${currencySymbolFor(dayCurrency(day))}" value="${escapeAttr(day.hotel.cost)}">
           </div>
+          <div class="hotel-field">
+            <label>צ'ק אין</label>
+            <input data-role="hotel-checkin" type="date" value="${escapeAttr(day.hotel.checkIn)}">
+          </div>
+          <div class="hotel-field">
+            <label>צ'ק אאוט</label>
+            <input data-role="hotel-checkout" type="date" value="${escapeAttr(day.hotel.checkOut)}">
+          </div>
+          <div class="hotel-field hotel-field-checkbox">
+            <label class="hotel-checkbox-row"><input data-role="hotel-breakfast" type="checkbox" ${day.hotel.breakfast?'checked':''}> 🥐 כולל ארוחת בוקר</label>
+          </div>
           <div class="hotel-field wide">
             <label>הערות</label>
             <input data-role="hotel-notes" placeholder="הערות ללינה" value="${escapeAttr(day.hotel.notes)}">
@@ -3056,6 +3162,7 @@ function render(){
       state.days.splice(index,1);
       if(state.days.length === 0) state.days.push(newDay());
       if(activeDayIndex >= state.days.length) activeDayIndex = state.days.length - 1;
+      state.days.forEach((d, i) => recalcHotelStayForDay(i));
       saveState(); render();
     });
     card.querySelector('[data-role="add-activity"]').addEventListener('click', () => {
@@ -3078,22 +3185,34 @@ function render(){
     const hl = card.querySelector('[data-role="hotel-link"]');
     const hc = card.querySelector('[data-role="hotel-cost"]');
     const hnotes = card.querySelector('[data-role="hotel-notes"]');
-    hn.addEventListener('input', e => { day.hotel.name = e.target.value; touchDay(day); saveState(); });
-    hl.addEventListener('input', e => { day.hotel.link = e.target.value; touchDay(day); saveState(); });
-    hc.addEventListener('input', e => { day.hotel.cost = e.target.value; touchDay(day); saveState(); updateStats(); });
-    hnotes.addEventListener('input', e => { day.hotel.notes = e.target.value; touchDay(day); saveState(); });
+    const hb = card.querySelector('[data-role="hotel-breakfast"]');
+    const hci = card.querySelector('[data-role="hotel-checkin"]');
+    const hco = card.querySelector('[data-role="hotel-checkout"]');
+    hn.addEventListener('input', e => { day.hotel.name = e.target.value; touchDay(day); syncHotelDatesAround(index); saveState(); refreshAllHotelUI(); });
+    hl.addEventListener('input', e => { day.hotel.link = e.target.value; touchDay(day); syncHotelDatesAround(index); saveState(); refreshAllHotelUI(); });
+    hc.addEventListener('input', e => { day.hotel.cost = e.target.value; touchDay(day); syncHotelDatesAround(index); saveState(); updateStats(); refreshAllHotelUI(); });
+    hnotes.addEventListener('input', e => { day.hotel.notes = e.target.value; touchDay(day); syncHotelDatesAround(index); saveState(); refreshAllHotelUI(); });
+    hb.addEventListener('change', e => { day.hotel.breakfast = e.target.checked; touchDay(day); syncHotelDatesAround(index); saveState(); refreshAllHotelUI(); });
+    hci.addEventListener('change', e => { day.hotel.checkIn = e.target.value; touchDay(day); applyHotelDateRange(index); saveState(); refreshAllHotelUI(); });
+    hco.addEventListener('change', e => { day.hotel.checkOut = e.target.value; touchDay(day); applyHotelDateRange(index); saveState(); refreshAllHotelUI(); });
 
     const copyHotelBtn = card.querySelector('[data-role="copy-hotel"]');
     if(copyHotelBtn){
       copyHotelBtn.addEventListener('click', () => {
         const prevDay = state.days[index-1];
         if(!prevDay) return;
-        day.hotel = { name: prevDay.hotel.name, link: prevDay.hotel.link, cost: prevDay.hotel.cost, notes: prevDay.hotel.notes };
+        day.hotel = { name: prevDay.hotel.name, link: prevDay.hotel.link, cost: prevDay.hotel.cost, notes: prevDay.hotel.notes, breakfast: prevDay.hotel.breakfast, checkIn: prevDay.hotel.checkIn, checkOut: prevDay.hotel.checkOut };
         hn.value = day.hotel.name;
         hl.value = day.hotel.link;
         hc.value = day.hotel.cost;
         hnotes.value = day.hotel.notes;
-        touchDay(day); saveState(); updateStats();
+        hb.checked = day.hotel.breakfast;
+        hci.value = day.hotel.checkIn;
+        hco.value = day.hotel.checkOut;
+        touchDay(day);
+        syncHotelDatesAround(index);
+        saveState(); updateStats();
+        refreshAllHotelUI();
       });
     }
 
@@ -5291,7 +5410,11 @@ document.getElementById('touringFilterModeSelect').addEventListener('change', e 
 
 /* ---------------- Header events ---------------- */
 tripNameEl.addEventListener('input', e => { state.name = e.target.value; saveState(); renderTripSelect(); });
-startDateEl.addEventListener('input', e => { state.startDate = e.target.value; saveState(); render(); });
+startDateEl.addEventListener('input', e => {
+  state.startDate = e.target.value;
+  state.days.forEach((d, i) => recalcHotelStayForDay(i));
+  saveState(); render();
+});
 budgetCapInputEl.addEventListener('input', e => { state.budget = e.target.value; saveState(); updateStats(); });
 currencySelectEl.addEventListener('change', e => { state.currency = e.target.value; saveState(); render(); });
 secondaryCurrencySelectEl.addEventListener('change', e => { state.secondaryCurrency = e.target.value; saveState(); render(); });
