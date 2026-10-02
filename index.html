@@ -6086,6 +6086,11 @@ document.getElementById('clearAll').addEventListener('click', () => {
   saveState(); render(); renderTripSelect();
 });
 
+// photag x triplan: "Open in triplan" on a trip album sends the browser to
+// index.html?trip=<id>, so that one trip opens directly instead of landing on
+// whatever trip happened to be open last.
+const requestedTripId = new URLSearchParams(location.search).get('trip');
+
 let sharedLinkTripId = null;
 async function checkSharedLink(){
   if(location.hash.indexOf('#d=') === 0){
@@ -6164,12 +6169,18 @@ document.getElementById('emailAuthSubmit').addEventListener('click', async () =>
   try{
     await linkWithCredential(currentUser, cred);
     document.getElementById('emailAuthForm').style.display = 'none';
+    currentUser = fbAuth.currentUser;
+    renderAccountBar();
+    if(requestedTripId) await afterAuthReady();
   }catch(err){
     if(err.code === 'auth/credential-already-in-use' || err.code === 'auth/email-already-in-use'){
       if(confirm('כבר קיים חשבון עם האימייל הזה. להתחבר אליו? (טיולים ששמורים באורח הנוכחי לא יעברו אוטומטית)')){
         try{
           await signInWithEmailAndPassword(fbAuth, email, password);
           document.getElementById('emailAuthForm').style.display = 'none';
+          currentUser = fbAuth.currentUser;
+          renderAccountBar();
+          if(requestedTripId) await afterAuthReady();
         }catch(e2){ alert('שגיאה: ' + e2.message); }
       }
     } else {
@@ -6183,6 +6194,22 @@ async function afterAuthReady(){
   await migrateLocalTripsIfNeeded();
   await refreshTripsIndex();
   await checkSharedLink();
+  if(requestedTripId){
+    try{
+      await switchToTrip(requestedTripId);
+      return;
+    }catch(err){
+      // Firestore refuses the read (permission-denied) because this browser's current
+      // session - typically a fresh anonymous one - isn't a member of that trip. Rather
+      // than silently falling through to some other trip, ask to sign in as the right
+      // account and retry, since that's almost certainly what's actually needed here.
+      console.warn('לא ניתן לפתוח את הטיול המבוקש:', err);
+      daysEl.innerHTML = '<p style="color:#fff;">הקישור הזה מוביל לטיול ספציפי ב-triplan, '
+        + 'אבל אינך מחובר/ת כרגע לחשבון שחבר בו.<br>התחברו עם החשבון הנכון כדי לפתוח אותו.</p>';
+      document.getElementById('emailAuthForm').style.display = 'flex';
+      return;
+    }
+  }
   let target = sharedLinkTripId || activeTripId || localStorage.getItem(ACTIVE_TRIP_KEY);
   if(!target || !tripsIndex.some(t => t.id === target)){
     target = tripsIndex[0] ? tripsIndex[0].id : await createTrip({}, 'הטיול שלי');
