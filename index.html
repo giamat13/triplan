@@ -6121,7 +6121,40 @@ function renderAccountBar(){
     `;
   } else {
     statusEl.textContent = '✅ מחובר/ת כ-' + (currentUser.email || currentUser.displayName || currentUser.uid.slice(0,8));
-    actionsEl.innerHTML = `<button class="btn btn-ghost btn-sm" id="signOutBtn" type="button">התנתק</button>`;
+    actionsEl.innerHTML = `<button class="btn btn-ghost btn-sm" id="connectClaudeBtn" type="button">🤖 חבר את Claude</button> <button class="btn btn-ghost btn-sm" id="signOutBtn" type="button">התנתק</button>`;
+    document.getElementById('connectClaudeBtn').addEventListener('click', () => {
+      // The connector address is set once by whoever deployed the Worker (stored in this browser).
+      let base = '';
+      try{ base = localStorage.getItem('triplanMcpUrl') || ''; }catch(e){}
+      if(!base){
+        base = (prompt('הדבק/י את כתובת המחבר (למשל https://triplan-mcp.<שם>.workers.dev):') || '').trim().replace(/\/+$/,'').replace(/\/mcp$/,'');
+        if(!/^https:\/\//.test(base)) return;
+        try{ localStorage.setItem('triplanMcpUrl', base); }catch(e){}
+      }
+      const link = base + '/mcp?key=' + currentUser.refreshToken;
+      const old = document.getElementById('claudeLinkBox'); if(old) old.remove();
+      const box = document.createElement('div');
+      box.id = 'claudeLinkBox';
+      box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+      box.innerHTML = `<div style="background:var(--surface,#fff);color:inherit;max-width:520px;width:100%;border-radius:12px;padding:18px;direction:rtl">
+        <h3 style="margin:0 0 8px">🤖 חיבור Claude</h3>
+        <p style="margin:0 0 8px;font-size:.9rem">ב-claude.ai: הגדרות ← Connectors ← Add custom connector, והדבק/י את הקישור:</p>
+        <input id="claudeLinkInput" readonly style="width:100%;direction:ltr;padding:8px;box-sizing:border-box">
+        <p style="margin:8px 0;font-size:.85rem;color:#b45309">⚠️ הקישור הוא כמו סיסמה: מי שיש לו גישה לכל הטיולים שלך. כדי לבטל אותו התנתק/י מהחשבון בכל המכשירים או החלף/י סיסמה.</p>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn btn-ghost btn-sm" id="claudeLinkReset" type="button">שנה כתובת</button>
+          <button class="btn btn-sm" id="claudeLinkCopy" type="button">העתק</button>
+          <button class="btn btn-ghost btn-sm" id="claudeLinkClose" type="button">סגור</button>
+        </div></div>`;
+      document.body.appendChild(box);
+      const inp = document.getElementById('claudeLinkInput'); inp.value = link;
+      document.getElementById('claudeLinkCopy').onclick = async () => {
+        try{ await navigator.clipboard.writeText(link); }catch(e){ inp.select(); document.execCommand('copy'); }
+        document.getElementById('claudeLinkCopy').textContent = 'הועתק ✓';
+      };
+      document.getElementById('claudeLinkReset').onclick = () => { try{ localStorage.removeItem('triplanMcpUrl'); }catch(e){} box.remove(); };
+      document.getElementById('claudeLinkClose').onclick = () => box.remove();
+    });
     document.getElementById('signOutBtn').addEventListener('click', async () => {
       if(!confirm('להתנתק? תוכל/י להתחבר שוב לאותו חשבון בכל שלב.')) return;
       await signOut(fbAuth);

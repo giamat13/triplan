@@ -1,5 +1,6 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createServer } from "./server.js";
+import { withKey } from "./lib/session.js";
 
 const CORS: Record<string, string> = {
   "access-control-allow-origin": "*",
@@ -51,8 +52,13 @@ function authorized(request: Request): boolean {
 export async function handleMcp(request: Request): Promise<Response> {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (request.method !== "POST") return json(405, "Method not allowed. Use POST (stateless server).");
-  if (!authorized(request))
-    return json(401, "Unauthorized. Set MCP_SECRET on the server and pass it as ?key=... or a Bearer token.");
+  // Shared-connector mode: ?key= is the user's own Firebase refresh token, minted by the app ("Connect Claude").
+  // Nothing is stored here; each request exchanges it for an ID token, so firestore.rules apply to that user.
+  const key = new URL(request.url).searchParams.get("key") ?? "";
+  let refreshToken: string | null = null;
+  if (key.length >= 40 && key !== process.env.MCP_SECRET && /^[A-Za-z0-9_.-]{40,600}$/.test(key)) refreshToken = key;
+  else if (!authorized(request))
+    return json(401, "Unauthorized. Use the personal link from the app's Connect Claude button.");
   const len = Number(request.headers.get("content-length") ?? 0);
   if (len > MAX_BODY) return withCors(new Response("Payload too large", { status: 413 }));
 
@@ -63,7 +69,8 @@ export async function handleMcp(request: Request): Promise<Response> {
   });
   await server.connect(transport);
   try {
-    return withCors(await transport.handleRequest(request));
+    const run = () => transport.handleRequest(request);
+    return withCors(refreshToken ? await withKey(refreshToken, run) : await run());
   } finally {
     // Close after the response has been produced; nothing is kept between requests.
     queueMicrotask(() => void server.close().catch(() => {}));

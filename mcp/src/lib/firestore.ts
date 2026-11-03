@@ -3,6 +3,7 @@
 // REST API, so firestore.rules stay fully enforced (the connector can only do what that user may do).
 // Mock mode (TRIPLAN_MOCK=1): in-memory store with the same interface, for local tests.
 import { UpstreamError } from "./http.js";
+import { currentKey, sessionFromRefreshToken } from "./session.js";
 
 export type Doc = { id: string; data: Record<string, any>; updateTime?: string };
 
@@ -74,8 +75,8 @@ interface Session {
   uid: string;
   expires: number;
 }
-let session: Session | null = null;
-let signingIn: Promise<Session> | null = null;
+const sessions = new Map<string, Session>(); // key: "legacy" or the user's refresh token
+const signing = new Map<string, Promise<Session>>();
 
 // FIREBASE_EMULATOR=1 points every URL at the local Emulator Suite (auth 9099, firestore 8080) and needs no API key.
 const EMU = process.env.FIREBASE_EMULATOR === "1";
@@ -106,32 +107,38 @@ async function authFetch(url: string, body: unknown, form = false): Promise<any>
 }
 
 async function getSession(): Promise<Session> {
-  if (session && session.expires > Date.now() + 60_000) return session;
-  if (signingIn) return signingIn;
-  signingIn = (async () => {
+  // Personal link (shared connector): the key is the user's own refresh token; see session.ts.
+  const link = currentKey();
+  if (link) {
+    const u = await sessionFromRefreshToken(link, env("FIREBASE_API_KEY"));
+    return { idToken: u.idToken, refreshToken: "", uid: u.uid, expires: u.expires };
+  }
+  // Legacy: one configured account (TRIPLAN_EMAIL / TRIPLAN_PASSWORD).
+  const cur = sessions.get("legacy");
+  if (cur && cur.expires > Date.now() + 60_000) return cur;
+  const pending = signing.get("legacy");
+  if (pending) return pending;
+  const p = (async () => {
     const key = env("FIREBASE_API_KEY");
-    if (session?.refreshToken) {
+    if (cur?.refreshToken) {
       try {
-        const j = await authFetch(
-          `${TOKEN_URL}?key=${key}`,
-          `grant_type=refresh_token&refresh_token=${encodeURIComponent(session.refreshToken)}`,
-          true,
-        );
-        session = { idToken: j.id_token, refreshToken: j.refresh_token, uid: j.user_id, expires: Date.now() + Number(j.expires_in) * 1000 };
-        return session;
+        const j = await authFetch(`${TOKEN_URL}?key=${key}`, `grant_type=refresh_token&refresh_token=${encodeURIComponent(cur.refreshToken)}`, true);
+        const s: Session = { idToken: j.id_token, refreshToken: j.refresh_token, uid: j.user_id, expires: Date.now() + Number(j.expires_in) * 1000 };
+        sessions.set("legacy", s);
+        return s;
       } catch {
         /* fall through to a full sign-in */
       }
     }
     const j = await authFetch(`${AUTH_ROOT}/accounts:signInWithPassword?key=${key}`, {
-      email: env("TRIPLAN_EMAIL"),
-      password: env("TRIPLAN_PASSWORD"),
-      returnSecureToken: true,
+      email: env("TRIPLAN_EMAIL"), password: env("TRIPLAN_PASSWORD"), returnSecureToken: true,
     });
-    session = { idToken: j.idToken, refreshToken: j.refreshToken, uid: j.localId, expires: Date.now() + Number(j.expiresIn) * 1000 };
-    return session;
-  })().finally(() => (signingIn = null));
-  return signingIn;
+    const s: Session = { idToken: j.idToken, refreshToken: j.refreshToken, uid: j.localId, expires: Date.now() + Number(j.expiresIn) * 1000 };
+    sessions.set("legacy", s);
+    return s;
+  })().finally(() => signing.delete("legacy"));
+  signing.set("legacy", p);
+  return p;
 }
 
 const base = () => `${FS_ROOT}/projects/${env("FIREBASE_PROJECT_ID")}/databases/(default)/documents`;
