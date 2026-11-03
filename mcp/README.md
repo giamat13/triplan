@@ -1,6 +1,16 @@
 # triplan-mcp
 
-A remote MCP server (claude.ai custom connector) for the triplan trip planner. It lets Claude read and change trips, days, activities, ideas, documents, packing lists, suggestions and sharing, and shows inline cards (MCP Apps) for the results. It signs in to Firebase as one dedicated user over REST, so `firestore.rules` stay the security boundary: the connector can only do what that user may do.
+A remote MCP server (claude.ai custom connector) for the triplan trip planner. It lets Claude read and change trips, days, activities, ideas, documents, packing lists, suggestions and sharing, and shows inline cards (MCP Apps) for the results. It signs in to Firebase with your own account over REST, so `firestore.rules` stay the security boundary.
+
+## Set up in 3 steps
+
+1. Click [**Deploy to Cloudflare**](https://deploy.workers.cloudflare.com/?url=https://github.com/giamat13/triplan/tree/main/mcp) (free, sign in with GitHub, no card). It asks for:
+   - `TRIPLAN_EMAIL`, `TRIPLAN_PASSWORD`: the email and password you use in triplan (Google-only? set a password once with "forgot password").
+   - `MCP_SECRET`: any long random text (30+ characters).
+   - `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`: the public values from `config.js`.
+   - If App Check is enforced: `APPCHECK_DEBUG_TOKEN` (Firebase Console, App Check, Manage debug tokens) and `FIREBASE_APP_ID`.
+2. Copy the address, for example `https://triplan-mcp.<you>.workers.dev`.
+3. In claude.ai: Settings, Connectors, Add custom connector, paste `https://<your-address>/mcp?key=<MCP_SECRET>`.
 
 ## Tools
 
