@@ -6124,8 +6124,8 @@ function renderAccountBar(){
     actionsEl.innerHTML = `<button class="btn btn-ghost btn-sm" id="connectClaudeBtn" type="button">🤖 חבר את Claude</button> <button class="btn btn-ghost btn-sm" id="signOutBtn" type="button">התנתק</button>`;
     document.getElementById('connectClaudeBtn').addEventListener('click', () => {
       // The connector address is set once by whoever deployed the Worker (stored in this browser).
-      let base = '';
-      try{ base = localStorage.getItem('triplanMcpUrl') || ''; }catch(e){}
+      let base = 'https://triplan-mcp.furst-itamar.workers.dev';
+      try{ base = localStorage.getItem('triplanMcpUrl') || base; }catch(e){}
       if(!base){
         base = (prompt('הדבק/י את כתובת המחבר (למשל https://triplan-mcp.<שם>.workers.dev):') || '').trim().replace(/\/+$/,'').replace(/\/mcp$/,'');
         if(!/^https:\/\//.test(base)) return;
