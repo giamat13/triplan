@@ -2,1586 +2,470 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0E6A62">
 <title>מתכנן טיולים</title>
+<script>
+// Display settings are applied before first paint so the page never flashes in the wrong size/theme.
+(function(){
+  var s = {};
+  try{ s = JSON.parse(localStorage.getItem('triplan-a11y-v1') || '{}') || {}; }catch(e){}
+  var theme = s.theme || 'auto';
+  if(theme === 'auto') theme = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  var h = document.documentElement;
+  h.dataset.theme = theme;
+  h.dataset.fs = String(s.fs || 0);
+  if(s.motion === false) h.dataset.motion = 'off';
+  window.__TP_SIMPLE__ = !!s.simple;
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700;900&family=Assistant:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/geolib@3.3.4/dist/geolib.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="./styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/geolib@3.3.4/dist/geolib.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<style>
-  :root{
-    --ink:#1B2A2F;
-    --ink-soft:#233B41;
-    --paper:#F3ECDC;
-    --paper-soft:#EBE2CB;
-    --stay:#28423B;
-    --stay-soft:#33544B;
-    --brass:#C08A3E;
-    --brass-soft:#E0B876;
-    --rust:#B5502B;
-    --pine:#4C7A68;
-    --line:#D8CBA9;
-    --line-dark:#3E5B58;
-    --ink-text:#2A2118;
-    --paper-text:#F3ECDC;
-    --muted:#8B7F63;
-    --radius:18px;
-    font-size:16px;
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
-  html{scroll-behavior:smooth;}
-  body{
-    background:
-      radial-gradient(ellipse at 20% -10%, rgba(192,138,62,0.12), transparent 55%),
-      radial-gradient(ellipse at 100% 0%, rgba(76,122,104,0.14), transparent 45%),
-      var(--ink);
-    background-attachment: fixed;
-    color:var(--paper);
-    font-family:'Assistant', sans-serif;
-    min-height:100vh;
-    padding:32px 16px 80px;
-  }
-  .wrap{max-width:840px;margin:0 auto;}
-  .eyebrow{
-    font-family:'JetBrains Mono', monospace;
-    font-size:12px;
-    letter-spacing:0.14em;
-    color:var(--brass-soft);
-    text-transform:uppercase;
-    margin:0;
-  }
-
-  .trip-switcher-row{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    flex-wrap:wrap;
-    gap:10px;
-    margin-bottom:10px;
-  }
-  .trip-switcher{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-  .trip-switcher select{
-    font-family:'JetBrains Mono', monospace;
-    font-size:12.5px;
-    background:var(--paper);
-    color:var(--ink-text);
-    border:1.5px solid var(--line-dark);
-    border-radius:8px;
-    padding:7px 10px;
-    cursor:pointer;
-    max-width:220px;
-  }
-  .btn-sm{padding:7px 13px;font-size:12.5px;}
-
-  /* ---------- Main section tabs (desktop: sticky top row; mobile: fixed bottom bar) ---------- */
-  .main-tabs{
-    position:sticky; top:0; z-index:30;
-    display:flex; gap:6px;
-    background:
-      radial-gradient(ellipse at 20% -10%, rgba(192,138,62,0.12), transparent 55%),
-      radial-gradient(ellipse at 100% 0%, rgba(76,122,104,0.14), transparent 45%),
-      var(--ink);
-    background-attachment: fixed;
-    padding:10px 0; margin-bottom:16px;
-    border-bottom:1.5px solid var(--line-dark);
-  }
-  .tab-btn{
-    flex:1 1 auto;
-    display:flex; align-items:center; justify-content:center; gap:6px;
-    font-family:'JetBrains Mono', monospace; font-size:12.5px;
-    background:transparent; color:var(--paper);
-    border:1.5px solid var(--line-dark); border-radius:20px;
-    padding:9px 10px; cursor:pointer; white-space:nowrap;
-    opacity:0.6; transition:opacity .15s ease, background .15s ease, color .15s ease;
-  }
-  .tab-btn:hover{opacity:0.85;}
-  .tab-btn.active{
-    background:var(--paper); color:var(--ink-text);
-    border-color:var(--brass); opacity:1;
-    box-shadow:0 6px 16px -8px rgba(0,0,0,0.5);
-  }
-  .line-icon{display:flex;}
-  .line-icon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;}
-  .tab-panel{display:none;}
-  .tab-panel.active{display:block;}
-
-  /* ---------- Day picker (navigate one day at a time instead of one long scroll) ---------- */
-  .day-picker{
-    display:flex; align-items:center; gap:0;
-    overflow-x:auto; padding:6px 4px 16px;
-    scrollbar-width:thin; scrollbar-color:var(--line-dark) transparent;
-  }
-  .day-picker::-webkit-scrollbar{height:5px;}
-  .day-picker::-webkit-scrollbar-track{background:transparent;}
-  .day-picker::-webkit-scrollbar-thumb{background:var(--line-dark); border-radius:10px;}
-  .day-picker::-webkit-scrollbar-thumb:hover{background:var(--brass);}
-  .day-pill{
-    flex:0 0 auto;
-    display:flex; flex-direction:column; align-items:center; gap:5px;
-    font-family:'JetBrains Mono', monospace;
-    background:var(--paper); color:var(--ink-text);
-    border:1.5px dashed var(--line-dark);
-    border-radius:10px;
-    padding:8px 14px 7px;
-    margin-inline-end:9px;
-    cursor:pointer; min-width:56px;
-    opacity:0.55;
-    transition:opacity .15s ease, border-color .15s ease, box-shadow .15s ease;
-  }
-  .day-pill:last-child{margin-inline-end:0;}
-  .day-pill:hover{opacity:0.85;}
-  .day-pill .pill-badge{
-    width:24px;height:24px;border-radius:50%;
-    background:var(--muted); color:var(--paper);
-    font-weight:700; font-size:11.5px;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .day-pill .pill-date{font-size:9.5px; color:var(--muted); letter-spacing:0.03em; white-space:nowrap;}
-  .day-pill.active{
-    opacity:1; border-style:solid; border-color:var(--brass);
-    box-shadow:0 8px 18px -10px rgba(0,0,0,0.45);
-  }
-  .day-pill.active .pill-badge{background:var(--brass); color:var(--ink-text);}
-  .day-pill-today{border-color:var(--rust) !important;}
-  .day-pill-today .pill-badge{box-shadow:0 0 0 2px var(--rust);}
-  .day-nav-arrow{
-    flex:0 0 auto;
-    background:transparent; color:var(--brass-soft);
-    border:1.5px solid var(--line-dark); border-radius:50%;
-    width:32px; height:32px; display:flex; align-items:center; justify-content:center;
-    cursor:pointer; font-size:14px; line-height:1;
-    margin-inline-end:10px;
-    transition:background .15s, color .15s, border-color .15s;
-  }
-  .day-nav-arrow:last-child{margin-inline-end:0; margin-inline-start:10px;}
-  .day-nav-arrow:hover:not(:disabled){background:var(--rust); border-color:var(--rust); color:var(--paper);}
-  .day-nav-arrow:disabled{opacity:0.3; cursor:default;}
-  .day-card.day-hidden{display:none;}
-
-  @media(max-width:680px){
-    .main-tabs{
-      position:fixed; inset-inline-start:0; inset-inline-end:0; bottom:0; top:auto;
-      background:
-        radial-gradient(ellipse at 20% -10%, rgba(192,138,62,0.12), transparent 55%),
-        radial-gradient(ellipse at 100% 0%, rgba(76,122,104,0.14), transparent 45%),
-        var(--ink);
-      background-attachment: fixed;
-      border-top:1.5px solid var(--line-dark); border-bottom:none;
-      padding:8px 6px calc(6px + env(safe-area-inset-bottom));
-      box-shadow:0 -8px 20px -12px rgba(0,0,0,0.6);
-      margin-bottom:0; z-index:60;
-    }
-    .tab-btn{flex-direction:column; gap:2px; padding:6px 2px; border-radius:12px; font-size:10px;}
-    .line-icon svg{width:20px;height:20px;}
-    body{padding-bottom:84px;}
-  }
-
-  @media print{
-    .main-tabs,.day-picker{display:none !important;}
-    .tab-panel{display:block !important;}
-    .day-card.day-hidden{display:block !important;}
-    #toolsSection{display:none !important;}
-  }
-  body.pdf-export-mode .tab-panel{display:block !important;}
-  body.pdf-export-mode .day-card.day-hidden{display:block !important;}
-  body.pdf-export-mode .main-tabs,body.pdf-export-mode .day-picker{display:none !important;}
-  body.pdf-export-mode #toolsSection{display:none !important;}
-
-  /* ---------- Header ticket ---------- */
-  .header-card{
-    position:relative;
-    background:var(--paper);
-    color:var(--ink-text);
-    border-radius:var(--radius);
-    padding:30px 32px 26px;
-    overflow:hidden;
-    box-shadow:0 24px 50px -20px rgba(0,0,0,0.55);
-  }
-  .header-card::before{
-    content:'';
-    position:absolute; inset-inline-start:0; top:0; bottom:0;
-    width:10px;
-    background:repeating-linear-gradient(180deg, var(--brass) 0 10px, transparent 10px 20px);
-    opacity:0.7;
-  }
-  .hero-top-row{display:flex;align-items:flex-start;gap:16px;}
-  .hero-stamp{
-    flex:0 0 auto;
-    width:52px;height:52px;
-    border-radius:50%;
-    border:2px dashed var(--brass);
-    box-shadow:0 0 0 3px var(--paper), 0 0 0 4.5px var(--brass-soft);
-    background:transparent;
-    color:var(--brass);
-    display:flex;align-items:center;justify-content:center;
-    transform:rotate(-8deg);
-    margin-top:2px;
-    animation:badgeStamp .5s cubic-bezier(.2,.85,.3,1) both;
-  }
-  .hero-stamp svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.6;}
-  .trip-countdown{
-    font-family:'JetBrains Mono', monospace;
-    font-size:12.5px;
-    letter-spacing:0.04em;
-    color:var(--ink-text);
-    margin-top:16px;
-    padding-top:14px;
-    border-top:1.5px dashed var(--line);
-    display:none;
-    align-items:baseline;
-    gap:8px;
-  }
-  .trip-countdown.show{display:flex;}
-  .trip-countdown svg{width:13px;height:13px;stroke:var(--muted);fill:none;stroke-width:1.8;flex:0 0 auto;}
-  .trip-countdown .cd-num{
-    font-family:'Frank Ruhl Libre', serif;
-    font-size:22px;
-    font-weight:700;
-    color:var(--rust);
-  }
-  .trip-countdown.cd-live .cd-num{color:var(--pine);}
-  .trip-countdown.cd-done .cd-num{color:var(--muted);}
-  .trip-progress-track{
-    height:5px; border-radius:3px; margin-top:10px;
-    background:var(--paper-soft); overflow:hidden;
-  }
-  .trip-progress-fill{
-    height:100%; border-radius:3px;
-    background:var(--brass);
-    transition:width .4s ease;
-  }
-  .trip-title{
-    font-family:'Frank Ruhl Libre', serif;
-    font-weight:700;
-    font-size:clamp(28px,5vw,42px);
-    line-height:1.15;
-    width:100%;
-    border:none;
-    background:transparent;
-    color:var(--ink-text);
-    outline:none;
-    padding:2px 0;
-  }
-  .trip-title::placeholder{color:#B7A981;}
-  .header-meta{
-    display:flex;
-    flex-wrap:wrap;
-    gap:22px;
-    margin-top:18px;
-    padding-top:16px;
-    border-top:1.5px dashed var(--line);
-  }
-  .meta-field{display:flex;flex-direction:column;gap:4px;}
-  .meta-field label{
-    font-family:'JetBrains Mono', monospace;
-    font-size:11px;
-    letter-spacing:0.08em;
-    color:var(--muted);
-    text-transform:uppercase;
-  }
-  .meta-field input, .meta-field select{
-    font-family:'JetBrains Mono', monospace;
-    font-size:15px;
-    border:none;
-    background:transparent;
-    color:var(--ink-text);
-    outline:none;
-    width:150px;
-  }
-  .meta-field select{width:auto;cursor:pointer;}
-  .stat{
-    font-family:'JetBrains Mono', monospace;
-    font-size:15px;
-    color:var(--ink-text);
-  }
-  .stat b{color:var(--rust);font-weight:700;}
-
-  .budget-breakdown{
-    display:flex;
-    flex-wrap:wrap;
-    gap:8px 18px;
-    margin-top:14px;
-    padding-top:14px;
-    border-top:1.5px dashed var(--line);
-    font-family:'JetBrains Mono', monospace;
-    font-size:12.5px;
-    color:var(--ink-text);
-  }
-  .budget-breakdown b{color:var(--rust);}
-  .budget-raw-note{flex-basis:100%;color:var(--muted);font-size:11px;}
-  .budget-chart{flex-basis:100%;display:flex;flex-direction:column;gap:6px;margin-top:6px;}
-  .budget-chart-row{display:flex;align-items:center;gap:8px;}
-  .budget-chart-label{flex:0 0 70px;font-size:11px;color:var(--ink-text);}
-  .budget-chart-track{flex:1 1 auto;height:9px;background:var(--paper-soft);border-radius:5px;overflow:hidden;}
-  .budget-chart-fill{height:100%;border-radius:5px;transition:width .3s ease;}
-
-  /* ---------- Budget tab: per-day breakdown ---------- */
-  .budget-section-divider{margin:24px 0 18px;border-top:1.5px dashed var(--line);}
-  .budget-by-day{margin-top:24px;padding-top:18px;border-top:1.5px dashed var(--line);}
-  .budget-by-day-title{
-    font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.08em;
-    color:var(--muted); text-transform:uppercase; margin-bottom:12px;
-  }
-  .budget-day-row{display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px dashed var(--line); flex-wrap:wrap;}
-  .budget-day-label{flex:1 1 200px; font-size:13px; color:var(--ink-text); min-width:0;}
-  .budget-day-track{flex:1 1 120px; height:8px; background:var(--paper-soft); border-radius:5px; overflow:hidden;}
-  .budget-day-fill{height:100%; border-radius:5px; background:var(--brass);}
-  .budget-day-nums{
-    flex:0 0 auto; display:flex; gap:10px; align-items:center;
-    font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted);
-  }
-  .budget-day-nums b{color:var(--rust); font-size:13px;}
-
-  /* ---------- Days ---------- */
-  .days{display:flex;flex-direction:column;gap:34px;margin-top:36px;}
-
-  .day-card{
-    position:relative;
-    background:var(--paper);
-    border-radius:var(--radius);
-    overflow:hidden;
-    box-shadow:0 20px 40px -22px rgba(0,0,0,0.5);
-    --stagger:0s;
-    animation:dayCardIn .5s cubic-bezier(.2,.7,.25,1) both;
-    animation-delay:var(--stagger);
-  }
-  .day-card:nth-child(2){--stagger:.07s;}
-  .day-card:nth-child(3){--stagger:.14s;}
-  .day-card:nth-child(4){--stagger:.21s;}
-  .day-card:nth-child(5){--stagger:.28s;}
-  .day-card:nth-child(n+6){--stagger:.35s;}
-  @keyframes dayCardIn{
-    from{opacity:0; transform:translateY(16px);}
-    to{opacity:1; transform:translateY(0);}
-  }
-  .day-top{
-    display:flex;
-    align-items:flex-start;
-    gap:16px;
-    padding:24px 28px 18px;
-  }
-  .day-badge{
-    flex:0 0 auto;
-    width:46px;height:46px;
-    border-radius:50%;
-    border:2px dashed var(--brass);
-    box-shadow:0 0 0 3px var(--paper), 0 0 0 4.5px var(--brass-soft);
-    background:transparent;
-    color:var(--brass);
-    font-family:'JetBrains Mono', monospace;
-    font-weight:700;
-    font-size:16px;
-    display:flex;align-items:center;justify-content:center;
-    --tilt:-7deg;
-    animation:badgeStamp .5s cubic-bezier(.2,.85,.3,1) both;
-    animation-delay:calc(var(--stagger, 0s) + .2s);
-  }
-  .day-card:nth-child(even) .day-badge{--tilt:6deg;}
-  @keyframes badgeStamp{
-    0%{opacity:0; transform:scale(2.3) rotate(var(--tilt));}
-    55%{opacity:1; transform:scale(0.85) rotate(var(--tilt));}
-    100%{opacity:1; transform:scale(1) rotate(var(--tilt));}
-  }
-  .day-heading{flex:1 1 auto;min-width:0;}
-  .day-date{
-    font-family:'JetBrains Mono', monospace;
-    font-size:12px;
-    color:var(--muted);
-    letter-spacing:0.05em;
-    margin-bottom:4px;
-    display:flex;
-    align-items:center;
-    gap:8px;
-    flex-wrap:wrap;
-  }
-  .weather-badge{
-    font-family:'JetBrains Mono', monospace;
-    font-size:12px;
-    color:var(--pine);
-  }
-  .day-dest-row{display:flex;align-items:center;gap:8px;}
-  .day-dest-icon{
-    flex:0 0 auto; display:flex; align-items:center; justify-content:center;
-    color:var(--muted);
-    transition:color .2s ease;
-  }
-  .day-dest-icon svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7;}
-  .day-dest-row:hover .day-dest-icon{color:var(--brass);}
-  .day-dest{
-    font-family:'Frank Ruhl Libre', serif;
-    font-weight:600;
-    font-size:22px;
-    border:none;
-    background:transparent;
-    color:var(--ink-text);
-    outline:none;
-    width:100%;
-    border-bottom:1.5px solid transparent;
-    transition:border-color .15s;
-  }
-  .today-ribbon{
-    display:inline-flex; align-items:center; gap:4px;
-    color:var(--rust);
-    font-family:'JetBrains Mono', monospace;
-    font-size:11px; font-weight:700; letter-spacing:0.05em;
-    border:1.5px dashed var(--rust);
-    border-radius:20px;
-    padding:1px 9px;
-  }
-  .day-card-today{
-    border:2px solid var(--rust);
-    box-shadow:0 20px 40px -22px rgba(0,0,0,0.5);
-  }
-  .day-card-today .day-badge{
-    border-color:var(--rust); box-shadow:0 0 0 3px var(--paper), 0 0 0 4.5px var(--rust);
-    background:var(--rust); color:var(--paper);
-  }
-  .day-dest:focus{border-bottom-color:var(--brass);}
-  .day-dest::placeholder{color:#B7A981;}
-  .day-currency-row{
-    display:flex;align-items:center;gap:6px;
-    margin-top:6px;
-    font-family:'JetBrains Mono', monospace;
-    font-size:11px;color:var(--muted);
-  }
-  .day-currency-row select{
-    font-family:'Assistant', sans-serif;
-    font-size:12.5px;
-    border:1px solid var(--line);
-    border-radius:6px;
-    padding:2px 6px;
-    background:transparent;
-    color:var(--ink-text);
-    outline:none;
-    cursor:pointer;
-  }
-  .day-currency-row select:focus{border-color:var(--brass);}
-  .icon-btn{
-    flex:0 0 auto;
-    width:34px;height:34px;
-    border-radius:10px;
-    border:1.5px solid var(--line);
-    background:transparent;
-    color:var(--muted);
-    display:flex;align-items:center;justify-content:center;
-    cursor:pointer;
-    transition:background .15s,color .15s,border-color .15s;
-  }
-  .icon-btn:hover{background:var(--rust);border-color:var(--rust);color:var(--paper);}
-  .icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;}
-
-  .activities{padding:0 28px;display:flex;flex-direction:column;gap:10px;}
-  .activity{
-    border:1.5px solid var(--line);
-    border-inline-start:4px solid var(--line);
-    border-radius:12px;
-    padding:12px 14px;
-    display:grid;
-    grid-template-columns:88px 1fr 34px;
-    gap:8px 12px;
-    align-items:start;
-    background:rgba(255,255,255,0.25);
-    transition:border-color .15s;
-  }
-  .activity.cat-sight{border-inline-start-color:var(--brass);}
-  .activity.cat-food{border-inline-start-color:var(--rust);}
-  .activity.cat-transport{border-inline-start-color:var(--pine);}
-  .activity input, .activity textarea, .activity select{
-    font-family:'Assistant', sans-serif;
-    border:none;
-    background:transparent;
-    outline:none;
-    color:var(--ink-text);
-    width:100%;
-  }
-  .activity .time{
-    grid-column:1;
-    font-family:'JetBrains Mono', monospace;
-    font-weight:700;
-    font-size:14px;
-    color:var(--rust);
-    background:rgba(181,80,43,0.08);
-    border-radius:8px;
-    padding:6px 6px;
-    text-align:center;
-  }
-  .title-wrap{
-    grid-column:2;
-    display:flex;
-    align-items:center;
-    gap:6px;
-    min-width:0;
-  }
-  .cat-badge{
-    flex:0 0 auto;font-size:14px;line-height:1;
-    width:26px;height:26px;display:flex;align-items:center;justify-content:center;
-    border-radius:50%;background:rgba(0,0,0,0.05);
-  }
-  .activity .title{
-    font-size:16px;
-    font-weight:600;
-    padding:6px 2px;
-    flex:1;
-    min-width:0;
-  }
-  .activity .del{grid-column:3;align-self:start;}
-  .activity .details{
-    grid-column:1/4;
-    display:flex;
-    flex-wrap:wrap;
-    gap:8px;
-    border-top:1px dashed var(--line);
-    padding-top:8px;
-    margin-top:2px;
-  }
-  .field-icon{
-    flex:1 1 130px;
-    display:flex;align-items:center;gap:6px;
-    font-size:13px;
-    color:var(--ink-text);
-    background:rgba(0,0,0,0.035);
-    border:1px solid rgba(0,0,0,0.05);
-    border-radius:9px;
-    padding:6px 10px;
-    min-width:0;
-    transition:background .15s, border-color .15s;
-  }
-  .field-icon:focus-within{background:rgba(192,138,62,0.1);border-color:var(--brass);}
-  .field-icon.field-invalid{border-color:var(--rust);background:rgba(181,80,43,0.12);}
-  input.time.field-invalid{outline:2px solid var(--rust);background:rgba(181,80,43,0.12);border-radius:6px;}
-  .last-edited-badge{margin-inline-start:8px;color:var(--muted);font-size:11px;}
-
-  /* ---------- Toast notifications ---------- */
-  .toast-wrap{position:fixed;bottom:20px;inset-inline-end:20px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:320px;}
-  .toast{
-    background:var(--paper); color:var(--ink-text);
-    border-inline-start:4px solid var(--pine);
-    border-radius:10px; padding:12px 16px;
-    font-size:13.5px; box-shadow:0 12px 28px -10px rgba(0,0,0,0.5);
-    opacity:0; transform:translateY(10px); transition:opacity .3s ease, transform .3s ease;
-  }
-  .toast.show{opacity:1; transform:translateY(0);}
-  .field-icon svg{width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:1.8;flex:0 0 auto;}
-  .field-icon input, .field-icon select{font-size:13px;padding:2px 0;background:transparent;}
-  .details .notes{flex-basis:100%;}
-  .field-icon.booking{flex:0 0 auto;}
-  .field-icon.booking input[type=checkbox]{width:15px;height:15px;flex:0 0 auto;accent-color:var(--pine);cursor:pointer;}
-  .field-icon.booking span{white-space:nowrap;}
-
-  .add-activity{
-    margin:4px 0 22px;
-    align-self:flex-start;
-    background:transparent;
-    border:1.5px dashed var(--line);
-    color:var(--pine);
-    font-family:'Assistant', sans-serif;
-    font-weight:600;
-    font-size:14px;
-    border-radius:10px;
-    padding:9px 16px;
-    cursor:pointer;
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    margin-inline-start:28px;
-  }
-  .add-activity:hover{border-color:var(--pine);background:rgba(76,122,104,0.08);}
-  .add-activity svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;}
-
-  /* ---------- Ticket perforation ---------- */
-  .perf{position:relative;height:0;border-top:2px dashed var(--line-dark);opacity:0.5;margin:0 0;}
-  .perf::before,.perf::after{
-    content:'';
-    position:absolute;top:50%;
-    width:26px;height:26px;
-    border-radius:50%;
-    background:var(--ink);
-    transform:translateY(-50%);
-  }
-  .perf::before{inset-inline-end:-13px;}
-  .perf::after{inset-inline-start:-13px;}
-
-  /* ---------- Hotel stub ---------- */
-  .hotel-stub{
-    background:var(--stay);
-    color:var(--paper-text);
-    padding:20px 28px 24px;
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-  }
-  .hotel-label{
-    display:flex;align-items:center;gap:8px;
-    font-family:'JetBrains Mono', monospace;
-    font-size:12px;
-    letter-spacing:0.1em;
-    text-transform:uppercase;
-    color:var(--brass-soft);
-  }
-  .hotel-label svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;}
-  .hotel-copy-btn{
-    margin-inline-start:auto;
-    background:transparent;border:1.5px dashed var(--stay-soft);color:var(--brass-soft);
-    font-family:'JetBrains Mono', monospace;font-size:10.5px;font-weight:600;
-    letter-spacing:0.04em;text-transform:none;
-    border-radius:8px;padding:5px 12px;cursor:pointer;white-space:nowrap;
-  }
-  .hotel-copy-btn:hover{border-color:var(--brass-soft);background:rgba(224,184,118,0.12);}
-  .hotel-copy-btn:disabled{opacity:0.3;cursor:default;}
-  .hotel-copy-btn:disabled:hover{border-color:var(--stay-soft);background:transparent;}
-  .hotel-grid{
-    display:grid;
-    grid-template-columns:1.4fr 1fr 0.7fr;
-    gap:10px 16px;
-  }
-  .hotel-grid .wide{grid-column:1/4;}
-  .hotel-field{
-    display:flex;flex-direction:column;gap:3px;
-    border-bottom:1.5px solid var(--stay-soft);
-    padding-bottom:6px;
-  }
-  .hotel-field label{
-    font-family:'JetBrains Mono', monospace;
-    font-size:10.5px;
-    letter-spacing:0.08em;
-    color:#9FC2B4;
-    text-transform:uppercase;
-  }
-  .hotel-field input,.hotel-field textarea{
-    background:transparent;
-    border:none;
-    outline:none;
-    color:var(--paper-text);
-    font-family:'Assistant', sans-serif;
-    font-size:14.5px;
-  }
-  .hotel-field input::placeholder,.hotel-field textarea::placeholder{color:#7FA294;}
-  .hotel-field-checkbox{border-bottom:1.5px solid transparent;justify-content:flex-end;}
-  .hotel-checkbox-row{
-    display:flex;align-items:center;gap:8px;
-    font-family:'Assistant', sans-serif;font-size:14.5px;
-    color:var(--paper-text);cursor:pointer;
-  }
-  .hotel-checkbox-row input[type="checkbox"]{width:16px;height:16px;accent-color:var(--brass);cursor:pointer;}
-
-  /* ---------- Footer bar ---------- */
-  .day-actions{display:flex;justify-content:flex-start;}
-  .toolbar{
-    display:flex;
-    flex-wrap:wrap;
-    gap:12px;
-    justify-content:space-between;
-    align-items:center;
-    margin-top:38px;
-  }
-  .btn-row{display:flex;gap:10px;flex-wrap:wrap;}
-  .btn{
-    font-family:'Assistant', sans-serif;
-    font-weight:600;
-    font-size:14.5px;
-    padding:11px 20px;
-    border-radius:12px;
-    cursor:pointer;
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    border:1.5px solid transparent;
-  }
-  .btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.9;}
-  .btn-primary{background:var(--brass);color:var(--ink-text);}
-  .btn-primary:hover{background:var(--brass-soft);}
-  .btn-ghost{background:transparent;color:var(--paper);border-color:var(--line-dark);}
-  .btn-ghost:hover{border-color:var(--rust);color:var(--rust);}
-  .autosave-note{
-    font-family:'JetBrains Mono', monospace;
-    font-size:11.5px;
-    color:var(--muted);
-    letter-spacing:0.03em;
-  }
-
-  /* ---------- Section cards (packing / attractions) ---------- */
-  .section-card{
-    background:var(--paper);
-    border-radius:var(--radius);
-    padding:24px 28px 26px;
-    margin-top:26px;
-    box-shadow:0 20px 40px -22px rgba(0,0,0,0.5);
-    color:var(--ink-text);
-  }
-  .section-header{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    flex-wrap:wrap;
-    margin-bottom:16px;
-  }
-  .section-title{
-    font-family:'Frank Ruhl Libre', serif;
-    font-weight:600;
-    font-size:20px;
-    color:var(--ink-text);
-    display:flex;gap:8px;align-items:center;
-  }
-  .section-hint{
-    font-family:'JetBrains Mono', monospace;
-    font-size:11.5px;
-    color:var(--muted);
-    margin:-10px 0 16px;
-  }
-
-  /* Packing */
-  .packing-list{display:flex;flex-direction:column;gap:8px;}
-  .packing-item{
-    display:flex;align-items:center;gap:10px;
-    padding:8px 10px;
-    border:1.5px solid var(--line);
-    border-radius:10px;
-    background:rgba(255,255,255,0.25);
-  }
-  .packing-item input[type=checkbox]{width:18px;height:18px;accent-color:var(--pine);cursor:pointer;flex:0 0 auto;}
-  .packing-item input[type=text]{flex:1;border:none;background:transparent;outline:none;color:var(--ink-text);font-family:'Assistant',sans-serif;font-size:14.5px;}
-  .packing-item.checked input[type=text]{text-decoration:line-through;color:var(--muted);}
-  .packing-add-row{display:flex;gap:8px;margin-top:14px;}
-  .packing-add-row input{
-    flex:1;border:1.5px solid var(--line);border-radius:10px;
-    padding:9px 12px;font-family:'Assistant',sans-serif;font-size:14px;
-    background:transparent;color:var(--ink-text);outline:none;
-  }
-  .packing-add-row input:focus{border-color:var(--brass);}
-  .btn-quick{
-    background:transparent;border:1.5px dashed var(--line);color:var(--pine);
-    font-family:'Assistant', sans-serif;font-size:13px;font-weight:600;
-    border-radius:10px;padding:8px 14px;cursor:pointer;white-space:nowrap;
-  }
-  .btn-quick:hover{border-color:var(--pine);background:rgba(76,122,104,0.08);}
-  .packing-empty{
-    font-size:13.5px;
-    color:var(--muted);
-    line-height:1.55;
-    padding:18px 16px;
-    text-align:center;
-    border:1.5px dashed var(--line);
-    border-radius:12px;
-    background:rgba(255,255,255,0.18);
-  }
-  .trip-switcher-archive-toggle{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted);cursor:pointer;white-space:nowrap;}
-  .trip-switcher-archive-toggle input{accent-color:var(--pine);cursor:pointer;}
-  .checklist-due-input{flex:0 0 90px;border:1.5px solid var(--line);border-radius:10px;padding:9px 8px;font-family:'Assistant',sans-serif;font-size:13px;background:transparent;color:var(--ink-text);outline:none;}
-  .checklist-due-input:focus{border-color:var(--brass);}
-  .checklist-due-badge{font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--muted);white-space:nowrap;flex:0 0 auto;}
-  .checklist-due-badge.overdue{color:var(--rust);font-weight:700;}
-  .packing-suggest-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;}
-  .flight-video-item a.flight-video-open{
-    flex:0 0 auto;border:1.5px solid var(--line);border-radius:10px;padding:7px 10px;
-    font-family:'Assistant',sans-serif;font-size:12.5px;font-weight:600;color:var(--pine);
-    text-decoration:none;white-space:nowrap;
-  }
-  .flight-video-item a.flight-video-open:hover{border-color:var(--pine);background:rgba(76,122,104,0.08);}
-  .flight-video-note{font-size:12px;color:var(--muted);line-height:1.5;margin:6px 0 12px;}
-  .packing-suggest-row input[type=text]{
-    flex:1;min-width:160px;border:1.5px solid var(--line);border-radius:10px;
-    padding:9px 12px;font-family:'Assistant',sans-serif;font-size:14px;
-    background:transparent;color:var(--ink-text);outline:none;
-  }
-  .packing-suggest-row input[type=text]:focus{border-color:var(--brass);}
-  .packing-suggest-recipients{display:flex;gap:6px;flex-wrap:wrap;}
-  .packing-suggest-recipients label{
-    display:flex;align-items:center;gap:4px;font-size:12.5px;color:var(--muted);
-    border:1.5px solid var(--line);border-radius:20px;padding:4px 10px;cursor:pointer;
-  }
-  .packing-suggest-recipients input{accent-color:var(--pine);}
-  .suggestion-card{
-    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-    border:1.5px solid var(--brass);border-radius:10px;
-    padding:8px 12px;margin-bottom:8px;background:rgba(200,164,88,0.12);
-    font-size:13.5px;
-  }
-  .suggestion-card b{color:var(--ink-text);}
-  .touring-plan{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;}
-  .touring-plan-days{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
-  .touring-day-field{
-    display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
-    border:1px solid var(--line);border-radius:8px;padding:4px 8px;
-  }
-  .touring-day-field input{
-    width:48px;border:1px solid var(--line);border-radius:6px;padding:2px 4px;
-    background:transparent;color:var(--ink-text);font-family:'Assistant',sans-serif;font-size:12.5px;outline:none;
-  }
-  .touring-day-field input:focus{border-color:var(--brass);}
-  .touring-plan-result{font-size:13px;color:var(--ink-text);line-height:1.6;}
-  .touring-plan-result.over{color:var(--rust);font-weight:600;}
-  .touring-plan-unrecognized-btn{margin-top:8px;}
-  .touring-plan-unrecognized{
-    margin-top:8px;padding:8px 10px;
-    border:1.5px dashed var(--rust);border-radius:8px;
-    font-size:12.5px;color:var(--ink-text);line-height:1.7;
-  }
-  .touring-plan-unrecognized-item{word-break:break-word;}
-  .touring-plan-unrecognized-clickable{cursor:pointer;}
-  .touring-plan-unrecognized-clickable:hover{text-decoration:underline;}
-  .unrecognized-edit-link{color:var(--rust);font-weight:600;margin-inline-start:4px;}
-  .touring-plan-filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1.5px dashed var(--line);}
-  .touring-plan-filter-row select{
-    font-family:'JetBrains Mono', monospace;font-size:12px;
-    background:var(--paper);color:var(--ink-text);
-    border:1.5px solid var(--line-dark);border-radius:8px;
-    padding:5px 8px;cursor:pointer;
-  }
-  #applyTouringFilterBtn.active{background:var(--stay);color:var(--paper-text);border-color:var(--stay);}
-  .idea-card.not-fitting{opacity:0.45;}
-  .idea-card.excluded{opacity:0.55;}
-  .idea-not-fitting-badge{
-    font-family:'JetBrains Mono', monospace;font-size:10.5px;
-    color:var(--rust);border:1px solid var(--rust);border-radius:20px;
-    padding:2px 8px;white-space:nowrap;
-  }
-  .idea-priority-badge{
-    font-family:'JetBrains Mono', monospace;font-size:10.5px;
-    color:var(--muted);border:1px solid var(--line-dark);border-radius:20px;
-    padding:2px 8px;white-space:nowrap;
-  }
-  .ideas-map-divider{
-    margin-top:18px;padding-top:14px;border-top:1.5px dashed var(--line);
-    font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--muted);
-  }
-  .map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:8px;}
-
-  /* ---------- Single consolidated map (Map tab) ---------- */
-  .map-legend{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0 4px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-text);}
-  .map-legend-item{display:flex;align-items:center;gap:6px;}
-  .map-legend-dot{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink);display:inline-block;}
-  .map-legend-dot--sched{background:var(--pine);}
-  .map-legend-dot--idea{background:var(--brass);}
-  .map-legend-triangle{width:0;height:0;display:inline-block;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid var(--ink);}
-  .map-single{height:440px;border-radius:14px;overflow:hidden;border:1.5px solid var(--line);margin-top:10px;background:var(--paper-soft);}
-  .map-single .leaflet-popup-content-wrapper{background:var(--paper);color:var(--ink-text);border-radius:10px;}
-  .map-single .leaflet-popup-tip{background:var(--paper);}
-  .map-popup{font-family:'Assistant',sans-serif;font-size:13px;max-width:200px;}
-  .map-popup b{font-family:'Frank Ruhl Libre',serif;font-size:14.5px;}
-  .map-popup a{color:var(--pine);}
-  .map-popup-fix{margin-top:6px;width:100%;font-size:11px;padding:5px;}
-  .map-status{margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--muted);}
-  .map-unresolved{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
-  .map-unresolved-row{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
-    padding:8px 12px;border:1.5px dashed var(--rust);border-radius:10px;background:rgba(181,80,43,0.08);
-    font-size:12.5px;color:var(--ink-text);
-  }
-  @media(max-width:680px){ .map-single{height:320px;} }
-  .map-card{border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.25);}
-  .map-card iframe{width:100%;height:150px;border:0;display:block;}
-  .map-card-label{padding:6px 10px;font-size:12.5px;color:var(--ink-text);}
-  .map-card-label a{color:var(--pine);}
-  .map-card-fix{width:100%;border-radius:0;border-width:1.5px 0 0 0;font-size:11.5px;padding:6px;}
-
-  /* Attractions ideas cards */
-  .ideas-list{display:flex;flex-direction:column;gap:12px;}
-  .idea-card{
-    border:1.5px solid var(--line);
-    border-inline-start:4px solid var(--line);
-    border-radius:12px;
-    padding:14px 16px;
-    background:rgba(255,255,255,0.25);
-    transition:border-color .15s;
-  }
-  .idea-card.cat-sight{border-inline-start-color:var(--brass);}
-  .idea-card.cat-food{border-inline-start-color:var(--rust);}
-  .idea-card-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
-  .idea-card.collapsed .idea-card-head{margin-bottom:0;}
-  .idea-cat-badge{
-    flex:0 0 auto;font-size:14px;line-height:1;
-    width:26px;height:26px;display:flex;align-items:center;justify-content:center;
-    border-radius:50%;background:rgba(0,0,0,0.05);
-  }
-  .idea-num{font-family:'JetBrains Mono', monospace;color:var(--muted);font-size:12px;flex:0 0 auto;}
-  .idea-names{flex:1;display:flex;gap:10px;flex-wrap:wrap;min-width:0;}
-  .idea-names input{
-    font-family:'Frank Ruhl Libre', serif;
-    font-weight:600;
-    font-size:16px;
-    border:none;background:transparent;outline:none;color:var(--ink-text);
-    border-bottom:1.5px solid transparent;
-    padding:2px 0;
-    flex:1 1 160px;
-    min-width:0;
-  }
-  .idea-names input:focus{border-bottom-color:var(--brass);}
-  .idea-names input::placeholder{color:#B7A981;}
-  .idea-card .del{flex:0 0 auto;width:28px;height:28px;border-radius:8px;}
-  .idea-card .del svg{width:14px;height:14px;}
-  .idea-name-display{
-    flex:1;font-family:'Frank Ruhl Libre', serif;font-weight:600;font-size:16px;
-    color:var(--ink-text);cursor:pointer;min-width:0;
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  }
-  .idea-name-display .idea-name-empty{color:#B7A981;font-weight:400;font-style:italic;}
-  .group-idea-chip{
-    display:inline-flex;align-items:center;gap:4px;
-    font-size:12.5px;color:var(--ink);border:1px solid var(--line-dark);border-radius:20px;
-    padding:3px 4px 3px 10px;margin:2px 4px 2px 0;
-  }
-  .group-idea-chip .icon-btn{width:18px;height:18px;padding:0;}
-  .idea-chevron{
-    flex:0 0 auto;width:20px;height:20px;display:flex;align-items:center;justify-content:center;
-    cursor:pointer;color:var(--muted);transition:transform .15s ease;
-  }
-  .idea-chevron svg{width:14px;height:14px;}
-  .idea-card.expanded .idea-chevron{transform:rotate(180deg);}
-  .idea-fields{
-    display:flex;flex-wrap:wrap;gap:10px 16px;
-    border-top:1px dashed var(--line);
-    padding-top:10px;
-  }
-  .idea-field{
-    display:flex;flex-direction:column;gap:2px;
-    background:rgba(0,0,0,0.035);
-    border:1px solid rgba(0,0,0,0.05);
-    border-radius:9px;
-    padding:6px 10px;
-    flex:1 1 110px;
-    min-width:0;
-    transition:background .15s, border-color .15s;
-  }
-  .idea-field label{
-    font-family:'JetBrains Mono', monospace;
-    font-size:10px;letter-spacing:0.06em;text-transform:uppercase;
-    color:var(--muted);
-  }
-  .idea-field input, .idea-field select{
-    font-family:'Assistant', sans-serif;font-size:13.5px;
-    border:none;background:transparent;outline:none;color:var(--ink-text);
-    padding:2px 0;width:100%;
-  }
-  .idea-field:focus-within{background:rgba(192,138,62,0.1);border-color:var(--brass);}
-  .idea-field.notes{flex-basis:100%;}
-  .idea-field.booking{flex-direction:row;align-items:center;gap:6px;flex:0 0 auto;}
-  .idea-field.booking input[type=checkbox]{width:16px;height:16px;accent-color:var(--pine);cursor:pointer;}
-  .idea-map-wrap{
-    border-top:1px dashed var(--line);
-    padding-top:10px;margin-top:10px;
-  }
-  .idea-map-wrap .map-card{margin:0;}
-  .idea-map-wrap .map-card iframe{height:170px;}
-  .idea-map-empty{
-    font-family:'JetBrains Mono', monospace;font-size:11.5px;color:var(--muted);
-  }
-  .idea-map-hint{
-    font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--muted);
-    padding:6px 10px;border-top:1px dashed var(--line);
-  }
-  .idea-assign{
-    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-    border-top:1px dashed var(--line);
-    padding-top:10px;margin-top:10px;
-  }
-  .idea-assign-label{font-family:'JetBrains Mono', monospace;font-size:11px;color:var(--muted);white-space:nowrap;}
-  .idea-assign select, .idea-assign input[type=time]{
-    font-family:'Assistant', sans-serif;font-size:13px;
-    border:1.5px solid var(--line);border-radius:8px;
-    padding:6px 8px;background:transparent;color:var(--ink-text);outline:none;
-  }
-  .idea-assign select:focus, .idea-assign input[type=time]:focus{border-color:var(--brass);}
-  .idea-assign .btn-quick{padding:7px 12px;}
-  .ideas-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
-  .ideas-filters select, #ideaSortSelect{
-    font-family:'Assistant', sans-serif;font-size:13px;
-    border:1.5px solid var(--line);border-radius:8px;
-    padding:6px 10px;background:transparent;color:var(--ink-text);outline:none;
-  }
-  .ideas-filters select:focus, #ideaSortSelect:focus{border-color:var(--brass);}
-
-  /* Documents & reservations - reuses .idea-card/.idea-fields, adds its own accent colors */
-  .idea-card.doc-flight{border-inline-start-color:#3b6ea5;}
-  .idea-card.doc-hotel{border-inline-start-color:var(--brass);}
-  .idea-card.doc-car{border-inline-start-color:var(--rust);}
-  .idea-card.doc-general{border-inline-start-color:var(--pine);}
-  .doc-attach-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:10px;margin-top:10px;}
-  .doc-attach-row input[type=file]{font-family:'Assistant',sans-serif;font-size:12.5px;color:var(--muted);max-width:220px;}
-  .doc-attach-name{font-family:'JetBrains Mono', monospace;font-size:12px;color:var(--pine);text-decoration:underline;cursor:pointer;}
-
-  @media (max-width:620px){
-    .activity{grid-template-columns:70px 1fr 30px;}
-    .field-icon{flex-basis:45%;}
-    .hotel-grid{grid-template-columns:1fr 1fr;}
-    .hotel-grid .wide{grid-column:1/3;}
-    body{padding-top:16px;}
-    .header-card{padding:22px 18px 20px;}
-    .header-meta{gap:14px 18px;margin-top:14px;padding-top:12px;}
-    .meta-field input, .meta-field select{width:auto;min-width:0;font-size:14px;}
-  }
-  @media (max-width:420px){
-    .field-icon{flex-basis:100%;}
-    .hotel-grid{grid-template-columns:1fr;}
-    .hotel-grid .wide{grid-column:1;}
-  }
-
-  @media print{
-    body{background:#fff;color:#000;padding:0;}
-    .icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,#mapSingle,.map-legend,.idea-map-wrap,.doc-attach-row,.flight-video-open{display:none !important;}
-    .account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,#sharingPanelToggle{display:none !important;}
-    .header-card,.day-card,.section-card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;}
-    .hotel-stub{background:#eee !important;color:#000 !important;}
-    .perf::before,.perf::after{background:#fff;}
-  }
-  /* Same clean look as @media print above, but toggled by JS for the dedicated
-     PDF export button (html2pdf.js renders to canvas, so it can't rely on the
-     print media query - the relevant elements are hidden inline instead, this
-     just handles the color/border theme swap). */
-  body.pdf-export-mode{background:#fff !important;color:#000 !important;}
-  body.pdf-export-mode .header-card,body.pdf-export-mode .day-card,body.pdf-export-mode .section-card{box-shadow:none;border:1px solid #ccc;}
-  body.pdf-export-mode .hotel-stub{background:#eee !important;color:#000 !important;}
-  body.pdf-export-mode .day-card{break-inside:avoid;page-break-inside:avoid;}
-
-  /* ---------- Account / sharing ---------- */
-  .account-bar{
-    display:flex;align-items:center;justify-content:space-between;
-    flex-wrap:wrap;gap:10px;margin-bottom:12px;
-  }
-  .account-status{
-    font-family:'JetBrains Mono', monospace;font-size:12px;
-    color:var(--paper);opacity:0.8;
-  }
-  .account-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-  .email-auth-form{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center;}
-  .email-auth-form input{
-    font-family:'Assistant', sans-serif;font-size:13px;
-    border:1.5px solid var(--line-dark);border-radius:8px;padding:6px 10px;
-    background:var(--paper);color:var(--ink-text);outline:none;
-  }
-  .join-code-row{display:flex;gap:6px;align-items:center;}
-  .join-code-row input{
-    font-family:'JetBrains Mono', monospace;font-size:12.5px;
-    background:var(--paper);color:var(--ink-text);
-    border:1.5px solid var(--line-dark);border-radius:8px;
-    padding:7px 10px;width:130px;text-transform:uppercase;
-  }
-  .readonly-banner{
-    background:var(--rust);color:#fff;padding:9px 16px;border-radius:12px;
-    font-size:13.5px;margin-bottom:14px;display:none;
-  }
-  .sharing-panel{
-    background:var(--paper);color:var(--ink-text);border-radius:var(--radius);
-    padding:22px 26px 24px;margin-bottom:22px;
-    box-shadow:0 20px 40px -22px rgba(0,0,0,0.5);
-  }
-  .sharing-panel h3{font-family:'Frank Ruhl Libre',serif;font-size:19px;margin:0 0 14px;}
-  .code-row{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;
-    border:1.5px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:8px;
-    flex-wrap:wrap;
-  }
-  .code-row .code-label{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);flex:1 1 60px;}
-  .code-row .code-value{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:var(--rust);letter-spacing:0.08em;}
-  .members-list{display:flex;flex-direction:column;gap:2px;margin-top:14px;}
-  .member-row{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;
-    padding:8px 4px;border-bottom:1px dashed var(--line);font-size:13.5px;
-  }
-  .member-role-badge{
-    font-family:'JetBrains Mono',monospace;font-size:11px;padding:2px 8px;border-radius:6px;
-    background:rgba(76,122,104,0.15);color:var(--pine);text-transform:uppercase;
-  }
-
-  /* ---------- Keyboard accessibility: visible focus ring on top of every custom outline:none ---------- */
-  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
-  textarea:focus-visible, [tabindex]:focus-visible{
-    outline:2px solid var(--brass);
-    outline-offset:2px;
-    border-radius:4px;
-  }
-  .tab-btn:focus-visible{outline-offset:-2px;}
-  .icon-btn:focus-visible, .day-nav-arrow:focus-visible{outline-offset:1px;}
-
-  /* ---------- Respect reduced-motion preference ---------- */
-  @media (prefers-reduced-motion: reduce){
-    *, *::before, *::after{
-      transition-duration:0.001ms !important;
-      animation-duration:0.001ms !important;
-      animation-iteration-count:1 !important;
-      scroll-behavior:auto !important;
-    }
-  }
-
-  /* ---------- AI features (Firebase AI Logic / Gemini) ---------- */
-  .ai-btn{
-    display:inline-flex;align-items:center;gap:6px;
-    font-family:'JetBrains Mono', monospace;font-size:11.5px;font-weight:600;
-    background:linear-gradient(135deg, var(--brass), var(--brass-soft));
-    color:var(--ink-text);border:none;border-radius:8px;
-    padding:6px 11px;cursor:pointer;white-space:nowrap;
-  }
-  .ai-btn:hover{opacity:0.88;}
-  .ai-btn:disabled{opacity:0.55;cursor:wait;}
-  .ai-btn-ghost{
-    background:transparent;border:1.5px solid var(--brass-soft);color:var(--brass-soft);
-  }
-  .ai-day-btn{ flex:0 0 auto; }
-  .ai-schedule-result{ display:flex;flex-direction:column;gap:6px;margin:6px 0; }
-  .ai-schedule-tip{
-    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-    font-family:'JetBrains Mono', monospace;font-size:11.5px;
-    background:var(--paper);border:1px solid var(--brass-soft);border-radius:8px;
-    padding:6px 10px;
-  }
-  .ai-schedule-tip span{flex:1 1 auto;min-width:0;}
-  .tools-translate-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0;}
-  .meridian-checkin-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13.5px;margin:8px 0;}
-  .meridian-result-card{
-    background:var(--paper);color:var(--ink-text);border-radius:12px;
-    border:1.5px solid var(--brass-soft);padding:14px 16px;margin:10px 0;
-  }
-  .meridian-result-headline{font-weight:700;font-size:14.5px;margin-bottom:4px;}
-  .meridian-compass{display:flex;align-items:center;gap:14px;margin-top:10px;}
-  .meridian-compass-dial{
-    width:64px;height:64px;border-radius:50%;
-    border:2px solid var(--line-dark);background:var(--ink);
-    display:flex;align-items:center;justify-content:center;position:relative;flex:0 0 auto;
-  }
-  .meridian-compass-needle{
-    width:34px;height:34px;
-    transform:rotate(0deg);transition:transform .2s ease;
-    transform-origin:50% 50%; /* מרכז התיבה המוצגת בפועל, לא קואורדינטת ה-viewBox הפנימית */
-    overflow:visible;
-  }
-  .meridian-compass-needle .needle-north{fill:var(--rust);}
-  .meridian-compass-needle .needle-south{fill:var(--muted);}
-  .meridian-compass-pivot{
-    position:absolute;top:50%;left:50%;
-    width:6px;height:6px;border-radius:50%;
-    transform:translate(-50%,-50%);
-    background:var(--brass);box-shadow:0 0 0 2px var(--ink);
-    z-index:1;
-  }
-  .meridian-compass-error{
-    color:var(--rust);font-size:12.5px;margin-top:8px;
-    flex-basis:100%;
-  }
-  .meridian-members-list{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;}
-  .meridian-member-chip{
-    display:inline-flex;align-items:center;gap:5px;
-    background:var(--paper-soft);color:var(--ink-text);
-    border:1px solid var(--line);border-radius:12px;
-    padding:3px 6px 3px 10px;font-size:12px;
-  }
-  .meridian-member-remove{
-    display:flex;align-items:center;justify-content:center;
-    width:16px;height:16px;border-radius:50%;
-    background:transparent;color:var(--muted);border:none;
-    cursor:pointer;font-size:11px;line-height:1;padding:0;
-    transition:background .15s, color .15s;
-  }
-  .meridian-member-remove:hover:not(:disabled){background:var(--rust);color:var(--paper);}
-  .meridian-member-remove:disabled{opacity:0.4;cursor:default;}
-  .meridian-debug-banner{
-    font-family:'JetBrains Mono', monospace;font-size:11.5px;
-    background:var(--rust);color:var(--paper);
-    border-radius:8px;padding:8px 12px;margin:10px 0;
-  }
-  #signPreviewImg{max-width:280px;max-height:280px;border-radius:8px;border:1.5px solid var(--line-dark);margin-bottom:10px;display:block;}
-  #signTranslateResult{
-    font-family:'JetBrains Mono', monospace;font-size:13px;white-space:pre-wrap;
-    background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:10px;min-height:1em;
-  }
-  #journalResult{
-    font-size:14.5px;line-height:1.7;white-space:pre-wrap;
-    background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:14px;min-height:1em;
-  }
-
-  .ai-modal-overlay{
-    position:fixed;inset:0;background:rgba(10,15,15,0.72);
-    display:flex;align-items:center;justify-content:center;z-index:400;padding:16px;
-  }
-  .ai-modal{
-    background:var(--paper);color:var(--ink-text);border-radius:var(--radius);
-    max-width:540px;width:100%;max-height:86vh;overflow:auto;
-    padding:22px;box-shadow:0 20px 60px rgba(0,0,0,0.5);
-    border:1.5px solid var(--line-dark);
-  }
-  .ai-modal h3{margin:0 0 4px;font-family:'Frank Ruhl Libre',serif;color:var(--ink-text);font-size:19px;}
-  .ai-modal p.ai-hint{font-size:12.5px;color:var(--muted);margin:0 0 14px;line-height:1.5;}
-  .ai-modal textarea{
-    width:100%;min-height:130px;border:1.5px solid var(--line);border-radius:10px;
-    padding:10px;font-family:'Assistant',sans-serif;font-size:14px;resize:vertical;
-    background:#fff;color:var(--ink-text);box-sizing:border-box;
-  }
-  .ai-modal-actions{display:flex;gap:8px;margin-top:14px;justify-content:flex-end;flex-wrap:wrap;}
-  .debug-help-list{display:flex;flex-direction:column;gap:10px;}
-  .debug-help-row{
-    display:flex;align-items:center;gap:12px;
-    border:1.5px solid var(--line);border-radius:10px;
-    padding:10px 12px;background:var(--paper);
-  }
-  .debug-help-row-main{flex:1;min-width:0;}
-  .debug-help-code{
-    display:inline-block;font-family:'JetBrains Mono', monospace;font-size:12.5px;
-    background:var(--ink-text);color:var(--paper);border-radius:6px;
-    padding:2px 7px;margin-bottom:5px;letter-spacing:0.3px;
-  }
-  .debug-help-desc{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5;}
-  .debug-help-run{flex-shrink:0;white-space:nowrap;}
-  .ai-spinner{
-    width:15px;height:15px;border:2px solid rgba(0,0,0,0.15);border-top-color:var(--rust);
-    border-radius:50%;display:inline-block;animation:aiSpin 0.7s linear infinite;vertical-align:middle;
-  }
-  @keyframes aiSpin{to{transform:rotate(360deg);}}
-  .ai-error{color:var(--rust);font-size:12.5px;margin-top:10px;white-space:pre-wrap;}
-  .ai-result-list{margin-top:12px;display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;}
-  .ai-result-item{
-    display:flex;align-items:flex-start;gap:8px;font-size:13px;
-    padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,0.5);
-  }
-  .ai-result-item input[type=checkbox]{margin-top:3px;accent-color:var(--pine);}
-
-  /* Chat FAB + panel ("שאל את המדריך") */
-  .ai-chat-fab{
-    position:fixed;bottom:26px;left:18px;z-index:150;
-    width:52px;height:52px;border-radius:50%;
-    background:var(--rust);color:#fff;border:none;font-size:22px;
-    box-shadow:0 6px 18px rgba(0,0,0,0.4);cursor:pointer;
-  }
-  @media (max-width:720px){ .ai-chat-fab{ bottom:74px; } }
-  .ai-chat-panel{
-    position:fixed;bottom:88px;left:18px;z-index:150;
-    width:350px;max-width:90vw;max-height:62vh;
-    background:var(--paper);color:var(--ink-text);border-radius:var(--radius);
-    border:1.5px solid var(--line-dark);box-shadow:0 20px 50px rgba(0,0,0,0.45);
-    display:flex;flex-direction:column;overflow:hidden;
-  }
-  @media (max-width:720px){ .ai-chat-panel{ bottom:136px; } }
-  .ai-chat-header{
-    background:var(--ink);color:var(--paper);padding:10px 14px;font-family:'JetBrains Mono',monospace;
-    font-size:12.5px;display:flex;justify-content:space-between;align-items:center;flex:0 0 auto;
-  }
-  .ai-chat-header button{background:none;border:none;color:var(--paper);font-size:16px;cursor:pointer;}
-  .ai-chat-messages{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;}
-  .ai-chat-msg{font-size:13.5px;line-height:1.5;padding:8px 10px;border-radius:10px;max-width:88%;white-space:pre-wrap;}
-  .ai-chat-msg.user{align-self:flex-end;background:var(--stay);color:var(--paper);}
-  .ai-chat-msg.bot{align-self:flex-start;background:var(--paper-soft);color:var(--ink-text);}
-  .ai-chat-input-row{display:flex;gap:6px;padding:10px;border-top:1px dashed var(--line);flex:0 0 auto;}
-  .ai-chat-input-row input{flex:1;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13.5px;min-width:0;}
-  .ai-chat-input-row button{flex:0 0 auto;}
-</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 </head>
-<body>
+<body data-screen="trip">
+<script>if(window.__TP_SIMPLE__) document.body.classList.add('simple');</script>
+
+<header class="appbar no-print">
+  <div class="appbar-inner">
+    <button class="appbar-btn only-trip" id="homeBtn" type="button"><span class="em">🏠</span>הטיולים</button>
+    <div class="appbar-title" id="appbarTitle">מתכנן טיולים</div>
+    <span class="sync-dot" id="syncDot" role="img" aria-label="מחובר" title="מחובר - הכל נשמר"></span>
+    <button class="appbar-btn only-trip" id="searchBtn" type="button"><span class="em">🔍</span>חיפוש</button>
+    <button class="appbar-btn" id="settingsBtn" type="button"><span class="em">🔠</span>תצוגה</button>
+    <button class="appbar-btn" id="helpBtn" type="button"><span class="em">❓</span>עזרה</button>
+  </div>
+</header>
+
 <div class="wrap">
-
-  <div class="account-bar" id="accountBar">
-    <span class="account-status" id="accountStatus">מתחבר...</span>
-    <div class="account-actions" id="accountActions"></div>
-  </div>
-  <div class="email-auth-form" id="emailAuthForm" style="display:none;">
-    <input type="email" id="emailAuthEmail" placeholder="אימייל">
-    <input type="password" id="emailAuthPassword" placeholder="סיסמה (לפחות 6 תווים)">
-    <button class="btn btn-primary btn-sm" id="emailAuthSubmit" type="button">התחבר / הרשם</button>
-    <button class="btn-quick" id="emailAuthCancel" type="button">ביטול</button>
-  </div>
-
-  <div class="trip-switcher-row">
-    <p class="eyebrow">מתכנן טיולים</p>
-    <div class="trip-switcher">
-      <select id="tripSelect" title="בחר טיול"></select>
-      <button class="btn btn-ghost btn-sm" id="newTripBtn" type="button">+ טיול חדש</button>
-      <button class="btn btn-ghost btn-sm" id="archiveTripBtn" type="button">📦 העבר לארכיון</button>
-      <label class="trip-switcher-archive-toggle"><input type="checkbox" id="showArchivedToggle"> הצג ארכיון</label>
-      <button class="btn btn-ghost btn-sm" id="deleteTripBtn" type="button">מחק טיול</button>
-      <button class="btn btn-ghost btn-sm" id="sharingPanelToggle" type="button">שיתוף וחברים</button>
-      <div class="join-code-row">
-        <input type="text" id="joinCodeInput" placeholder="קוד הצטרפות" maxlength="12">
-        <button class="btn btn-ghost btn-sm" id="joinCodeBtn" type="button">הצטרף</button>
-      </div>
-    </div>
-  </div>
-
-  <nav class="main-tabs" id="mainTabs" role="tablist" aria-label="ניווט ראשי">
-    <button type="button" class="tab-btn active" data-tab="days" role="tab" aria-selected="true"><span class="line-icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9h16M8 3v4M16 3v4" stroke-linecap="round"/></svg></span><span class="tab-label">ימים</span></button>
-    <button type="button" class="tab-btn" data-tab="ideas" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" stroke-linecap="round"/><path d="M12 3a6 6 0 0 0-3.2 11.1c.6.4 1 1 1.1 1.7l.1.7h4l.1-.7c.1-.7.5-1.3 1.1-1.7A6 6 0 0 0 12 3Z" stroke-linejoin="round"/></svg></span><span class="tab-label">רעיונות</span></button>
-    <button type="button" class="tab-btn" data-tab="budget" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M12 3v18M8 7.5h6.5a2.5 2.5 0 0 1 0 5H9.5a2.5 2.5 0 0 0 0 5H17" stroke-linecap="round"/></svg></span><span class="tab-label">תקציב ומסמכים</span></button>
-    <button type="button" class="tab-btn" data-tab="packing" role="tab" aria-selected="false"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M8 8V6a4 4 0 0 1 8 0v2M6 8h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke-linecap="round"/></svg></span><span class="tab-label">אריזה והתכוננות לטיסה</span></button>
-    <button type="button" class="tab-btn" data-tab="tools" id="toolsTabBtn" role="tab" aria-selected="false" style="display:none;"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M11 4 3 12l3 1 2-2 2 1-1 3 2 1 2-4 5-2c1-.5 2-2 1-3s-2.5-1-3.5-.5l-2 5-3-1-1-3Z" stroke-linejoin="round"/></svg></span><span class="tab-label">כלים לחו"ל</span></button>
-  </nav>
-
-  <div class="readonly-banner" id="readonlyBanner">👁️ את/ה צופה בטיול הזה - אין אפשרות לערוך.</div>
+  <div class="readonly-banner" id="readonlyBanner">👁️ את/ה צופה בטיול הזה - אפשר לראות הכל, לשוחח ולהצביע, אבל לא לשנות את התכנון.</div>
   <div class="readonly-banner" id="syncErrorBanner">⚠️ השמירה בענן נכשלה - השינויים האחרונים עלולים לא להישמר. בדקו את החיבור לאינטרנט ורעננו את הדף.</div>
+  <div class="banner" id="offlineBanner" hidden>📴 אין חיבור לאינטרנט. אפשר להמשיך לעבוד - הכל יישמר ויסתנכרן כשהחיבור יחזור.</div>
 
-  <div class="sharing-panel" id="sharingPanel" style="display:none;">
-    <h3>שיתוף הטיול</h3>
-    <div id="codesArea"></div>
-    <div class="members-list" id="membersArea"></div>
-  </div>
+  <!-- ===================== HOME: my trips ===================== -->
+  <div class="screen" id="screenHome">
+    <div class="home-hero">
+      <p class="eyebrow">מתכנן טיולים</p>
+      <h1 id="homeGreeting">שלום! לאן נוסעים?</h1>
+    </div>
 
-  <div class="header-card">
-    <div class="header-card-glow" aria-hidden="true"></div>
-    <div class="hero-top-row">
-      <input class="trip-title" id="tripName" placeholder="לאן טסים?" />
-      <div class="hero-stamp" id="heroEmoji" aria-hidden="true"></div>
+    <div class="big-actions">
+      <button class="big-btn primary" id="newTripWizardBtn" type="button"><span class="em">➕</span>טיול חדש</button>
+      <button class="big-btn" id="joinOpenBtn" type="button"><span class="em">🔑</span>יש לי קוד הצטרפות</button>
     </div>
-    <div class="trip-countdown" id="tripCountdown"></div>
-    <div class="trip-progress-track" id="tripProgressTrack" style="display:none;">
-      <div class="trip-progress-fill" id="tripProgressFill"></div>
-    </div>
-    <div class="header-meta">
-      <div class="meta-field">
-        <label>תאריך יציאה</label>
-        <input type="date" id="startDate">
-      </div>
-      <div class="meta-field">
-        <label>ימים</label>
-        <span class="stat" id="daysCount">0</span>
-      </div>
-      <div class="meta-field">
-        <label>יעדים</label>
-        <span class="stat" id="destCount">0</span>
-      </div>
-      <div class="meta-field">
-        <label>מטבע ראשי (טיול)</label>
-        <select id="currencySelect"></select>
-      </div>
-      <div class="meta-field">
-        <label>מטבע משני / הבית</label>
-        <select id="secondaryCurrencySelect"></select>
-      </div>
-      <div class="meta-field">
-        <label>תקציב יעד (מטבע הבית)</label>
-        <input type="number" min="0" id="budgetCapInput" placeholder="לא הוגדר">
-      </div>
-      <div class="meta-field">
-        <label>מתוכנן עד כה (מומר למטבע הבית)</label>
-        <span class="stat"><span id="currencySymbolBudget">₪</span><b id="budgetTotal">0</b></span>
-        <span class="stat" id="budgetRemaining"></span>
+
+    <div class="card" id="joinCard" hidden>
+      <div class="card-title">הצטרפות לטיול של מישהו אחר</div>
+      <p class="hint">הקלידו את הקוד שקיבלתם (8 אותיות ומספרים) ולחצו "הצטרף".</p>
+      <div class="join-code-row">
+        <input type="text" id="joinCodeInput" placeholder="קוד" maxlength="12" autocomplete="off" aria-label="קוד הצטרפות">
+        <button class="btn btn-primary" id="joinCodeBtn" type="button">הצטרף</button>
       </div>
     </div>
-  </div>
 
-  <section class="tab-panel active" data-panel="days" id="panelDays">
-    <div class="day-picker" id="dayPicker"></div>
-    <div class="days" id="days"></div>
+    <h2 class="page-title">הטיולים שלי</h2>
+    <div class="trip-cards" id="tripCards"><div class="empty">טוען את הטיולים שלך…</div></div>
+    <label class="trip-switcher-archive-toggle"><input type="checkbox" id="showArchivedToggle"> הצג גם טיולים בארכיון</label>
 
-    <div class="day-actions" style="margin-top:22px;">
-      <button class="btn btn-primary" id="addDay">
-        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
-        הוסף יום
-      </button>
-    </div>
-  </section>
-
-  <div class="section-card tab-panel" id="ideasSection" data-panel="ideas">
-    <div class="section-header">
-      <div class="section-title" id="attractionsTitle"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" stroke-linecap="round"/><path d="M12 3a6 6 0 0 0-3.2 11.1c.6.4 1 1 1.1 1.7l.1.7h4l.1-.7c.1-.7.5-1.3 1.1-1.7A6 6 0 0 0 12 3Z" stroke-linejoin="round"/></svg></span> רעיונות לאטרקציות</div>
-      <select class="btn-quick" id="ideaSortSelect" title="מיין לפי">
-        <option value="manual">מיון: לפי סדר הוספה</option>
-        <option value="category">מיון: קטגוריה</option>
-        <option value="name">מיון: שם (א-ב)</option>
-        <option value="createdAt">מיון: מי הוסיף/תאריך</option>
-        <option value="priority">מיון: עדיפות</option>
-      </select>
-      <button class="btn-quick" id="addIdeaBtn">הוסף רעיון</button>
-    </div>
-    <p class="section-hint">מאגר רעיונות לפני שמשבצים אותם ליום מסוים. אפשר לשבץ רעיון ליום וגם לשעה מסוימת בתכנון, וציוד נדרש נוסף אוטומטית לרשימת האריזה.</p>
-    <div class="touring-plan" id="touringPlan">
-      <p class="section-hint">כמה שעות טיול יש בכל יום? (ריק = ברירת מחדל 8 שעות, אפשר לשנות לימים יוצאי דופן כמו יום טיסה)</p>
-      <div class="touring-plan-days" id="touringPlanDays"></div>
-      <div class="touring-plan-result" id="touringPlanResult"></div>
-      <button class="btn-quick btn-sm touring-plan-unrecognized-btn" id="showUnrecognizedBtn" type="button" style="display:none;"></button>
-      <div class="touring-plan-unrecognized" id="touringPlanUnrecognized" style="display:none;"></div>
-      <div class="touring-plan-filter-row">
-        <button class="btn-quick btn-sm" id="applyTouringFilterBtn" type="button">החל סינון: הצג רק מה שיהיה לו זמן</button>
-        <select id="touringFilterModeSelect" title="מה לעשות עם מה שסונן החוצה">
-          <option value="hide">מה שלא נכנס: הסתר</option>
-          <option value="dim">מה שלא נכנס: הצג מעומעם</option>
-        </select>
-        <button class="btn-quick btn-sm" id="addAllFittingBtn" type="button" title="משבץ אוטומטית לימים את כל הרעיונות שנכנסים בזמן ועדיין לא שובצו">➕ הוסף הכל שנכנס בזמן</button>
+    <div class="card">
+      <div class="card-title">👤 החשבון שלי</div>
+      <div class="account-bar" id="accountBar" style="margin-top:.6rem;">
+        <span class="account-status" id="accountStatus">מתחבר...</span>
+        <div class="account-actions" id="accountActions"></div>
       </div>
-    </div>
-    <div class="ideas-filters" id="ideaFilters">
-      <select id="ideaFilterCategory" title="סנן לפי קטגוריה">
-        <option value="">כל הקטגוריות</option>
-        <option value="sight">אטרקציה</option>
-        <option value="food">אוכל</option>
-      </select>
-      <select id="ideaFilterAuthor" title="סנן לפי מי הוסיף"></select>
-      <select id="ideaFilterBooking" title="סנן לפי הזמנה מראש">
-        <option value="">הזמנה מראש: הכל</option>
-        <option value="yes">דורש הזמנה</option>
-        <option value="no">לא דורש הזמנה</option>
-      </select>
-      <select id="ideaFilterPriority" title="סנן לפי עדיפות">
-        <option value="">עדיפות: הכל</option>
-        <option value="10">10 ומעלה</option>
-        <option value="9">9 ומעלה</option>
-        <option value="8">8 ומעלה</option>
-        <option value="7">7 ומעלה</option>
-        <option value="6">6 ומעלה</option>
-        <option value="5">5 ומעלה</option>
-        <option value="4">4 ומעלה</option>
-        <option value="3">3 ומעלה</option>
-        <option value="2">2 ומעלה</option>
-        <option value="1">1 ומעלה</option>
-      </select>
-    </div>
-    <div class="ideas-list" id="attractionsBody"></div>
-
-    <div class="budget-section-divider"></div>
-
-    <div class="section-header">
-      <div class="section-title" id="dayGroupsTitle"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M4 7h7M4 12h7M4 17h7" stroke-linecap="round"/><rect x="14" y="5" width="6" height="14" rx="1.5"/></svg></span> קבוצות ליום</div>
-      <button class="ai-btn ai-btn-ghost" id="autoGroupBtn" type="button" title="מקבץ קודם לפי קרבה גיאוגרפית, ואז AI משפר את הקיבוץ אם יש טעויות">📍🤖 מיין אוטומטית לקבוצות</button>
-      <button class="btn-quick" id="addGroupBtn" type="button">קבוצה חדשה</button>
-    </div>
-    <p class="section-hint">שלב ביניים לפני שיבוץ ליום בלוח הזמנים: קבצו רעיונות שכדאי לעשות באותו יום ביחד - עדיין בלי לקבוע איזה יום בדיוק. אפשר לקבץ ידנית (מכרטיס הרעיון למטה), אוטומטית לפי אזור, או עם AI.</p>
-    <div class="ideas-list" id="dayGroupsBody"></div>
-
-    <div class="budget-section-divider"></div>
-
-    <div class="section-header">
-      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3"/></svg></span> מפה של המסלול</div>
-    </div>
-    <p class="section-hint">מפה אחת עם כל המיקומים: מה ששובץ לימים ומה שעדיין רק רעיון. מבוסס על מיקום חופשי לפי שם (בלי מפתח API), אז המיקום המדויק הוא הערכה.</p>
-    <div class="map-legend">
-      <span class="map-legend-item"><span class="map-legend-dot map-legend-dot--sched"></span>מתוכנן ליום</span>
-      <span class="map-legend-item"><span class="map-legend-dot map-legend-dot--idea"></span>רעיון שטרם שובץ</span>
-      <span class="map-legend-item"><span class="map-legend-triangle"></span>מסעדה / אוכל (משולש)</span>
-    </div>
-    <div class="map-single" id="mapSingle"></div>
-    <div class="map-status" id="mapGrid"></div>
-  </div>
-
-  <div class="section-card tab-panel" id="budgetSection" data-panel="budget">
-    <div class="section-header">
-      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7Z" stroke-linejoin="round"/><path d="M14 3v4h4" stroke-linejoin="round"/><path d="M9.5 12h6M9.5 15.5h6M9.5 8.5h3" stroke-linecap="round"/></svg></span> מסמכים והזמנות</div>
-      <button class="btn-quick" id="addDocumentBtn">הוסף מסמך</button>
-      <button class="ai-btn" id="aiImportDocBtn" type="button" title="הדביקו טקסט של אישור הזמנה וה-AI ימלא את השדות">🤖 מלא ממייל/אישור</button>
-    </div>
-    <p class="section-hint">טיסות, מלונות, השכרות רכב ואישורי הזמנה שכבר סגורים ומשולמים - לא רעיונות לתכנון.</p>
-    <div class="ideas-list" id="documentsBody"></div>
-
-    <div class="budget-section-divider"></div>
-
-    <div class="section-header">
-      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M12 3v18M8 7.5h6.5a2.5 2.5 0 0 1 0 5H9.5a2.5 2.5 0 0 0 0 5H17" stroke-linecap="round"/></svg></span> תקציב</div>
-    </div>
-    <p class="section-hint">פירוט מלא של איפה הכסף הולך: לפי קטגוריה, לפי יום, ומול התקציב היעד שהוגדר בכרטיס העליון.</p>
-    <div class="budget-breakdown" id="budgetBreakdown"></div>
-    <div class="budget-by-day" id="budgetByDay"></div>
-  </div>
-
-  <div class="section-card tab-panel" id="packingSection" data-panel="packing">
-    <div class="section-header">
-      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M8 8V6a4 4 0 0 1 8 0v2M6 8h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke-linecap="round"/></svg></span> רשימת אריזה והתכוננות לטיסה</div>
-      <button class="btn-quick" id="packingQuickAdd">הוסף פריטים נפוצים</button>
-      <button class="ai-btn" id="aiPackingBtn" type="button" title="הצעת רשימת אריזה לפי היעד, העונה ומשך הטיול">🤖 הצעת AI לפי הטיול</button>
-    </div>
-    <p class="section-hint">🔒 הרשימה הזו אישית - נשמרת בענן ומוצגת רק לך, גם אם הטיול משותף עם עוד אנשים. אפשר להוסיף גם משימות עם תאריך יעד (ויזה, ביטוח נסיעות, חיסונים, חידוש דרכון, הודעה לבנק) - לא רק פריטים לתיק.</p>
-    <div id="packingSuggestionsBanner"></div>
-    <div class="packing-list" id="packingList"></div>
-    <div class="packing-add-row">
-      <input type="text" id="packingNewItem" placeholder="הוסף פריט או משימה...">
-      <input type="number" min="0" id="packingNewDue" placeholder="ימים לפני (אופציונלי)" class="checklist-due-input">
-      <button class="btn btn-primary" id="packingAddBtn" type="button">
-        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-    <div class="packing-suggest-row">
-      <input type="text" id="suggestItemText" placeholder="הצע פריט לחברי הטיול...">
-      <div class="packing-suggest-recipients" id="suggestRecipients"></div>
-      <button class="btn-quick" id="suggestSendBtn">הצע לרשימה שלהם</button>
+      <div class="email-auth-form" id="emailAuthForm" style="display:none;">
+        <input type="email" id="emailAuthEmail" placeholder="אימייל" autocomplete="email">
+        <input type="password" id="emailAuthPassword" placeholder="סיסמה (לפחות 6 תווים)" autocomplete="current-password">
+        <button class="btn btn-primary" id="emailAuthSubmit" type="button">התחבר / הרשם</button>
+        <button class="btn btn-ghost" id="emailAuthCancel" type="button">ביטול</button>
+      </div>
+      <div id="profileArea"></div>
     </div>
 
-    <div class="budget-section-divider"></div>
-
-    <div class="section-header">
-      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round"/></svg></span> סרטונים להורדה לפני הטיסה</div>
-      <a class="btn btn-ghost btn-sm" href="https://turboscribe.ai/he/downloader/youtube/mp4" target="_blank" rel="noopener">פתחו אתר</a>
-    </div>
-    <p class="flight-video-note">🔒 רשימה אישית, לא נשמרת ברשימת האריזה עצמה. הדפדפן לא יכול להוריד קובץ וידאו מיוטיוב ישירות (זה גם נוגד את תנאי השימוש שלהם) - הכלי הזה עוזר לרכז מראש אילו סרטונים לפתוח ולהוריד לצפייה אופליין דרך אפליקציית יוטיוב עצמה (יוטיוב פרימיום/אופליין), ולסמן מה כבר הורד. אפשר גם ללחוץ "פתחו אתר" כדי לפתוח כלי חיצוני להורדת mp4 מיוטיוב.</p>
-    <div class="packing-list" id="flightVideosList"></div>
-    <div class="packing-add-row">
-      <input type="text" id="flightVideoTitle" placeholder="שם הסרטון...">
-      <input type="url" id="flightVideoUrl" placeholder="קישור יוטיוב...">
-      <button class="btn btn-primary" id="flightVideoAddBtn" type="button">
-        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
-      </button>
+    <!-- kept for the core script (hidden): the old dropdown + one-click new trip -->
+    <div hidden>
+      <select id="tripSelect"></select>
+      <button id="newTripBtn" type="button">+</button>
+      <button id="sharingPanelToggle" type="button">שיתוף</button>
+      <span id="toolsTabBtn"></span>
     </div>
   </div>
 
-  <div class="section-card tab-panel" id="toolsSection" data-panel="tools">
-    <div class="section-header">
-      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M11 4 3 12l3 1 2-2 2 1-1 3 2 1 2-4 5-2c1-.5 2-2 1-3s-2.5-1-3.5-.5l-2 5-3-1-1-3Z" stroke-linejoin="round"/></svg></span> כלים לחו"ל</div>
-    </div>
-    <p class="section-hint">מצלמים שלט או תפריט ביעד וה-AI קורא ומתרגם אותו לעברית.</p>
-    <div class="tools-translate-row">
-      <input type="file" accept="image/*" capture="environment" id="signPhotoInput">
-      <button class="ai-btn" id="translateSignBtn" type="button">🤖 תרגם תמונה</button>
-    </div>
-    <img id="signPreviewImg" style="display:none;">
-    <div id="signTranslateResult"></div>
+  <!-- ===================== TRIP ===================== -->
+  <div class="screen" id="screenTrip">
 
-    <div class="budget-section-divider"></div>
+    <!-- ---------- overview ---------- -->
+    <section class="tab-panel" data-panel="overview" id="panelOverview">
+      <div id="dashboard"></div>
 
-    <div class="section-card" id="meridianToolSection" style="display:none;">
+      <details class="fold" id="tripDetailsFold">
+        <summary>⚙️ פרטי הטיול (שם, תאריך, מטבע, תקציב)</summary>
+        <div class="fold-body">
+          <div class="header-card" style="box-shadow:none;border:none;padding:0;margin:0;">
+            <div class="header-card-glow" aria-hidden="true"></div>
+            <div class="field">
+              <label for="tripName">שם הטיול</label>
+              <div class="hero-top-row">
+                <input class="trip-title" id="tripName" placeholder="לאן טסים?" />
+                <div class="hero-stamp" id="heroEmoji" aria-hidden="true"></div>
+              </div>
+            </div>
+            <div class="trip-countdown" id="tripCountdown"></div>
+            <div class="trip-progress-track" id="tripProgressTrack" style="display:none;">
+              <div class="trip-progress-fill" id="tripProgressFill"></div>
+            </div>
+            <div class="header-meta">
+              <div class="meta-field">
+                <label for="startDate">תאריך יציאה</label>
+                <input type="date" id="startDate">
+              </div>
+              <div class="meta-field">
+                <label>מספר ימים</label>
+                <span class="stat" id="daysCount">0</span>
+              </div>
+              <div class="meta-field">
+                <label>מספר יעדים</label>
+                <span class="stat" id="destCount">0</span>
+              </div>
+              <div class="meta-field">
+                <label for="currencySelect">המטבע בטיול</label>
+                <select id="currencySelect"></select>
+              </div>
+              <div class="meta-field adv">
+                <label for="secondaryCurrencySelect">המטבע בבית</label>
+                <select id="secondaryCurrencySelect"></select>
+              </div>
+              <div class="meta-field">
+                <label for="budgetCapInput">תקציב לכל הטיול</label>
+                <input type="number" min="0" id="budgetCapInput" placeholder="לא הוגדר" inputmode="decimal">
+              </div>
+              <div class="meta-field">
+                <label>מתוכנן עד כה</label>
+                <span class="stat"><span id="currencySymbolBudget">₪</span><b id="budgetTotal">0</b></span>
+                <span class="stat" id="budgetRemaining"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- ---------- days ---------- -->
+    <section class="tab-panel" data-panel="days" id="panelDays">
+      <div class="day-picker no-print" id="dayPicker"></div>
+      <div class="days" id="days"></div>
+      <div class="day-actions">
+        <button class="btn btn-primary" id="addDay" type="button">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+          הוסף יום לטיול
+        </button>
+      </div>
+    </section>
+
+    <!-- ---------- ideas ---------- -->
+    <div class="section-card tab-panel" id="ideasSection" data-panel="ideas">
       <div class="section-header">
-        <div class="section-title"><span class="line-icon">🧭</span> קו האפס האמיתי</div>
+        <div class="section-title" id="attractionsTitle">💡 רעיונות לטיול</div>
+        <button class="btn btn-primary" id="addIdeaBtn" type="button">➕ הוסף רעיון</button>
       </div>
-      <p class="section-hint">
-        הקו המסומן ברצפה באבצרבטוריה המלכותית בגריניץ' הוא לא בדיוק קו האורך 0° המודרני (WGS84) -
-        יש הפרש קבוע של כ-100 מטר מזרחה. הקו האמיתי חוצה שביל הליכה ציבורי בפארק, ממש בצמוד לפח
-        אשפה פשוט - מדריכים ומתנדבים במצפה הכוכבים נוהגים להתבדח עם תיירים ולספר שהיום קו האפס
-        האמיתי מסומן על ידי פח הזבל הירוק של הפארק שנמצא בדיוק על התוואי. כל חברי הטיול שמאשרים
-        כאן את המיקום שלהם עוזרים לחשב את הכיוון והמרחק המדויקים אליו.
-      </p>
-      <div id="meridianCheckinArea"></div>
-      <div id="meridianResultArea"></div>
-      <div id="meridianMembersArea"></div>
+      <p class="section-hint">כאן אוספים מקומות שרוצים לבקר בהם, לפני שמחליטים באיזה יום. כל חברי הטיול יכולים לסמן 👍 על מה שהם רוצים. לוחצים על רעיון כדי לפתוח אותו ולשבץ ליום.</p>
+
+      <details class="fold adv">
+        <summary>🔎 מיון וסינון</summary>
+        <div class="fold-body">
+          <div class="ideas-filters" id="ideaFilters">
+            <select id="ideaSortSelect" title="מיין לפי">
+              <option value="manual">מיון: לפי סדר הוספה</option>
+              <option value="votes">מיון: הכי הרבה 👍</option>
+              <option value="category">מיון: קטגוריה</option>
+              <option value="name">מיון: שם (א-ב)</option>
+              <option value="createdAt">מיון: מי הוסיף/תאריך</option>
+              <option value="priority">מיון: עדיפות</option>
+            </select>
+            <select id="ideaFilterCategory" title="סנן לפי קטגוריה">
+              <option value="">כל הקטגוריות</option>
+              <option value="sight">אטרקציה</option>
+              <option value="food">אוכל</option>
+            </select>
+            <select id="ideaFilterAuthor" title="סנן לפי מי הוסיף"></select>
+            <select id="ideaFilterBooking" title="סנן לפי הזמנה מראש">
+              <option value="">הזמנה מראש: הכל</option>
+              <option value="yes">דורש הזמנה</option>
+              <option value="no">לא דורש הזמנה</option>
+            </select>
+            <select id="ideaFilterPriority" title="סנן לפי עדיפות">
+              <option value="">עדיפות: הכל</option>
+              <option value="10">10 ומעלה</option>
+              <option value="9">9 ומעלה</option>
+              <option value="8">8 ומעלה</option>
+              <option value="7">7 ומעלה</option>
+              <option value="6">6 ומעלה</option>
+              <option value="5">5 ומעלה</option>
+              <option value="4">4 ומעלה</option>
+              <option value="3">3 ומעלה</option>
+              <option value="2">2 ומעלה</option>
+              <option value="1">1 ומעלה</option>
+            </select>
+          </div>
+        </div>
+      </details>
+
+      <details class="fold adv">
+        <summary>⏱️ כמה נספיק? (חישוב שעות)</summary>
+        <div class="fold-body">
+          <div class="touring-plan" id="touringPlan">
+            <p class="section-hint">כמה שעות טיול יש בכל יום? (ריק = ברירת מחדל, אפשר לשנות לימים יוצאי דופן כמו יום טיסה)</p>
+            <div class="touring-plan-days" id="touringPlanDays"></div>
+            <div class="touring-plan-result" id="touringPlanResult"></div>
+            <button class="btn-quick btn-sm touring-plan-unrecognized-btn" id="showUnrecognizedBtn" type="button" style="display:none;"></button>
+            <div class="touring-plan-unrecognized" id="touringPlanUnrecognized" style="display:none;"></div>
+            <div class="touring-plan-filter-row">
+              <button class="btn-quick" id="applyTouringFilterBtn" type="button">החל סינון: הצג רק מה שיהיה לו זמן</button>
+              <select id="touringFilterModeSelect" title="מה לעשות עם מה שסונן החוצה">
+                <option value="hide">מה שלא נכנס: הסתר</option>
+                <option value="dim">מה שלא נכנס: הצג מעומעם</option>
+              </select>
+              <button class="btn-quick" id="addAllFittingBtn" type="button" title="משבץ אוטומטית לימים את כל הרעיונות שנכנסים בזמן ועדיין לא שובצו">➕ שבץ הכל שנכנס בזמן</button>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <div class="ideas-list" id="attractionsBody"></div>
+
+      <details class="fold adv">
+        <summary>🗂️ קבוצות ליום</summary>
+        <div class="fold-body">
+          <div class="section-header">
+            <div class="section-title sr-only" id="dayGroupsTitle">קבוצות ליום</div>
+            <button class="ai-btn ai-btn-ghost" id="autoGroupBtn" type="button" title="מקבץ קודם לפי קרבה גיאוגרפית, ואז AI משפר את הקיבוץ אם יש טעויות">📍🤖 מיין אוטומטית לקבוצות</button>
+            <button class="btn-quick" id="addGroupBtn" type="button">➕ קבוצה חדשה</button>
+          </div>
+          <p class="section-hint">שלב ביניים לפני שיבוץ ליום: קבצו רעיונות שכדאי לעשות באותו יום ביחד - עדיין בלי לקבוע איזה יום בדיוק.</p>
+          <div class="ideas-list" id="dayGroupsBody"></div>
+        </div>
+      </details>
+
+      <details class="fold" id="mapFold">
+        <summary>🗺️ מפה של כל המקומות</summary>
+        <div class="fold-body">
+          <p class="section-hint">כל המיקומים על מפה אחת: מה ששובץ לימים ומה שעדיין רק רעיון. המיקום הוא הערכה לפי שם המקום.</p>
+          <div class="map-legend">
+            <span class="map-legend-item"><span class="map-legend-dot map-legend-dot--sched"></span>מתוכנן ליום</span>
+            <span class="map-legend-item"><span class="map-legend-dot map-legend-dot--idea"></span>רעיון שטרם שובץ</span>
+            <span class="map-legend-item"><span class="map-legend-triangle"></span>אוכל (משולש)</span>
+          </div>
+          <div class="map-single" id="mapSingle"></div>
+          <div class="map-status" id="mapGrid"></div>
+        </div>
+      </details>
     </div>
 
-    <div class="budget-section-divider"></div>
+    <!-- ---------- budget + documents ---------- -->
+    <div class="section-card tab-panel" id="budgetSection" data-panel="budget">
+      <div class="section-header">
+        <div class="section-title">📄 מסמכים והזמנות</div>
+        <button class="btn btn-primary" id="addDocumentBtn" type="button">➕ הוסף מסמך</button>
+        <button class="ai-btn adv" id="aiImportDocBtn" type="button" title="הדביקו טקסט של אישור הזמנה וה-AI ימלא את השדות">🤖 מלא ממייל/אישור</button>
+      </div>
+      <p class="section-hint">טיסות, מלונות, השכרת רכב ואישורי הזמנה - הכל במקום אחד, זמין גם בלי אינטרנט.</p>
+      <div class="ideas-list" id="documentsBody"></div>
 
-    <div class="section-header">
-      <div class="section-title"><span class="line-icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16l-4-3-3 3-3-3-4 3V4Z" stroke-linejoin="round"/></svg></span> יומן מסע אוטומטי</div>
-      <button class="ai-btn" id="generateJournalBtn" type="button" title="AI יהפוך את הפעילויות שבתכנון לפסקת יומן קצרה בעברית, לפי מה שבאמת רשום בימים">✍️ צור יומן מסע</button>
-      <button class="btn btn-ghost btn-sm" id="exportJournalPdfBtn" type="button" style="display:none;">⬇️ ייצוא כ-PDF</button>
+      <div class="budget-section-divider"></div>
+
+      <div class="section-header">
+        <div class="section-title">💰 תקציב מתוכנן</div>
+      </div>
+      <p class="section-hint">כמה כסף מתוכנן לכל דבר, לפי העלויות שרשמתם בימים. (הוצאות בפועל שמחלקים בין החברים נמצאות ב"קבוצה".)</p>
+      <div class="budget-breakdown" id="budgetBreakdown"></div>
+      <div class="budget-by-day" id="budgetByDay"></div>
     </div>
-    <div id="journalResult"></div>
+
+    <!-- ---------- packing ---------- -->
+    <div class="section-card tab-panel" id="packingSection" data-panel="packing">
+      <div class="section-header">
+        <div class="section-title">🎒 רשימת האריזה שלי</div>
+      </div>
+      <p class="section-hint">🔒 הרשימה הזו אישית - רק את/ה רואה אותה. מסמנים ✓ על מה שכבר ארוז. אפשר להוסיף גם משימות עם תאריך יעד (ויזה, ביטוח).</p>
+      <div id="packingProgress"></div>
+      <div class="btn-row">
+        <button class="btn-quick" id="packingQuickAdd" type="button">➕ הוסף פריטים נפוצים</button>
+        <button class="ai-btn adv" id="aiPackingBtn" type="button" title="הצעת רשימת אריזה לפי היעד, העונה ומשך הטיול">🤖 הצעת AI לפי הטיול</button>
+      </div>
+      <div id="packingSuggestionsBanner" style="margin-top:.6rem;"></div>
+      <div class="packing-list" id="packingList"></div>
+      <div class="packing-add-row">
+        <input type="text" id="packingNewItem" placeholder="מה להוסיף לרשימה?" aria-label="פריט חדש">
+        <input type="number" min="0" id="packingNewDue" placeholder="ימים לפני (לא חובה)" class="checklist-due-input adv">
+        <button class="btn btn-primary" id="packingAddBtn" type="button" aria-label="הוסף פריט">➕ הוסף</button>
+      </div>
+
+      <details class="fold">
+        <summary>🎁 הצע פריט לחברי הטיול</summary>
+        <div class="fold-body">
+          <div class="packing-suggest-row" style="margin-top:0;">
+            <input type="text" id="suggestItemText" placeholder="מה כדאי להם לקחת?">
+            <div class="packing-suggest-recipients" id="suggestRecipients"></div>
+            <button class="btn-quick" id="suggestSendBtn" type="button">שלח הצעה</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="fold adv">
+        <summary>🎬 סרטונים להורדה לפני הטיסה</summary>
+        <div class="fold-body">
+          <p class="flight-video-note">🔒 רשימה אישית של סרטונים שרוצים להוריד לצפייה בלי אינטרנט (דרך אפליקציית יוטיוב עצמה), ולסמן מה כבר הורד.</p>
+          <a class="btn btn-ghost btn-sm" href="https://turboscribe.ai/he/downloader/youtube/mp4" target="_blank" rel="noopener">פתחו אתר הורדה</a>
+          <div class="packing-list" id="flightVideosList"></div>
+          <div class="packing-add-row">
+            <input type="text" id="flightVideoTitle" placeholder="שם הסרטון...">
+            <input type="url" id="flightVideoUrl" placeholder="קישור יוטיוב...">
+            <button class="btn btn-primary" id="flightVideoAddBtn" type="button" aria-label="הוסף סרטון">➕ הוסף</button>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- ---------- tools ---------- -->
+    <div class="section-card tab-panel" id="toolsSection" data-panel="tools">
+      <div class="section-header">
+        <div class="section-title">🧰 כלים לדרך</div>
+      </div>
+      <p class="section-hint">כלים קטנים שעוזרים בחו"ל. לוחצים על כלי כדי לפתוח אותו.</p>
+      <div id="toolsExtra"></div>
+
+      <details class="fold">
+        <summary>📷 תרגום שלט או תפריט מתמונה</summary>
+        <div class="fold-body">
+          <p class="section-hint">מצלמים שלט או תפריט, וה-AI קורא ומתרגם אותו לעברית.</p>
+          <div class="tools-translate-row">
+            <input type="file" accept="image/*" capture="environment" id="signPhotoInput">
+            <button class="ai-btn" id="translateSignBtn" type="button">🤖 תרגם את התמונה</button>
+          </div>
+          <img id="signPreviewImg" style="display:none;" alt="תצוגה מקדימה של התמונה">
+          <div id="signTranslateResult"></div>
+        </div>
+      </details>
+
+      <div class="section-card" id="meridianToolSection" style="display:none;">
+        <div class="section-header">
+          <div class="section-title"><span class="line-icon">🧭</span> קו האפס האמיתי</div>
+        </div>
+        <p class="section-hint">
+          הקו המסומן ברצפה במצפה הכוכבים המלכותי בגריניץ' הוא לא בדיוק קו האורך 0° המודרני (WGS84) -
+          יש הפרש קבוע של כ-100 מטר מזרחה. הקו האמיתי חוצה שביל הליכה ציבורי בפארק, ממש בצמוד לפח
+          אשפה פשוט. כל חברי הטיול שמאשרים כאן את המיקום שלהם עוזרים לחשב את הכיוון והמרחק המדויקים אליו.
+        </p>
+        <div id="meridianCheckinArea"></div>
+        <div id="meridianResultArea"></div>
+        <div id="meridianMembersArea"></div>
+      </div>
+
+      <details class="fold">
+        <summary>✍️ יומן מסע אוטומטי</summary>
+        <div class="fold-body">
+          <p class="section-hint">ה-AI הופך את מה שרשום בימים לסיפור קצר של הטיול.</p>
+          <div class="btn-row">
+            <button class="ai-btn" id="generateJournalBtn" type="button">✍️ צור יומן מסע</button>
+            <button class="btn btn-ghost" id="exportJournalPdfBtn" type="button" style="display:none;">⬇️ שמור כ-PDF</button>
+          </div>
+          <div id="journalResult"></div>
+        </div>
+      </details>
+    </div>
+
+    <!-- ---------- group ---------- -->
+    <section class="tab-panel" data-panel="group" id="panelGroup">
+      <h2 class="page-title">👥 הקבוצה שלנו</h2>
+      <div class="seg" id="grpSeg" role="tablist" aria-label="חלקי הקבוצה"></div>
+      <div id="grpDyn"></div>
+      <div id="grpMembersStatic" hidden>
+        <div class="card">
+          <div class="card-title">🔗 הזמנת אנשים לטיול</div>
+          <div id="inviteArea"></div>
+          <details class="fold adv">
+            <summary>🔑 קודי הצטרפות וניהול משתתפים</summary>
+            <div class="fold-body">
+              <div class="sharing-panel" id="sharingPanel">
+                <h3>שיתוף הטיול</h3>
+                <div id="codesArea"></div>
+                <div class="members-list" id="membersArea"></div>
+              </div>
+            </div>
+          </details>
+        </div>
+        <div id="grpMembersExtra"></div>
+      </div>
+    </section>
+
+    <!-- ---------- more ---------- -->
+    <section class="tab-panel" data-panel="more" id="panelMore">
+      <h2 class="page-title">☰ עוד</h2>
+      <div class="tile-grid" id="moreTiles">
+        <button class="tile" type="button" data-go="budget"><span class="em">💰</span>תקציב ומסמכים<small>טיסות, מלונות, עלויות</small></button>
+        <button class="tile" type="button" data-go="packing"><span class="em">🎒</span>רשימת אריזה<small>מה לקחת ומה לסדר</small></button>
+        <button class="tile" type="button" data-go="tools"><span class="em">🧰</span>כלים לדרך<small>המרת מטבע, טיפ, תרגום</small></button>
+        <button class="tile" type="button" data-act="ai-guide"><span class="em">💬</span>שאל את המדריך<small>שאלות על הטיול (AI)</small></button>
+        <button class="tile" type="button" data-act="notes"><span class="em">📝</span>הפתקים שלי<small>פרטי, רק אני רואה</small></button>
+        <button class="tile" type="button" data-act="sos"><span class="em">🆘</span>כרטיס חירום<small>טלפונים ופרטים חשובים</small></button>
+        <button class="tile" type="button" data-act="stats"><span class="em">📊</span>הטיול במספרים</button>
+        <button class="tile" type="button" data-act="share-trip"><span class="em">📤</span>שלח את התכנון<small>בוואטסאפ או בהודעה</small></button>
+        <button class="tile" type="button" data-act="ics"><span class="em">📆</span>הוסף ליומן<small>קובץ ליומן בטלפון</small></button>
+        <button class="tile" type="button" data-act="settings"><span class="em">🔠</span>תצוגה ונגישות<small>גודל כתב, צבעים</small></button>
+        <button class="tile" type="button" data-act="help"><span class="em">❓</span>איך משתמשים?</button>
+      </div>
+
+      <button class="ai-chat-fab" id="aiChatFab" type="button" title="שאל את המדריך (AI)">💬</button>
+
+      <details class="fold">
+        <summary>🖨️ הדפסה, ייצוא וגיבוי</summary>
+        <div class="fold-body">
+          <div class="toolbar">
+            <span class="autosave-note">✅ כל שינוי נשמר אוטומטית בענן. כאן אפשר להדפיס או לשמור עותק.</span>
+            <div class="btn-row">
+              <button class="btn btn-ghost" id="printBtn" type="button">🖨️ הדפסה</button>
+              <button class="btn btn-ghost" id="exportPdfBtn" type="button">📕 שמירה כ-PDF</button>
+              <button class="btn btn-ghost adv" id="exportJsonBtn" type="button">⬇️ גיבוי לקובץ</button>
+              <label class="btn btn-ghost adv" id="importJsonLabel" for="importJsonInput">⬆️ שחזור מקובץ</label>
+              <input type="file" id="importJsonInput" accept="application/json" style="display:none">
+              <button class="btn btn-ghost adv" id="shareLinkBtn" type="button">🔗 קישור להעתק של הטיול</button>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="fold">
+        <summary>🗂️ ניהול הטיול הזה</summary>
+        <div class="fold-body">
+          <div class="btn-row" style="flex-direction:column;">
+            <button class="btn btn-ghost" id="dupTripBtn" type="button">📑 שכפל את הטיול (העתק חדש)</button>
+            <button class="btn btn-ghost" id="archiveTripBtn" type="button">📦 העבר לארכיון</button>
+            <button class="btn btn-danger adv" id="clearAll" type="button">🧹 נקה את כל תוכן הטיול</button>
+            <button class="btn btn-danger" id="deleteTripBtn" type="button">🗑️ מחק / עזוב את הטיול</button>
+          </div>
+        </div>
+      </details>
+    </section>
+
   </div>
 
-  <button class="ai-chat-fab" id="aiChatFab" type="button" title="שאל את המדריך (AI)">💬</button>
   <div id="aiModalRoot"></div>
-
-  <div class="toolbar">
-    <span class="autosave-note">השינויים נשמרים אוטומטית במכשיר שלך</span>
-    <div class="btn-row">
-      <button class="btn btn-ghost" id="printBtn">
-        <svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18h12v3H6v-3ZM4 9h16v7H4V9Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        הדפסה
-      </button>
-      <button class="btn btn-ghost" id="exportPdfBtn">
-        <svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18h12v3H6v-3ZM4 9h16v7H4V9Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        ייצוא PDF מסודר לשיתוף
-      </button>
-      <button class="btn btn-ghost" id="exportJsonBtn">
-        <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        ייצוא JSON
-      </button>
-      <label class="btn btn-ghost" id="importJsonLabel" for="importJsonInput">
-        <svg viewBox="0 0 24 24"><path d="M12 21V9m0 0 4 4m-4-4-4 4M4 5h16" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        ייבוא JSON
-      </label>
-      <input type="file" id="importJsonInput" accept="application/json" style="display:none">
-      <button class="btn btn-ghost" id="shareLinkBtn">
-        <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.3"/><circle cx="18" cy="6" r="2.3"/><circle cx="18" cy="18" r="2.3"/><path d="m8 10.8 8-4.6M8 13.2l8 4.6" stroke-linecap="round"/></svg>
-        שתף קישור
-      </button>
-      <button class="btn btn-ghost" id="clearAll">
-        <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        נקה הכל
-      </button>
-    </div>
-  </div>
+  <div id="sheetRoot"></div>
 </div>
+
+<nav class="main-tabs no-print" id="mainTabs" role="tablist" aria-label="ניווט ראשי">
+  <button type="button" class="tab-btn" data-tab="overview" role="tab" aria-selected="false"><span class="em" aria-hidden="true">🏡</span><span class="tab-label">ראשי</span></button>
+  <button type="button" class="tab-btn" data-tab="days" role="tab" aria-selected="false"><span class="em" aria-hidden="true">📅</span><span class="tab-label">לוח זמנים</span></button>
+  <button type="button" class="tab-btn" data-tab="ideas" role="tab" aria-selected="false"><span class="em" aria-hidden="true">💡</span><span class="tab-label">רעיונות</span></button>
+  <button type="button" class="tab-btn" data-tab="group" role="tab" aria-selected="false"><span class="em" aria-hidden="true">👥</span><span class="tab-label">קבוצה</span><span class="nav-badge" id="groupBadge" hidden></span></button>
+  <button type="button" class="tab-btn" data-tab="more" role="tab" aria-selected="false"><span class="em" aria-hidden="true">☰</span><span class="tab-label">עוד</span></button>
+</nav>
 
 <script src="./config.js"></script>
 <script type="module">
@@ -2632,13 +1516,15 @@ const daysEl = document.getElementById('days');
 const dayPickerEl = document.getElementById('dayPicker');
 const mainTabsEl = document.getElementById('mainTabs');
 let activeDayIndex = 0;
+const expandedActIds = new Set();
+const expandedHotelDayIds = new Set();
 const ACTIVE_TAB_KEY = 'triplan-active-tab-v1';
 
 function setActiveTab(tab){
-  const valid = ['days','ideas','budget','packing','tools'];
-  if(!valid.includes(tab)) tab = 'days';
+  const valid = ['overview','days','ideas','budget','packing','tools','group','more'];
+  if(!valid.includes(tab)) tab = 'overview';
   document.querySelectorAll('.tab-btn').forEach(b => {
-    const isActive = b.dataset.tab === tab;
+    const isActive = b.dataset.tab === tab || (b.dataset.tab === 'more' && ['budget','packing','tools'].includes(tab));
     b.classList.toggle('active', isActive);
     b.setAttribute('aria-selected', isActive ? 'true' : 'false');
   });
@@ -2646,6 +1532,8 @@ function setActiveTab(tab){
     p.classList.toggle('active', p.dataset.panel === tab);
   });
   try{ localStorage.setItem(ACTIVE_TAB_KEY, tab); }catch(e){}
+  window.scrollTo(0, 0);
+  try{ window.TPX?.onTab?.(tab); }catch(e){ console.error(e); }
   if(tab === 'ideas'){
     setTimeout(() => {
       const map = ensureLeafletMap();
@@ -2659,7 +1547,7 @@ function setActiveTab(tab){
 mainTabsEl.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
 });
-setActiveTab(localStorage.getItem(ACTIVE_TAB_KEY) || 'days');
+setActiveTab(localStorage.getItem(ACTIVE_TAB_KEY) || 'overview');
 
 /* ---- Day picker: shows one day at a time instead of one long scroll ---- */
 function applyDayVisibility(){
@@ -3087,58 +1975,116 @@ function render(){
     const dateLabel = formatDate(state.startDate, index);
     const destIconSVG = destinationIconSVG(day.destination, 'place');
 
+    const hotelOpen = expandedHotelDayIds.has(day.id);
+    card.dataset.dayId = day.id;
+    card.dataset.dayIndex = index;
     card.innerHTML = `
       <div class="day-top">
-        <div class="day-badge">${index+1}</div>
+        <div class="day-badge" aria-label="יום ${index+1}">${index+1}</div>
         <div class="day-heading">
-          <div class="day-date">${dateLabel ? dateLabel : 'יום ' + (index+1)} <span class="weather-badge" id="weather-${day.id}"></span>${isToday ? '<span class="today-ribbon">היום</span>' : ''}${day.lastEditedBy ? `<span class="last-edited-badge" title="${escapeAttr(new Date(day.lastEditedAt).toLocaleString('he-IL'))}">✏️ ${escapeAttr(resolveMemberName(day.lastEditedBy))} · ${timeAgoLabel(day.lastEditedAt)}</span>` : ''}</div>
-          <div class="day-dest-row"><span class="day-dest-icon" data-role="dest-emoji">${destIconSVG}</span><input class="day-dest" data-role="destination" placeholder="לאן הולכים היום?" value="${escapeAttr(day.destination)}"></div>
-          <label class="day-currency-row">מטבע ליום זה: <select data-role="day-currency">${dayCurrencyOptionsHTML(day.currency)}</select></label>
+          <div class="day-date">${dateLabel ? dateLabel : 'יום ' + (index+1)} <span class="weather-badge" id="weather-${day.id}"></span>${isToday ? '<span class="today-ribbon">היום</span>' : ''}${day.lastEditedBy ? `<span class="last-edited-badge adv" title="${escapeAttr(new Date(day.lastEditedAt).toLocaleString('he-IL'))}">✏️ ${escapeAttr(resolveMemberName(day.lastEditedBy))} · ${timeAgoLabel(day.lastEditedAt)}</span>` : ''}</div>
+          <div class="day-dest-row"><span class="day-dest-icon" data-role="dest-emoji">${destIconSVG}</span><input class="day-dest" data-role="destination" aria-label="היעד של היום" placeholder="לאן הולכים היום?" value="${escapeAttr(day.destination)}"></div>
         </div>
-        <button class="ai-btn ai-day-btn" data-role="ai-plan-day" type="button" title="AI יסדר רעיונות שטרם שובצו ליום הזה לפי מיקום ושעות">🤖 תכנן עם AI</button>
-        <button class="ai-btn ai-day-btn" data-role="ai-check-schedule" type="button" title="AI יבדוק אם יש רווחים לא ריאליים בין פעילויות (זמן הליכה/המתנה)">🤖 בדוק לו"ז</button>
-        <button class="icon-btn" data-role="del-day" title="מחק יום">${ICONS.trash}</button>
       </div>
+      <div class="day-tools no-print">
+        <button class="btn-quick" data-x="read-day" data-viewer-ok type="button">🔊 הקרא לי את היום</button>
+        <button class="btn-quick" data-x="share-day" data-viewer-ok type="button">📤 שלח את היום</button>
+        <button class="btn-quick" data-x="nav-day" data-viewer-ok type="button">🧭 מסלול במפה</button>
+        <button class="ai-btn ai-day-btn adv" data-role="ai-plan-day" type="button" title="AI יסדר רעיונות שטרם שובצו ליום הזה לפי מיקום ושעות">🤖 תכנן עם AI</button>
+        <button class="ai-btn ai-day-btn adv" data-role="ai-check-schedule" type="button" title="AI יבדוק אם יש רווחים לא ריאליים בין פעילויות (זמן הליכה/המתנה)">🤖 בדוק לו"ז</button>
+      </div>
+      <div class="day-progress" data-role="day-progress"></div>
       <div class="activities" data-role="activities"></div>
-      <button class="add-activity" data-role="add-activity">${ICONS.plus} הוסף פעילות</button>
+      <button class="add-activity" data-role="add-activity" type="button">${ICONS.plus} הוסף פעילות ליום הזה</button>
       <div class="ai-schedule-result" id="ai-schedule-${day.id}" data-role="ai-schedule-result"></div>
-      <div class="perf"></div>
-      <div class="hotel-stub">
-        <div class="hotel-label">
-          ${ICONS.bed} לינה בלילה שאחרי
-          <button class="hotel-copy-btn" data-role="copy-hotel" type="button" ${index===0?'disabled title="אין יום קודם להעתיק ממנו"':''}>⤵ החל מאתמול</button>
+      <div class="hotel-stub${hotelOpen ? ' open' : ''}">
+        <button class="hotel-head" data-role="hotel-toggle" data-viewer-ok type="button" aria-expanded="${hotelOpen}">
+          ${ICONS.bed}<span class="hotel-sum">איפה ישנים בלילה: <b data-role="hotel-sum">${day.hotel.name ? escapeAttr(day.hotel.name) : 'עוד לא נבחר'}</b></span><span aria-hidden="true">▾</span>
+        </button>
+        <div class="hotel-body">
+          <div class="hotel-label">
+            <button class="hotel-copy-btn" data-role="copy-hotel" type="button" ${index===0?'disabled title="אין יום קודם להעתיק ממנו"':''}>⤵ אותו מלון כמו אתמול</button>
+          </div>
+          <div class="hotel-grid">
+            <div class="hotel-field">
+              <label>שם המלון</label>
+              <input data-role="hotel-name" placeholder="שם המלון" value="${escapeAttr(day.hotel.name)}">
+            </div>
+            <div class="hotel-field">
+              <label>קישור / כתובת</label>
+              <input data-role="hotel-link" placeholder="מפה / אתר" value="${escapeAttr(day.hotel.link)}">
+            </div>
+            <div class="hotel-field">
+              <label>עלות ללילה</label>
+              <input data-role="hotel-cost" type="number" min="0" inputmode="decimal" placeholder="${currencySymbolFor(dayCurrency(day))}" value="${escapeAttr(day.hotel.cost)}">
+            </div>
+            <div class="hotel-field">
+              <label>צ'ק אין</label>
+              <input data-role="hotel-checkin" type="date" value="${escapeAttr(day.hotel.checkIn)}">
+            </div>
+            <div class="hotel-field">
+              <label>צ'ק אאוט</label>
+              <input data-role="hotel-checkout" type="date" value="${escapeAttr(day.hotel.checkOut)}">
+            </div>
+            <div class="hotel-field hotel-field-checkbox">
+              <label class="hotel-checkbox-row"><input data-role="hotel-breakfast" type="checkbox" ${day.hotel.breakfast?'checked':''}> 🥐 כולל ארוחת בוקר</label>
+            </div>
+            <div class="hotel-field wide">
+              <label>הערות</label>
+              <input data-role="hotel-notes" placeholder="הערות ללינה" value="${escapeAttr(day.hotel.notes)}">
+            </div>
+          </div>
         </div>
-        <div class="hotel-grid">
-          <div class="hotel-field">
-            <label>בית מלון</label>
-            <input data-role="hotel-name" placeholder="שם המלון" value="${escapeAttr(day.hotel.name)}">
+      </div>
+      <div class="day-more no-print">
+        <details class="fold">
+          <summary>⋯ אפשרויות נוספות ליום הזה</summary>
+          <div class="fold-body">
+            <label class="day-currency-row adv">מטבע ליום זה <select data-role="day-currency">${dayCurrencyOptionsHTML(day.currency)}</select></label>
+            <div class="btn-row">
+              <button class="btn-quick" data-x="sort-day" type="button">🕐 סדר לפי שעות</button>
+              <button class="btn-quick" data-x="dup-day" type="button">📑 שכפל את היום</button>
+              <button class="btn-quick" data-x="day-earlier" type="button" ${index===0?'disabled':''}>⬆ הקדם את היום</button>
+              <button class="btn-quick" data-x="day-later" type="button" ${index===state.days.length-1?'disabled':''}>⬇ דחה את היום</button>
+              <button class="btn-quick btn-danger" data-role="del-day" type="button">🗑 מחק את היום</button>
+            </div>
           </div>
-          <div class="hotel-field">
-            <label>קישור / כתובת</label>
-            <input data-role="hotel-link" placeholder="מפה / אתר" value="${escapeAttr(day.hotel.link)}">
-          </div>
-          <div class="hotel-field">
-            <label>עלות ללילה</label>
-            <input data-role="hotel-cost" type="number" min="0" placeholder="${currencySymbolFor(dayCurrency(day))}" value="${escapeAttr(day.hotel.cost)}">
-          </div>
-          <div class="hotel-field">
-            <label>צ'ק אין</label>
-            <input data-role="hotel-checkin" type="date" value="${escapeAttr(day.hotel.checkIn)}">
-          </div>
-          <div class="hotel-field">
-            <label>צ'ק אאוט</label>
-            <input data-role="hotel-checkout" type="date" value="${escapeAttr(day.hotel.checkOut)}">
-          </div>
-          <div class="hotel-field hotel-field-checkbox">
-            <label class="hotel-checkbox-row"><input data-role="hotel-breakfast" type="checkbox" ${day.hotel.breakfast?'checked':''}> 🥐 כולל ארוחת בוקר</label>
-          </div>
-          <div class="hotel-field wide">
-            <label>הערות</label>
-            <input data-role="hotel-notes" placeholder="הערות ללינה" value="${escapeAttr(day.hotel.notes)}">
-          </div>
-        </div>
+        </details>
       </div>
     `;
+
+    card.querySelector('[data-role="hotel-toggle"]').addEventListener('click', e => {
+      const stub = card.querySelector('.hotel-stub');
+      const open = stub.classList.toggle('open');
+      e.currentTarget.setAttribute('aria-expanded', open);
+      if(open) expandedHotelDayIds.add(day.id); else expandedHotelDayIds.delete(day.id);
+    });
+    card.querySelector('[data-role="hotel-name"]').addEventListener('input', e => {
+      card.querySelector('[data-role="hotel-sum"]').textContent = e.target.value || 'עוד לא נבחר';
+    });
+    card.querySelectorAll('[data-x]').forEach(btn => btn.addEventListener('click', () => {
+      const x = btn.dataset.x;
+      if(x === 'read-day' || x === 'share-day' || x === 'nav-day'){ window.TPX?.dayAction?.(x, index); return; }
+      if(currentRole === 'viewer') return;
+      if(x === 'sort-day'){
+        day.activities.sort((a,b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+        touchDay(day);
+      } else if(x === 'dup-day'){
+        const copy = normalizeDay(JSON.parse(JSON.stringify(day)));
+        copy.id = nextId();
+        copy.activities.forEach(a => { a.id = nextId(); a.sourceIdeaId = ''; });
+        state.days.splice(index + 1, 0, copy);
+        activeDayIndex = index + 1;
+        touchDay(copy);
+      } else if(x === 'day-earlier' || x === 'day-later'){
+        const to = index + (x === 'day-earlier' ? -1 : 1);
+        if(to < 0 || to >= state.days.length) return;
+        [state.days[index], state.days[to]] = [state.days[to], state.days[index]];
+        activeDayIndex = to;
+      }
+      state.days.forEach((d, i) => recalcHotelStayForDay(i));
+      saveState(); render();
+    }));
 
     const actsEl = card.querySelector('[data-role="activities"]');
     day.activities.forEach(act => actsEl.appendChild(buildActivityRow(day, act)));
@@ -3168,6 +2114,7 @@ function render(){
     card.querySelector('[data-role="add-activity"]').addEventListener('click', () => {
       const act = newActivity();
       day.activities.push(act);
+      expandedActIds.add(act.id);
       actsEl.appendChild(buildActivityRow(day, act));
       touchDay(day); saveState();
     });
@@ -3255,37 +2202,53 @@ function unscheduleSourceIdea(act){
 
 function buildActivityRow(day, act){
   const row = document.createElement('div');
-  row.className = 'activity cat-' + act.category;
+  const isOpen = expandedActIds.has(act.id);
+  const isDone = !!((window.TPX?.doneMap?.() || {})[act.id]);
+  row.className = 'activity cat-' + act.category + (isOpen ? ' open' : '') + (isDone ? ' is-done' : '');
+  row.dataset.actId = act.id;
   const dlId = 'transport-list-' + act.id;
   const vis = f => categoryFieldVisible(ACTIVITY_CATEGORY_FIELDS, act.category, f) ? '' : 'display:none;';
   row.innerHTML = `
-    <input class="time" data-role="time" type="time" value="${escapeAttr(act.time)}">
-    <div class="title-wrap">
-      <span class="cat-badge" data-role="cat-badge">${CATEGORY_EMOJI[act.category] || CATEGORY_EMOJI[DEFAULT_CATEGORY]}</span>
-      <input class="title" data-role="title" placeholder="פעילות / יעד" value="${escapeAttr(act.title)}">
+    <div class="act-main">
+      <button class="act-check no-print" data-role="done" data-viewer-ok type="button" aria-pressed="${isDone}" title="סמנו כשסיימתם" aria-label="סמנו כשסיימתם את הפעילות">✓</button>
+      <input class="time" data-role="time" type="time" aria-label="שעה" value="${escapeAttr(act.time)}">
+      <div class="title-wrap">
+        <span class="cat-badge" data-role="cat-badge" aria-hidden="true">${CATEGORY_EMOJI[act.category] || CATEGORY_EMOJI[DEFAULT_CATEGORY]}</span>
+        <input class="title" data-role="title" aria-label="שם הפעילות" placeholder="מה עושים? (למשל: מוזיאון)" value="${escapeAttr(act.title)}">
+      </div>
     </div>
-    <button class="icon-btn del" data-role="del-activity" title="מחק פעילות">${ICONS.trash}</button>
+    <div class="act-foot">
+      <div class="chips" data-role="chips"></div>
+      <button class="btn-quick act-toggle" data-role="toggle-details" data-viewer-ok type="button" aria-expanded="${isOpen}">פרטים ▾</button>
+    </div>
     <div class="details">
-      <label class="field-icon">${ICONS.transport}<input data-role="transport" list="${dlId}" placeholder="תחבורה" value="${escapeAttr(act.transport)}"></label>
-      <label class="field-icon">${ICONS.cost}<input data-role="cost" type="number" min="0" placeholder="עלות ${currencySymbolFor(dayCurrency(day))}" value="${escapeAttr(act.cost)}"></label>
-      <div class="ai-schedule-result" data-role="budget-tip"></div>
-      <label class="field-icon">${ICONS.category}<select data-role="category">
+      <label class="field-icon">${ICONS.category}<select data-role="category" aria-label="סוג הפעילות">
         <option value="sight" ${act.category==='sight'?'selected':''}>${CATEGORY_LABELS.sight}</option>
         <option value="food" ${act.category==='food'?'selected':''}>${CATEGORY_LABELS.food}</option>
         <option value="transport" ${act.category==='transport'?'selected':''}>${CATEGORY_LABELS.transport}</option>
       </select></label>
+      <label class="field-icon">${ICONS.cost}<input data-role="cost" type="number" min="0" inputmode="decimal" placeholder="עלות ${currencySymbolFor(dayCurrency(day))}" value="${escapeAttr(act.cost)}"></label>
+      <div class="ai-schedule-result" data-role="budget-tip"></div>
+      <label class="field-icon">${ICONS.transport}<input data-role="transport" list="${dlId}" placeholder="איך מגיעים? (תחבורה)" value="${escapeAttr(act.transport)}"></label>
       <label class="field-icon">${ICONS.link}<input data-role="link" placeholder="קישור / כתובת" value="${escapeAttr(act.link)}"></label>
       <label class="field-icon" data-role="cuisine-wrap" style="${vis('cuisine')}">${ICONS.cuisine}<input data-role="cuisine" placeholder="סוג מטבח" value="${escapeAttr(act.cuisine)}"></label>
-      <label class="field-icon" data-role="duration-wrap" style="${vis('duration')}">${ICONS.duration}<input data-role="duration" placeholder="משך (לדוגמה: 2 שעות)" value="${escapeAttr(act.duration)}"></label>
+      <label class="field-icon" data-role="duration-wrap" style="${vis('duration')}">${ICONS.duration}<input data-role="duration" placeholder="כמה זמן? (לדוגמה: 2 שעות)" value="${escapeAttr(act.duration)}"></label>
       <label class="field-icon" data-role="hours-wrap" style="${vis('hours')}">${ICONS.time}<input data-role="hours" placeholder="שעות פתיחה" value="${escapeAttr(act.hours)}"></label>
-      <label class="field-icon" data-role="priority-wrap" style="${vis('priority')}">${ICONS.priority}<input data-role="priority" type="number" min="1" max="10" placeholder="עדיפות 1-10" value="${escapeAttr(act.priority)}"></label>
+      <label class="field-icon adv" data-role="priority-wrap" style="${vis('priority')}">${ICONS.priority}<input data-role="priority" type="number" min="1" max="10" placeholder="עדיפות 1-10" value="${escapeAttr(act.priority)}"></label>
       <label class="field-icon" data-role="partySize-wrap" style="${vis('partySize')}">${ICONS.people}<input data-role="partySize" type="number" min="1" placeholder="מספר סועדים" value="${escapeAttr(act.partySize)}"></label>
-      <label class="field-icon" data-role="confirmation-wrap" style="${vis('confirmation')}">${ICONS.booking}<input data-role="confirmation" placeholder="מספר אישור / הזמנה" value="${escapeAttr(act.confirmation)}"></label>
-      <label class="field-icon">${ICONS.priority}<input data-role="rating" type="number" min="1" max="5" step="0.1" placeholder="דירוג בגוגל מפות (1-5)" value="${escapeAttr(act.rating)}"></label>
-      <label class="field-icon" data-role="equipment-wrap" style="${vis('equipment')}">${ICONS.equipment}<input data-role="equipment" placeholder="ציוד נדרש (מופרד בפסיקים)" value="${escapeAttr(act.equipment)}"></label>
-      <label class="field-icon booking" data-role="booking-wrap" style="${vis('booking')}">${ICONS.booking}<input data-role="booking" type="checkbox" ${act.booking ? 'checked' : ''}><span>הזמנה מראש?</span></label>
+      <label class="field-icon booking" data-role="booking-wrap" style="${vis('booking')}"><input data-role="booking" type="checkbox" ${act.booking ? 'checked' : ''}><span>צריך להזמין מראש</span></label>
+      <label class="field-icon" data-role="confirmation-wrap" style="${vis('confirmation')}">${ICONS.booking}<input data-role="confirmation" placeholder="מספר אישור הזמנה" value="${escapeAttr(act.confirmation)}"></label>
+      <label class="field-icon adv">${ICONS.priority}<input data-role="rating" type="number" min="1" max="5" step="0.1" placeholder="דירוג בגוגל מפות (1-5)" value="${escapeAttr(act.rating)}"></label>
+      <label class="field-icon" data-role="equipment-wrap" style="${vis('equipment')}">${ICONS.equipment}<input data-role="equipment" placeholder="מה להביא? (מופרד בפסיקים)" value="${escapeAttr(act.equipment)}"></label>
       <label class="field-icon notes">${ICONS.notes}<input data-role="notes" placeholder="הערות" value="${escapeAttr(act.notes)}"></label>
       <datalist id="${dlId}">${TRANSPORT_OPTIONS.map(o=>`<option value="${o}">`).join('')}</datalist>
+      <div class="act-actions no-print">
+        <button class="btn-quick" data-role="act-nav" data-viewer-ok type="button">🧭 נווט לשם</button>
+        <button class="btn-quick" data-role="act-up" type="button">⬆ הזז למעלה</button>
+        <button class="btn-quick" data-role="act-down" type="button">⬇ הזז למטה</button>
+        <button class="btn-quick" data-role="act-move-day" type="button">📅 העבר ליום אחר</button>
+        <button class="btn-quick btn-danger" data-role="del-activity" type="button">🗑 מחק פעילות</button>
+      </div>
     </div>
   `;
 
@@ -3309,7 +2272,8 @@ function buildActivityRow(day, act){
   });
   row.querySelector('[data-role="category"]').addEventListener('change', e => {
     act.category = e.target.value;
-    row.className = 'activity cat-' + act.category;
+    row.classList.remove('cat-sight','cat-food','cat-transport');
+    row.classList.add('cat-' + act.category);
     catBadge.textContent = CATEGORY_EMOJI[act.category] || CATEGORY_EMOJI[DEFAULT_CATEGORY];
     CONDITIONAL_FIELDS.forEach(field => {
       row.querySelector(`[data-role="${field}-wrap"]`).style.display = categoryFieldVisible(ACTIVITY_CATEGORY_FIELDS, act.category, field) ? '' : 'none';
@@ -3335,6 +2299,63 @@ function buildActivityRow(day, act){
     unscheduleSourceIdea(act);
     row.remove();
     touchDay(day); saveState(); updateStats(); renderAttractions();
+  });
+
+  // ---- v2 UI: collapsed summary row, done mark, move/navigate actions ----
+  const chipsEl = row.querySelector('[data-role="chips"]');
+  const renderChips = () => {
+    const c = [];
+    if(act.cost) c.push('💰 ' + act.cost + currencySymbolFor(dayCurrency(day)));
+    if(act.transport) c.push('🚌 ' + act.transport);
+    if(act.duration) c.push('⏱ ' + act.duration);
+    if(act.booking) c.push(act.confirmation ? '✅ הוזמן' : '⚠️ צריך להזמין');
+    if(act.notes) c.push('📝 ' + (act.notes.length > 28 ? act.notes.slice(0,28) + '…' : act.notes));
+    chipsEl.innerHTML = c.map(x => `<span class="chip">${escapeAttr(x)}</span>`).join('');
+  };
+  renderChips();
+  const toggleBtn = row.querySelector('[data-role="toggle-details"]');
+  const setOpen = open => {
+    row.classList.toggle('open', open);
+    toggleBtn.setAttribute('aria-expanded', open);
+    toggleBtn.textContent = open ? 'סגור ▴' : 'פרטים ▾';
+    if(open) expandedActIds.add(act.id); else { expandedActIds.delete(act.id); renderChips(); }
+  };
+  setOpen(isOpen);
+  toggleBtn.addEventListener('click', () => setOpen(!row.classList.contains('open')));
+  const doneBtn = row.querySelector('[data-role="done"]');
+  doneBtn.addEventListener('click', () => {
+    const now = !row.classList.contains('is-done');
+    row.classList.toggle('is-done', now);
+    doneBtn.setAttribute('aria-pressed', now);
+    window.TPX?.setDone?.(act.id, now);
+  });
+  row.querySelector('[data-role="act-nav"]').addEventListener('click', () => {
+    const url = /^https?:\/\//i.test(act.link || '') ? act.link
+      : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(((act.mapQuery || act.link || act.title || '') + ' ' + (day.destination || '')).trim());
+    window.open(url, '_blank', 'noopener');
+  });
+  const moveAct = delta => {
+    const idx = day.activities.indexOf(act);
+    const to = idx + delta;
+    if(idx < 0 || to < 0 || to >= day.activities.length) return;
+    [day.activities[idx], day.activities[to]] = [day.activities[to], day.activities[idx]];
+    touchDay(day); saveState(); render();
+  };
+  row.querySelector('[data-role="act-up"]').addEventListener('click', () => moveAct(-1));
+  row.querySelector('[data-role="act-down"]').addEventListener('click', () => moveAct(1));
+  row.querySelector('[data-role="act-move-day"]').addEventListener('click', () => {
+    const apply = toIdx => {
+      const target = state.days[toIdx];
+      if(!target || target === day) return;
+      const idx = day.activities.indexOf(act);
+      if(idx > -1) day.activities.splice(idx, 1);
+      if(!day.activities.length) day.activities.push(newActivity());
+      target.activities.push(act);
+      touchDay(day); touchDay(target); saveState(); render();
+      showToast('הפעילות הועברה ליום ' + (toIdx + 1));
+    };
+    if(window.TPX?.pickDay) window.TPX.pickDay('לאיזה יום להעביר?', apply);
+    else { const n = Number(prompt('לאיזה יום להעביר? (מספר)')); if(n) apply(n - 1); }
   });
 
   return row;
@@ -4500,7 +3521,8 @@ const IDEA_SORTERS = {
   category: (a,b) => (CATEGORY_LABELS[a.category]||'').localeCompare(CATEGORY_LABELS[b.category]||'', 'he'),
   name: (a,b) => (a.nameHe||a.nameEn||'').localeCompare(b.nameHe||b.nameEn||'', 'he'),
   createdAt: (a,b) => (b.createdAt||0) - (a.createdAt||0),
-  priority: (a,b) => (Number(b.priority)||0) - (Number(a.priority)||0)
+  priority: (a,b) => (Number(b.priority)||0) - (Number(a.priority)||0),
+  votes: (a,b) => (window.TPX?.voteCount?.(b.id)||0) - (window.TPX?.voteCount?.(a.id)||0)
 };
 
 function renderIdeaAuthorFilterOptions(){
@@ -5639,7 +4661,7 @@ function applyRoleRestrictions(){
   [daysEl, document.getElementById('attractionsBody'), document.getElementById('dayGroupsBody'), document.getElementById('mapGrid'), document.getElementById('documentsBody')].forEach(scope => {
     if(!scope) return;
     scope.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = isViewer; });
-    scope.querySelectorAll('button').forEach(el => { el.style.display = isViewer ? 'none' : ''; });
+    scope.querySelectorAll('button:not([data-viewer-ok])').forEach(el => { el.style.display = isViewer ? 'none' : ''; });
   });
   [tripNameEl, startDateEl, currencySelectEl, secondaryCurrencySelectEl, budgetCapInputEl].forEach(el => { el.disabled = isViewer; });
   const toggle = id => { const el = document.getElementById(id); if(el) el.style.display = isViewer ? 'none' : ''; };
@@ -5994,7 +5016,7 @@ document.getElementById('printBtn').addEventListener('click', () => window.print
 const PDF_HIDE_SELECTORS = '.icon-btn,.add-activity,.toolbar,.autosave-note,.packing-add-row,.btn-quick,'
   + '.idea-assign,.ideas-filters,.packing-suggest-row,#packingSuggestionsBanner,.ideas-map-divider,#mapGrid,#mapSingle,.map-legend,.idea-map-wrap,.doc-attach-row,.flight-video-open,'
   + '.account-bar,.email-auth-form,.sharing-panel,.join-code-row,.readonly-banner,'
-  + '#sharingPanelToggle,.main-tabs,.day-picker,#toastWrap,.trip-switcher-row';
+  + '#sharingPanelToggle,.main-tabs,.day-picker,#toastWrap,.trip-switcher-row,.appbar,.no-print,.day-tools,.act-foot,.act-actions,.act-check,.day-more';
 
 async function exportPdf(){
   const btn = document.getElementById('exportPdfBtn');
@@ -6222,6 +5244,60 @@ document.getElementById('emailAuthSubmit').addEventListener('click', async () =>
   }
 });
 
+/* ---------------- v2 hooks: let extras.js react to core re-renders ---------------- */
+{
+  const hook = (name, ...a) => { try{ window.TPX?.[name]?.(...a); }catch(e){ console.error('TPX.' + name, e); } };
+  const r0 = render; render = function(){ r0(); hook('onRender'); };
+  const ra0 = renderAttractions; renderAttractions = function(){ ra0(); hook('decorateIdeas'); };
+  const rt0 = renderTripSelect; renderTripSelect = function(){ rt0(); hook('onTrips'); };
+  const rb0 = renderAccountBar; renderAccountBar = function(){ rb0(); hook('onAccount'); };
+  const ss0 = showSyncError; showSyncError = function(show){ ss0(show); hook('onSync', show); };
+  const sw0 = switchToTrip; switchToTrip = async function(id){ const r = await sw0(id); hook('onTripSwitched', id); return r; };
+}
+
+/* ---------------- Bridge for extras.js (new v2 features live in their own file) ---------------- */
+window.TP = {
+  get state(){ return state; },
+  get tripId(){ return activeTripId; },
+  get user(){ return currentUser; },
+  get role(){ return currentRole; },
+  get members(){ return currentMembers; },
+  get codes(){ return currentCodes; },
+  get trips(){ return tripsIndex; },
+  get showArchived(){ return showArchivedTrips; },
+  get db(){ return db; },
+  get myName(){ return myDisplayName; },
+  get activeDayIndex(){ return activeDayIndex; },
+  get hasAI(){ return !!(aiModel && aiModelFast); },
+  get packing(){ return state.packing; },
+  CURRENCIES, EXCHANGE_RATES, CATEGORY_EMOJI,
+  saveState, savePackingList, render, renderPacking, renderAttractions, renderSharingPanel, renderAccountBar,
+  showToast, resolveMemberName, escapeAttr, nextId, switchToTrip, createTrip, refreshTripsIndex,
+  convertAmount, currencySymbolFor, dayCurrency, dateForDayIndex, formatDate, setActiveTab, goToDay,
+  logActivityEvent, tripHasEnded, normalizeState, newActivity, newAttractionIdea, touchDay, appendTripItem,
+  fbRemoveMember, fbJoinByCode, timeAgoLabel,
+  totalPlanned(){ return tripTotalSpent; },
+  expandActivity(id){ expandedActIds.add(id); },
+  expandIdea(id){ expandedIdeaIds.add(id); },
+  expandDoc(id){ expandedDocIds.add(id); },
+  refreshMap(){
+    const map = ensureLeafletMap();
+    if(map){ map.invalidateSize(); if(lastMapBounds && lastMapBounds.length) map.fitBounds(lastMapBounds, { padding:[30,30], maxZoom:15 }); }
+  },
+  async setMyName(name){
+    myDisplayName = name;
+    await fbSetDisplayName(currentUser.uid, name);
+    memberNames[currentUser.uid] = name;
+    renderAccountBar(); renderSharingPanel();
+  },
+  async setRole(uid, role){
+    await updateDoc(doc(db,'trips',activeTripId), { ['members.'+uid]: role });
+    currentMembers[uid] = role;
+    renderSharingPanel();
+  }
+};
+document.dispatchEvent(new Event('tp-ready'));
+
 /* ---------------- Boot ---------------- */
 async function afterAuthReady(){
   await migrateLocalTripsIfNeeded();
@@ -6237,7 +5313,7 @@ async function afterAuthReady(){
       // than silently falling through to some other trip, ask to sign in as the right
       // account and retry, since that's almost certainly what's actually needed here.
       console.warn('לא ניתן לפתוח את הטיול המבוקש:', err);
-      daysEl.innerHTML = '<p style="color:#fff;">הקישור הזה מוביל לטיול ספציפי ב-triplan, '
+      daysEl.innerHTML = '<p class="boot-msg">הקישור הזה מוביל לטיול ספציפי ב-triplan, '
         + 'אבל אינך מחובר/ת כרגע לחשבון שחבר בו.<br>התחברו עם החשבון הנכון כדי לפתוח אותו.</p>';
       document.getElementById('emailAuthForm').style.display = 'flex';
       return;
@@ -6252,9 +5328,9 @@ async function afterAuthReady(){
 
 if(!FIREBASE_CONFIGURED){
   document.getElementById('accountStatus').textContent = '⚠️ Firebase לא הוגדר עדיין';
-  daysEl.innerHTML = '<p style="color:#fff;">יש להגדיר את firebaseConfig בראש קוד ה-JS כדי להשתמש באפליקציה.</p>';
+  daysEl.innerHTML = '<p class="boot-msg">יש להגדיר את firebaseConfig בראש קוד ה-JS כדי להשתמש באפליקציה.</p>';
 } else {
-  daysEl.innerHTML = '<p style="color:#fff;opacity:.7;">טוען את הטיולים שלך…</p>';
+  daysEl.innerHTML = '<p class="boot-msg">טוען את הטיולים שלך…</p>';
   let anonymousAttempted = false;
   onAuthStateChanged(fbAuth, async (user) => {
     // Firebase only fires this callback once it has finished checking for a
@@ -6279,12 +5355,13 @@ if(!FIREBASE_CONFIGURED){
         await afterAuthReady();
       }catch(err){
         console.error('שגיאת טעינה:', err);
-        daysEl.innerHTML = '<p style="color:#fff;">שגיאה בטעינת הטיולים מהענן: ' + escapeAttr(err.message) +
+        daysEl.innerHTML = '<p class="boot-msg">שגיאה בטעינת הטיולים מהענן: ' + escapeAttr(err.message) +
           '<br>ודאו שה-Firestore נוצר ושחוקי האבטחה (firestore.rules) פורסמו בקונסולת Firebase.</p>';
       }
     }
   });
 }
 </script>
+<script type="module" src="./extras.js"></script>
 </body>
 </html>
