@@ -47,14 +47,6 @@ service cloud.firestore {
           && request.resource.data.get('lastJoinCode', '') != ''
           && get(/databases/$(database)/documents/tripCodes/$(request.resource.data.lastJoinCode)).data.tripId == tripId
           && get(/databases/$(database)/documents/tripCodes/$(request.resource.data.lastJoinCode)).data.role == request.resource.data.members[request.auth.uid])
-        ||
-        // 4) Leaving a trip - a non-owner member may remove only their own
-        //    membership entry, and nothing else.
-        (request.auth.uid in resource.data.members
-          && myRole() != 'owner'
-          && changedKeys().hasOnly(['members'])
-          && request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([request.auth.uid])
-          && !(request.auth.uid in request.resource.data.members))
       );
 
       allow delete: if isSignedIn() && myRole() == 'owner';
@@ -116,105 +108,6 @@ service cloud.firestore {
         allow read: if isSignedIn() && isMember();
         allow create, update: if isSignedIn() && request.auth.uid == uid && isMember();
         allow delete: if isSignedIn() && isMember();
-      }
-
-      // ---------- v2 group features (all additive: new subcollections only) ----------
-      function tripMembers() {
-        return get(/databases/$(database)/documents/trips/$(tripId)).data.members;
-      }
-      function isTripMember() {
-        return isSignedIn() && request.auth.uid in tripMembers();
-      }
-      function isTripManager() {
-        return isTripMember() && tripMembers()[request.auth.uid] in ['owner', 'editor'];
-      }
-
-      // Group chat: any member reads and posts as themselves; messages are
-      // never edited; the author or the trip owner may delete one.
-      match /messages/{msgId} {
-        allow read: if isTripMember();
-        allow create: if isTripMember()
-          && request.resource.data.by == request.auth.uid
-          && request.resource.data.text is string
-          && request.resource.data.text.size() <= 2000;
-        allow update: if false;
-        allow delete: if isTripMember()
-          && (resource.data.by == request.auth.uid || tripMembers()[request.auth.uid] == 'owner');
-      }
-
-      // Polls: a member may only write their own entry in `votes`; the poll's
-      // creator (or the owner) may close/reopen or delete it.
-      match /polls/{pollId} {
-        allow read: if isTripMember();
-        allow create: if isTripMember()
-          && request.resource.data.by == request.auth.uid
-          && request.resource.data.votes == {};
-        allow update: if isTripMember() && (
-          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])
-            && request.resource.data.votes.diff(resource.data.votes).affectedKeys().hasOnly([request.auth.uid]))
-          ||
-          ((resource.data.by == request.auth.uid || tripMembers()[request.auth.uid] == 'owner')
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closed']))
-        );
-        allow delete: if isTripMember()
-          && (resource.data.by == request.auth.uid || tripMembers()[request.auth.uid] == 'owner');
-      }
-
-      // Shared expenses: any member adds as themselves; never edited (a wrong
-      // entry is deleted and re-added); creator or owner/editor may delete.
-      match /expenses/{expenseId} {
-        allow read: if isTripMember();
-        allow create: if isTripMember()
-          && request.resource.data.by == request.auth.uid
-          && request.resource.data.amount is number;
-        allow update: if false;
-        allow delete: if isTripMember()
-          && (resource.data.by == request.auth.uid || isTripManager());
-      }
-
-      // Group tasks and the shared "who brings what" list: any member adds as
-      // themselves and may tick/claim an item, but not change who created it.
-      match /tasks/{taskId} {
-        allow read: if isTripMember();
-        allow create: if isTripMember() && request.resource.data.by == request.auth.uid;
-        allow update: if isTripMember() && request.resource.data.by == resource.data.by;
-        allow delete: if isTripMember()
-          && (resource.data.by == request.auth.uid || isTripManager());
-      }
-      match /sharedPacking/{itemId} {
-        allow read: if isTripMember();
-        allow create: if isTripMember() && request.resource.data.by == request.auth.uid;
-        allow update: if isTripMember() && request.resource.data.by == resource.data.by;
-        allow delete: if isTripMember()
-          && (resource.data.by == request.auth.uid || isTripManager());
-      }
-
-      // One doc per member, written only by that member, readable by the trip:
-      // idea votes, "online now" heartbeat, and opt-in live location.
-      match /ideaVotes/{uid} {
-        allow read: if isTripMember();
-        allow write: if isTripMember() && request.auth.uid == uid;
-      }
-      match /presence/{uid} {
-        allow read: if isTripMember();
-        allow write: if isTripMember() && request.auth.uid == uid;
-      }
-      match /locations/{uid} {
-        allow read: if isTripMember();
-        allow write: if isTripMember() && request.auth.uid == uid;
-      }
-
-      // Private notes + emergency card: only the member themselves.
-      match /privateNotes/{uid} {
-        allow read, write: if isTripMember() && request.auth.uid == uid;
-      }
-
-      // Shared "done" checkmarks for activities (kept outside the trip doc so
-      // every member - including viewers - can tick what was done).
-      match /marks/{markId} {
-        allow read: if isTripMember();
-        allow create, update: if isTripMember();
-        allow delete: if false;
       }
     }
 
