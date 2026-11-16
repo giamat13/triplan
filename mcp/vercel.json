@@ -1,4 +1,8 @@
 {
   "framework": null,
-  "rewrites": [{ "source": "/mcp", "destination": "/api/mcp" }]
+  "rewrites": [
+    { "source": "/mcp", "destination": "/api/mcp" },
+    { "source": "/api/v1", "destination": "/api/v1" },
+    { "source": "/api/v1/(.*)", "destination": "/api/v1" }
+  ]
 }

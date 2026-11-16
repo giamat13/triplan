@@ -10,7 +10,7 @@
       "**/.*",
       "**/node_modules/**",
       "tests/**",
-      "UPGRADE_PROMPT.md"
+      "docs/**"
     ],
     "headers": [
       {

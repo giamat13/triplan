@@ -94,12 +94,13 @@ async function openApp({ width, theme, tab = 'days' }){
   const context = await browser.newContext({
     viewport: { width, height: width < 600 ? 844 : 900 },
     deviceScaleFactor: 1, locale: 'he-IL', serviceWorkers: 'block',
-    colorScheme: theme === 'dark' ? 'dark' : 'light',
+    colorScheme: 'light',
   });
   await context.addInitScript(({ seed, theme, tab }) => {
     globalThis.__fbSeed = seed;
     try{
-      localStorage.setItem('triplan-display-v1', JSON.stringify({ textSize: 'normal', theme, motion: 'reduce' }));
+      const comfort = theme === 'comfort';
+      localStorage.setItem('triplan-display-v1', JSON.stringify({ textSize: 'normal', theme: comfort ? 'light' : theme, motion: 'reduce', comfort: comfort ? 'on' : 'off' }));
       localStorage.setItem('triplan-active-tab-v1', tab);
     }catch(e){}
   }, { seed: SEED, theme, tab });
@@ -137,7 +138,7 @@ async function axeCheck(page, name, include){
   results.axe.push({
     name, serious: serious.length, total: r.violations.length,
     violations: r.violations.map(v => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.length,
-      targets: v.nodes.slice(0, 4).map(n => n.target.join(' ')) })),
+      targets: v.nodes.slice(0, 6).map(n => n.target.join(' ') + (n.any[0] && n.any[0].data && n.any[0].data.fgColor ? ` [${n.any[0].data.fgColor} on ${n.any[0].data.bgColor} = ${n.any[0].data.contrastRatio}]` : '')) })),
   });
 }
 async function shot(page, name, fullPage = true){
@@ -156,7 +157,7 @@ function expect(cond, message){ if(!cond) throw new Error(message); }
 /* ---------------- 1. axe on every tab, width and theme ---------------- */
 const TABS = ['days', 'ideas', 'budget', 'packing'];
 for(const width of [390, 1280]){
-  for(const theme of ['light', 'dark', 'contrast']){
+  for(const theme of ['light', 'contrast', 'comfort']){
     const { context, page } = await openApp({ width, theme });
     for(const tab of TABS){
       await page.evaluate(t => document.querySelector(`.tab-btn[data-tab="${t}"]`).click(), tab);

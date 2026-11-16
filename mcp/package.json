@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx scripts/dev.ts",
     "typecheck": "tsc",
-    "test": "tsx scripts/test-client.ts"
+    "test": "tsx scripts/test-client.ts",
+    "test:api": "tsx scripts/test-api.ts"
   },
   "keywords": ["mcp", "model-context-protocol", "claude"],
   "author": "GIAMAT13",
