@@ -8,7 +8,9 @@
       "firebase.json",
       "firestore.rules",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "tests/**",
+      "UPGRADE_PROMPT.md"
     ],
     "headers": [
       {

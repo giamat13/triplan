@@ -1,0 +1,13 @@
+{
+  "name": "triplan-a11y-test",
+  "private": true,
+  "type": "module",
+  "description": "Accessibility and smoke test for index.html, with an in-memory Firebase mock.",
+  "scripts": {
+    "test": "node run.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
+    "playwright": "1.56.1"
+  }
+}
